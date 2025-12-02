@@ -20,13 +20,15 @@ class PushEventCard extends StatelessWidget {
   Widget build(final BuildContext context) => BaseEventCard.singular(
         isInTimeline: isInTimeline,
         onTap: () async {
-          await AutoRouter.of(context).push(
-            RepositoryRoute(
-              repositoryURL: event.repo!.url!,
-              branch: data.ref!.split('/').last,
-              index: 2,
-            ),
-          );
+          if (event.repo?.url != null && data.ref != null) {
+            await AutoRouter.of(context).push(
+              RepositoryRoute(
+                repositoryURL: event.repo!.url!,
+                branch: data.ref!.split('/').last,
+                index: 2,
+              ),
+            );
+          }
         },
         userLogin: event.actor!.login,
         date: event.createdAt,
@@ -47,12 +49,12 @@ class PushEventCard extends StatelessWidget {
           title: Row(
             children: <Widget>[
               Text(
-                '${data.size} commit${data.size! > 1 ? 's' : ''} to',
+                '${data.size ?? 0} commit${(data.size ?? 0) > 1 ? 's' : ''} to',
                 // style: AppThemeTextStyles.eventCardChildTitleSmall(context),
               ),
               Flexible(
                 child: BranchLabel(
-                  data.ref!.split('/').last,
+                  data.ref?.split('/').last ?? '',
                 ),
               ),
             ],
@@ -61,25 +63,33 @@ class PushEventCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
-                children: List.generate(
-                  data.commits!.length,
-                  (final int index) => InkPot(
+                children: (data.commits ?? []).isEmpty
+                    ? [const SizedBox.shrink()]
+                    : List.generate(
+                        (data.commits ?? []).length,
+                        (final int index) {
+                          final commit = (data.commits ?? [])[index];
+                          return InkPot(
                     onTap: () async {
-                      await AutoRouter.of(context).push(
-                        CommitInfoRoute(
-                          commitURL: data.commits![index].url!,
-                        ),
-                      );
+                      if (commit.url != null) {
+                        await AutoRouter.of(context).push(
+                          CommitInfoRoute(
+                            commitURL: commit.url!,
+                          ),
+                        );
+                      }
                     },
                     onLongPress: () async {
-                      await AutoRouter.of(context).push(
-                        RepositoryRoute(
-                          index: 2,
-                          branch: data.ref!.split('/').last,
-                          repositoryURL: event.repo!.url!,
-                          initSHA: data.commits![index].sha,
-                        ),
-                      );
+                      if (data.ref != null && event.repo?.url != null) {
+                        await AutoRouter.of(context).push(
+                          RepositoryRoute(
+                            index: 2,
+                            branch: data.ref!.split('/').last,
+                            repositoryURL: event.repo!.url!,
+                            initSHA: commit.sha,
+                          ),
+                        );
+                      }
                     },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -90,21 +100,23 @@ class PushEventCard extends StatelessWidget {
                         TextSpan(
                           style: Theme.of(context).textTheme.bodyMedium,
                           children: <InlineSpan>[
-                            TextSpan(
-                              text:
-                                  '#${data.commits![index].sha!.substring(0, 6)}',
-                              style: TextStyle(
-                                color: context.colorScheme.primary,
+                            if (commit.sha != null)
+                              TextSpan(
+                                text:
+                                    '#${commit.sha!.substring(0, commit.sha!.length > 6 ? 6 : commit.sha!.length)}',
+                                style: TextStyle(
+                                  color: context.colorScheme.primary,
+                                ),
                               ),
-                            ),
-                            TextSpan(
-                                text: '  ${data.commits![index].message!}'),
+                            if (commit.message != null)
+                              TextSpan(text: '  ${commit.message}'),
                           ],
                         ),
                       ),
                     ),
-                  ),
-                ),
+                          );
+                        },
+                      ),
               ),
             ),
           ],

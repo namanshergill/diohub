@@ -189,9 +189,6 @@ fragment issueInfo on Issue{
             ...actor
         }
     }
-    projectCards{
-        totalCount
-    }
     projectsV2{
         totalCount
     }
@@ -249,9 +246,6 @@ fragment pullInfo on PullRequest{
         nodes {
             ...actor
         }
-    }
-    projectCards{
-        totalCount
     }
     projectsV2{
         totalCount

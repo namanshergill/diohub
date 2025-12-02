@@ -1,0 +1,22 @@
+name: dynamic_sliver_app_bar_example
+description: Example app for dynamic_sliver_app_bar package
+publish_to: 'none'
+
+environment:
+  sdk: ^3.6.0
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dynamic_sliver_app_bar:
+    path: ../
+  sliver_tools: ^0.2.12
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

@@ -15,7 +15,7 @@ class APICache {
   }) : cacheOptions = CacheOptions(
           store: BaseAPIHandler._cacheStore,
           policy: cachePolicy,
-          hitCacheOnErrorExcept: hitCacheOnErrorExcept,
+          hitCacheOnErrorCodes: hitCacheOnErrorExcept ?? <int>[],
           keyBuilder: keyBuilder,
           maxStale: maxStale,
           allowPostMethod: allowPostMethod,
@@ -30,7 +30,7 @@ class APICache {
           allowPostMethod: true,
           maxAge: _gqlMaxAge,
           cachePolicy: CachePolicy.refreshForceCache,
-          keyBuilder: generateUUIDFromRequest,
+          keyBuilder: generateUUIDFromRequest.call(),
         );
 
   APICache._copyWith({
@@ -54,9 +54,9 @@ class APICache {
 
   APICache copyWith({
     final Duration? maxAge,
-    final Nullable<List<int>>? hitCacheOnErrorExcept,
+    final List<int>? hitCacheOnErrorExcept,
     final CacheKeyBuilder? keyBuilder,
-    final Nullable<Duration>? maxStale,
+    final Duration? maxStale,
     final CachePriority? priority,
     final bool? allowPostMethod,
     final CachePolicy? cachePolicy = CachePolicy.request,
@@ -64,7 +64,7 @@ class APICache {
       APICache._copyWith(
         cacheOptions: cacheOptions.copyWith(
           keyBuilder: keyBuilder,
-          hitCacheOnErrorExcept: hitCacheOnErrorExcept,
+          hitCacheOnErrorCodes: hitCacheOnErrorExcept,
           allowPostMethod: allowPostMethod,
           policy: cachePolicy,
           maxStale: maxStale,
@@ -74,7 +74,12 @@ class APICache {
       );
 }
 
-String generateUUIDFromRequest(final RequestOptions options) => const Uuid().v5(
-      Uuid.NAMESPACE_URL,
-      options.data.toString(),
-    );
+CacheKeyBuilder generateUUIDFromRequest() => ({
+      required final Uri url,
+      final Map<String, String>? headers,
+      final Object? body,
+    }) =>
+        const Uuid().v5(
+          Uuid.NAMESPACE_URL,
+          headers?.toString() ?? '$url',
+        );

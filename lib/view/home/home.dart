@@ -3,7 +3,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:diohub/adapters/deep_linking_handler.dart';
 import 'package:diohub/common/animations/size_expanded_widget.dart';
 import 'package:diohub/common/events/events.dart';
-import 'package:diohub/common/misc/button.dart';
 import 'package:diohub/common/misc/collapsible_app_bar.dart';
 import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/misc/profile_banner.dart';
@@ -20,6 +19,20 @@ import 'package:diohub/view/home/widgets/pulls_tab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dynamic_tabs/flutter_dynamic_tabs.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
+
+class _ActionCard {
+  final IconData icon;
+  final String label;
+  final int? count;
+  final VoidCallback onTap;
+
+  _ActionCard({
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.onTap,
+  });
+}
 
 @RoutePage()
 class HomeScreen extends StatefulWidget {
@@ -43,6 +56,12 @@ class HomeScreenState extends State<HomeScreen>
   bool get wantKeepAlive => true;
 
   // late TabController _tabController;
+  bool _showAllActions = false;
+  late final AnimationController _expandAnimationController =
+      AnimationController(
+    duration: const Duration(milliseconds: 300),
+    vsync: this,
+  );
 
   late final DynamicTabsController tabsController = DynamicTabsController(
     vsync: this,
@@ -128,6 +147,12 @@ class HomeScreenState extends State<HomeScreen>
   }
 
   @override
+  void dispose() {
+    _expandAnimationController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(final BuildContext context) {
     super.build(context);
     return SafeArea(
@@ -136,6 +161,8 @@ class HomeScreenState extends State<HomeScreen>
         builder: (final BuildContext context, final PreferredSizeWidget tabBar,
                 final Widget tabView) =>
             DynamicScroll(
+          contentVersion: _showAllActions ? 1 : 0,
+          animationController: _expandAnimationController,
           collapsedWidget: buildCollapsedAppBar(context),
           bottom: SizeExpandedSection(
             expand: tabsController.activeLength > 1,
@@ -149,86 +176,164 @@ class HomeScreenState extends State<HomeScreen>
                 const SizedBox(
                   height: 16,
                 ),
-                ElevatedButtonTheme(
-                  data: ElevatedButtonThemeData(
-                    style: ElevatedButton.styleFrom(
-                      iconSize: 16,
-                      textStyle: context.textTheme.labelMedium,
-                    ),
-                  ),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      children: <Widget>[
-                        AppButton.icon(
-                          onPressed: () {
-                            tabsController.openTab('Issues');
-                          },
-                          icon: const Icon(
-                            Octicons.issue_opened,
-                            // color: Colors.green,
-                          ),
-                          child: Text(
-                            '${context.viewer.issues.totalCount} Issues',
-                          ),
-                        ),
-                        AppButton.icon(
-                          onPressed: () {
-                            tabsController.openTab('Pulls');
-                          },
-                          icon: const Icon(
-                            Octicons.git_pull_request,
-                            // color: Colors.green,
-                          ),
-                          child: Text(
-                            '${context.viewer.pullRequests.totalCount} Pull Requests',
-                          ),
-                        ),
-                        AppButton.icon(
-                          onPressed: () {
-                            tabsController.openTab('orgs');
-                          },
-                          icon: const Icon(
-                            Octicons.organization,
-                          ),
-                          child: Text(
-                            '${context.viewer.organizations.totalCount} Organizations',
-                          ),
-                        ),
-                        AppButton.icon(
-                          onPressed: () {
-                            // tabsController.openTab('repos');
-                          },
-                          icon: const Icon(
-                            Octicons.repo,
-                          ),
-                          child: Text(
-                            '${context.viewer.repositories.totalCount} Repos',
-                          ),
-                        ),
-                        AppButton.icon(
-                          onPressed: () {
-                            // tabsController.openTab('repos');
-                          },
-                          icon: const Icon(
-                            Icons.settings_rounded,
-                          ),
-                          child: const Text(
-                            'App Settings',
-                          ),
-                        ),
-                      ]
-                          .map(
-                            (final Widget e) => Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // All actions with wrap layout
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            // Calculate number of columns based on available width
+                            final int columns = (constraints.maxWidth / 160)
+                                .floor()
+                                .clamp(2, 6);
+                            final double cardWidth =
+                                (constraints.maxWidth - (12 * (columns - 1))) /
+                                    columns;
+
+                            // All available actions
+                            final allActions = [
+                              _ActionCard(
+                                icon: Octicons.issue_opened,
+                                label: 'Issues',
+                                count: context.viewer.issues.totalCount,
+                                onTap: () => tabsController.openTab('Issues'),
                               ),
-                              child: e,
-                            ),
-                          )
-                          .toList(),
-                    ),
+                              _ActionCard(
+                                icon: Octicons.git_pull_request,
+                                label: 'Pull Requests',
+                                count: context.viewer.pullRequests.totalCount,
+                                onTap: () => tabsController.openTab('Pulls'),
+                              ),
+                              _ActionCard(
+                                icon: Octicons.organization,
+                                label: 'Organizations',
+                                count: context.viewer.organizations.totalCount,
+                                onTap: () => tabsController.openTab('orgs'),
+                              ),
+                              _ActionCard(
+                                icon: Octicons.repo,
+                                label: 'Repositories',
+                                count: context.viewer.repositories.totalCount,
+                                onTap: () {
+                                  // tabsController.openTab('repos');
+                                },
+                              ),
+                              _ActionCard(
+                                icon: Icons.settings_rounded,
+                                label: 'App Settings',
+                                count: null,
+                                onTap: () {
+                                  // Navigate to settings
+                                },
+                              ),
+                            ];
+
+                            // Show as many cards as fit in one row
+                            final int visibleCount =
+                                columns.clamp(2, allActions.length);
+                            final List<_ActionCard> visibleActions =
+                                allActions.take(visibleCount).toList();
+                            final List<_ActionCard> hiddenActions =
+                                allActions.skip(visibleCount).toList();
+
+                            return Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: [
+                                // Visible actions
+                                ...visibleActions.map((action) => SizedBox(
+                                      width: cardWidth,
+                                      child: _buildQuickActionCard(
+                                        context: context,
+                                        icon: action.icon,
+                                        label: action.label,
+                                        count: action.count,
+                                        onTap: action.onTap,
+                                      ),
+                                    )),
+                                // Hidden actions (expandable)
+                                if (_showAllActions)
+                                  ...hiddenActions.asMap().entries.map((entry) {
+                                    final action = entry.value;
+                                    final isLastAndSettings =
+                                        entry.key == hiddenActions.length - 1 &&
+                                            action.label == 'App Settings';
+
+                                    return SizedBox(
+                                      width: isLastAndSettings
+                                          ? constraints.maxWidth
+                                          : cardWidth,
+                                      child: _buildQuickActionCard(
+                                        context: context,
+                                        icon: action.icon,
+                                        label: action.label,
+                                        count: action.count,
+                                        onTap: action.onTap,
+                                      ),
+                                    );
+                                  }),
+                                // Compact toggle button (only if there are hidden actions)
+                                if (hiddenActions.isNotEmpty)
+                                  SizedBox(
+                                    width: constraints.maxWidth,
+                                    child: Material(
+                                      color: context
+                                          .colorScheme.surfaceContainerHighest
+                                          .withOpacity(0.5),
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: InkWell(
+                                        onTap: () {
+                                          setState(() {
+                                            _showAllActions = !_showAllActions;
+                                          });
+                                          if (_showAllActions) {
+                                            _expandAnimationController
+                                                .forward();
+                                          } else {
+                                            _expandAnimationController
+                                                .reverse();
+                                          }
+                                        },
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 10,
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              AnimatedRotation(
+                                                duration: const Duration(
+                                                    milliseconds: 300),
+                                                turns:
+                                                    _showAllActions ? 0.5 : 0,
+                                                child: Icon(
+                                                  Icons.expand_more_rounded,
+                                                  size: 16,
+                                                  color: context.colorScheme
+                                                      .onSurfaceVariant,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                   ),
                 ),
               ],
@@ -292,6 +397,59 @@ class HomeScreenState extends State<HomeScreen>
           ),
         ],
       );
+
+  Widget _buildQuickActionCard({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required int? count,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: context.colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: context.colorScheme.primary,
+                  ),
+                  const Spacer(),
+                  if (count != null)
+                    Text(
+                      count.toString(),
+                      style: context.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: context.colorScheme.onSurface,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Row buildCollapsedAppBar(final BuildContext context) => Row(
         mainAxisAlignment: MainAxisAlignment.center,

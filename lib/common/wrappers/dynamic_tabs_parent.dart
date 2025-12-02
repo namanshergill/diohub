@@ -27,7 +27,7 @@ class DynamicTabsParent extends StatelessWidget {
   @override
   Widget build(final BuildContext context) => DynamicTabsWrapper(
         controller: controller,
-        tabBarSettings: DynamicTabSettings(
+        tabBarSettings: DynamicTabSettings( 
           // indicatorPadding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
           dividerColor: Colors.transparent,
           // padding: EdgeInsets.zero,

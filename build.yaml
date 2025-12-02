@@ -1,6 +1,7 @@
 targets:
   $default:
     sources:
+      - $package$
       - lib/**
       - graphql/**
     builders:
@@ -8,11 +9,11 @@ targets:
         enabled: true
         options:
           schema: diohub|lib/graphql/schema.graphql
-#          output_dir: ''
+          #          output_dir: ''
           when_extensions:
             when: true
             maybeWhen: true
-#          output_dir: 'test'
+          #          output_dir: 'test'
           type_overrides:
             Base64String:
               name: String

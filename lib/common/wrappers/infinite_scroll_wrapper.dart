@@ -289,8 +289,7 @@ class _InfinitePagination<T> extends StatefulWidget {
 
 class _InfinitePaginationState<T> extends State<_InfinitePagination<T>> {
   // Define the paging controller.
-  final PagingController<int, _ListItem<T>> _pagingController =
-      PagingController<int, _ListItem<T>>(firstPageKey: 0);
+  late final PagingController<int, _ListItem<T>> _pagingController;
 
   // Start off with the first page.
   late int pageNumber;
@@ -301,11 +300,27 @@ class _InfinitePaginationState<T> extends State<_InfinitePagination<T>> {
 
   @override
   void initState() {
+    super.initState();
     setupController();
     pageNumber = widget.pageNumber;
-    _pagingController.addPageRequestListener(_fetchPage);
-
-    super.initState();
+    _pagingController = PagingController<int, _ListItem<T>>(
+      value: PagingState<int, _ListItem<T>>(
+        hasNextPage: true, // Initially we have pages to load
+      ),
+      fetchPage: _fetchPage,
+      getNextPageKey: (final PagingState<int, _ListItem<T>> state) {
+        // If no pages loaded yet, return 0 for first page
+        if (state.pages == null || state.pages!.isEmpty) {
+          return 0;
+        }
+        // Use convenience getter to check if last page is empty
+        if (state.lastPageIsEmpty) return null;
+        // Use convenience getter to get next page key (increments by 1)
+        return state.nextIntPageKey;
+      },
+    );
+    // Trigger initial page load immediately (don't wait for post-frame)
+    _pagingController.fetchNextPage();
   }
 
   void setupController() {
@@ -326,163 +341,154 @@ class _InfinitePaginationState<T> extends State<_InfinitePagination<T>> {
   }
 
   // Fetch the data to display.
-  Future<void> _fetchPage(final int pageKey) async {
+  Future<List<_ListItem<T>>> _fetchPage(final int pageKey) async {
     try {
-      // log.log(Level.debug, 'Fetching page $pageNumber, key:$pageKey, $this');
+      // Calculate the actual page number from the page key
+      // pageKey starts at 0, so for pageNumber starting at widget.pageNumber:
+      // pageKey 0 -> pageNumber widget.pageNumber
+      // pageKey 1 -> pageNumber widget.pageNumber + 1
+      // etc.
+      final int currentPageNumber = widget.pageNumber + pageKey;
+
+      // log.log(Level.debug, 'Fetching page $currentPageNumber, key:$pageKey, $this');
       // Use the supplied APIs accordingly, based on the *refresh* value.
       final List<T> newItems = await widget.future(
         ScrollWrapperFutureArguments<T>(
-          pageNumber: pageNumber,
+          pageNumber: currentPageNumber,
           pageSize: widget.pageSize,
           refresh: refresh,
-          lastItem: _pagingController.itemList?.last.item,
+          lastItem: (_pagingController.value.items?.isNotEmpty ?? false)
+              ? _pagingController.value.items?.last.item
+              : null,
         ),
       );
-      // Check if it is the last page of results.
-      final bool isLastPage = newItems.length < widget.pageSize;
-      List<T> filteredItems;
       // Filter items based on the provided filterFn.
+      List<T> filteredItems;
       if (widget.filterFn != null) {
         filteredItems = widget.filterFn!(newItems) ?? <T>[];
       } else {
         filteredItems = newItems;
       }
+
       // If the last page, set refresh value to false,
       // as all pages have been refreshed.
-      if (isLastPage) {
-        if (mounted) {
-          _pagingController.appendLastPage(
-            filteredItems
-                .map((final T e) => _ListItem<T>(e, refresh: refresh))
-                .toList(),
-          );
-        }
+      if (filteredItems.length < widget.pageSize) {
         refresh = false;
-      } else {
-        pageNumber++;
-        final int nextPageKey = pageKey + newItems.length;
-        if (mounted) {
-          _pagingController.appendPage(
-            filteredItems
-                .map((final T e) => _ListItem<T>(e, refresh: refresh))
-                .toList(),
-            nextPageKey,
-          );
-        }
       }
+
+      return filteredItems
+          .map((final T e) => _ListItem<T>(e, refresh: refresh))
+          .toList();
     } on DioException catch (error, s) {
       log.e(error.response?.data, stackTrace: s);
-      if (mounted) {
-        _pagingController.error = error.response?.data;
-      }
       rethrow;
       // Can't really do anything about this, the widget is not propagating the error above.
       // ignore: avoid_catches_without_on_clauses
     } catch (error) {
-      {
-        log.e(
-          'Pagination exception',
-          error: error,
-        );
-        if (mounted) {
-          _pagingController.error = error;
-        }
-      }
+      log.e(
+        'Pagination exception',
+        error: error,
+      );
       rethrow;
     }
   }
 
   @override
   Widget build(final BuildContext context) =>
-      PagedSliverList<int, _ListItem<T>>.separated(
-        pagingController: _pagingController,
-        separatorBuilder:
-            widget.separatorBuilder ?? (final _, final __) => Container(),
-        builderDelegate: PagedChildBuilderDelegate<_ListItem<T>>(
-          itemBuilder: (
-            final BuildContext context,
-            final _ListItem<T> item,
-            final int index,
-          ) =>
-              Column(
-            children: <Widget>[
-              if (index == 0)
-                SizedBox(
-                  height: widget.padding.top,
-                ),
-              widget.builder(
-                context,
-                ScrollWrapperBuilderData<T>(
-                  item: item.item,
-                  index: index,
-                  refresh: item.refreshChildren,
-                  isCurrentlyLast:
-                      (_pagingController.itemList?.length ?? 0) - 1 == index,
-                ),
-              ),
-            ],
-          ),
-          firstPageProgressIndicatorBuilder: (final BuildContext context) =>
-              widget.firstPageLoadingBuilder?.call(context) ??
-              const Padding(
-                padding: EdgeInsets.all(32),
-                child: LoadingIndicator(),
-              ),
-          newPageProgressIndicatorBuilder: (final BuildContext context) =>
-              const Padding(
-            padding: EdgeInsets.all(32),
-            child: LoadingIndicator(),
-          ),
-          noItemsFoundIndicatorBuilder: (final BuildContext context) => Center(
-            child: Column(
+      ValueListenableBuilder<PagingState<int, _ListItem<T>>>(
+        valueListenable: _pagingController,
+        builder: (context, state, _) =>
+            PagedSliverList<int, _ListItem<T>>.separated(
+          state: state,
+          fetchNextPage: _pagingController.fetchNextPage,
+          separatorBuilder:
+              widget.separatorBuilder ?? (final _, final __) => Container(),
+          builderDelegate: PagedChildBuilderDelegate<_ListItem<T>>(
+            itemBuilder: (
+              final BuildContext context,
+              final _ListItem<T> item,
+              final int index,
+            ) =>
+                Column(
               children: <Widget>[
-                SizedBox(
-                  height: widget.padding.top,
-                ),
-                const Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text(
-                        'Nothing to see here.',
-                        style: TextStyle(
-                            // color: Provider.of<PaletteSettings>(context)
-                            //     .currentSetting
-                            //     .faded3,
-                            ),
-                      ),
-                    ),
+                if (index == 0)
+                  SizedBox(
+                    height: widget.padding.top,
+                  ),
+                widget.builder(
+                  context,
+                  ScrollWrapperBuilderData<T>(
+                    item: item.item,
+                    index: index,
+                    refresh: item.refreshChildren,
+                    isCurrentlyLast: (state.items?.length ?? 0) - 1 == index,
                   ),
                 ),
               ],
             ),
-          ),
-          noMoreItemsIndicatorBuilder: (final BuildContext context) =>
-              widget.listEndIndicator
-                  ? Center(
+            firstPageProgressIndicatorBuilder: (final BuildContext context) =>
+                widget.firstPageLoadingBuilder?.call(context) ??
+                const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: LoadingIndicator(),
+                ),
+            newPageProgressIndicatorBuilder: (final BuildContext context) =>
+                const Padding(
+              padding: EdgeInsets.all(32),
+              child: LoadingIndicator(),
+            ),
+            noItemsFoundIndicatorBuilder: (final BuildContext context) =>
+                Center(
+              child: Column(
+                children: <Widget>[
+                  SizedBox(
+                    height: widget.padding.top,
+                  ),
+                  const Expanded(
+                    child: Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: <Widget>[
-                            Text(
-                              '----*----',
-                              style: context.textTheme.labelSmall?.asHint(),
-                            ),
-                            SizedBox(
-                              height: widget.padding.bottom,
-                            ),
-                          ],
+                        padding: EdgeInsets.all(16),
+                        child: Text(
+                          'Nothing to see here.',
+                          style: TextStyle(
+                              // color: Provider.of<PaletteSettings>(context)
+                              //     .currentSetting
+                              //     .faded3,
+                              ),
                         ),
                       ),
-                    )
-                  : Padding(
-                      padding: EdgeInsets.only(bottom: widget.padding.bottom),
-                      child: Container(),
                     ),
-          firstPageErrorIndicatorBuilder: (final BuildContext context) =>
-              _FirstPageErrorIndicator(
-            onTryAgain: _pagingController.retryLastFailedRequest,
-            error: _pagingController.error,
+                  ),
+                ],
+              ),
+            ),
+            noMoreItemsIndicatorBuilder: (final BuildContext context) =>
+                widget.listEndIndicator
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: <Widget>[
+                              Text(
+                                '----*----',
+                                style: context.textTheme.labelSmall?.asHint(),
+                              ),
+                              SizedBox(
+                                height: widget.padding.bottom,
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : Padding(
+                        padding: EdgeInsets.only(bottom: widget.padding.bottom),
+                        child: Container(),
+                      ),
+            firstPageErrorIndicatorBuilder: (final BuildContext context) =>
+                _FirstPageErrorIndicator(
+              onTryAgain: () => _pagingController.refresh(),
+              error: state.error,
+            ),
           ),
         ),
       );

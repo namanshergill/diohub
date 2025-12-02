@@ -3,7 +3,6 @@ import 'package:chucker_flutter/chucker_flutter.dart';
 import 'package:curl_logger_dio_interceptor/curl_logger_dio_interceptor.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
-import 'package:dio_cache_interceptor_db_store/dio_cache_interceptor_db_store.dart';
 import 'package:diohub/app/api_handler/response_handler.dart';
 import 'package:diohub/app/global.dart';
 import 'package:diohub/models/popup/popup_type.dart';
@@ -427,7 +426,7 @@ abstract class BaseAPIHandler {
                   cache.cacheOptions.policy != CachePolicy.refresh &&
                   cache.maxAge != null;
           if (checkCache) {
-            final String key = cache.cacheOptions.keyBuilder(options);
+            final String key = cache.cacheOptions.keyBuilder(url: options.uri,headers: options.headers.cast());
             final CacheResponse? cacheData = await _cacheStore.get(key);
             final bool cacheIsBeforeExpiry = cacheData != null &&
                 DateTime.now().isBefore(
@@ -452,13 +451,13 @@ abstract class BaseAPIHandler {
     return dio;
   }
 
-  static late final DbCacheStore _cacheStore;
+  static late final CacheStore _cacheStore;
 
   static Future<void> setupDioAPICache() async {
     String? directoryPath;
 
     directoryPath = (await getApplicationDocumentsDirectory()).path;
-    _cacheStore = DbCacheStore(databasePath: directoryPath);
+    _cacheStore = MemCacheStore();
   }
 
   static Future<void> clearCache() async {
