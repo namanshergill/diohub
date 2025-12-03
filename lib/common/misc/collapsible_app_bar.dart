@@ -10,6 +10,7 @@ class DynamicScroll extends StatefulWidget {
     required this.collapsedWidget,
     required this.body,
     this.bottom,
+    this.pinnedWidget,
     this.contentVersion,
     this.animationController,
     super.key,
@@ -18,6 +19,7 @@ class DynamicScroll extends StatefulWidget {
   final Widget collapsedWidget;
   final Widget expandedWidget;
   final Widget? bottom;
+  final Widget? pinnedWidget;
   final Widget body;
   final int? contentVersion;
   final AnimationController? animationController;
@@ -29,9 +31,31 @@ class DynamicScroll extends StatefulWidget {
 class _DynamicScrollState extends State<DynamicScroll> {
   final GlobalKey _expandedWidgetKey = GlobalKey();
   final GlobalKey<AnimatedDynamicSliverAppBarState> _appBarKey = GlobalKey<AnimatedDynamicSliverAppBarState>();
+  final ScrollController _appBarContentScrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Scroll to collapse the app bar on initial load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        // Scroll down by a large amount to ensure app bar is collapsed
+        _scrollController.jumpTo(1000);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _appBarContentScrollController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(final BuildContext context) => NestedScrollView(
+        controller: _scrollController,
         headerSliverBuilder: (final BuildContext context, final bool value) =>
             <Widget>[
           SliverOverlapAbsorber(
@@ -42,6 +66,7 @@ class _DynamicScrollState extends State<DynamicScroll> {
                 AnimatedDynamicSliverAppBar(
                   key: _appBarKey,
                   animationController: widget.animationController,
+                  appBarContentScrollController: _appBarContentScrollController,
                   // backgroundColor: Colors.transparent,
                   // elevation: 0,
                   toolbarHeight: 64,
@@ -69,25 +94,32 @@ class _DynamicScrollState extends State<DynamicScroll> {
                             });
                             return true;
                           },
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              KeyedSubtree(
-                                key: _expandedWidgetKey,
-                                child: widget.expandedWidget,
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(10.0),
-                                child: Container(
-                                  width: 40,
-                                  height: 5,
-                                  decoration: BoxDecoration(
-                                    color: context.colorScheme.onInverseSurface,
-                                    borderRadius: BorderRadius.circular(10),
+                          child: _ScrollableAppBarContent(
+                            scrollController: _appBarContentScrollController,
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: <Widget>[
+                                  KeyedSubtree(
+                                    key: _expandedWidgetKey,
+                                    child: widget.expandedWidget,
                                   ),
-                                ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(10.0),
+                                    child: Container(
+                                      width: 40,
+                                      height: 5,
+                                      decoration: BoxDecoration(
+                                        color: context.colorScheme.onInverseSurface,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
@@ -99,6 +131,12 @@ class _DynamicScrollState extends State<DynamicScroll> {
                   pinned: true,
                   // floating: true,
                 ),
+                if (widget.pinnedWidget != null)
+                  SliverPinnedHeader(
+                    child: ScrollDynamicElevation(
+                      child: widget.pinnedWidget!,
+                    ),
+                  ),
                 if (widget.bottom != null)
                   SliverPinnedHeader(
                     child: ScrollDynamicElevation(
@@ -117,4 +155,55 @@ class _DynamicScrollState extends State<DynamicScroll> {
           },
         ),
       );
+}
+
+/// Wrapper that makes app bar content scrollable when it exceeds available height
+/// and prevents collapse when content is not scrolled to top
+class _ScrollableAppBarContent extends StatelessWidget {
+  const _ScrollableAppBarContent({
+    required this.scrollController,
+    required this.child,
+  });
+
+  final ScrollController scrollController;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    // Always use SingleChildScrollView to keep widget tree consistent
+    // During measurement (unbounded), disable scrolling with NeverScrollableScrollPhysics
+    // During display (bounded), enable scrolling with ClampingScrollPhysics
+    // Use Align with bottomCenter to keep content at bottom during collapse
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMeasuring = constraints.maxHeight.isInfinite;
+        
+        // During display, ensure content fills space and aligns to bottom
+        if (!isMeasuring && constraints.maxHeight.isFinite) {
+          return Align(
+            alignment: Alignment.bottomCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight,
+              ),
+              child: SingleChildScrollView(
+                controller: scrollController,
+                physics: const ClampingScrollPhysics(),
+                primary: false,
+                child: child,
+              ),
+            ),
+          );
+        }
+        
+        // During measurement, just use SingleChildScrollView
+        return SingleChildScrollView(
+          controller: scrollController,
+          physics: const NeverScrollableScrollPhysics(),
+          primary: false,
+          child: child,
+        );
+      },
+    );
+  }
 }

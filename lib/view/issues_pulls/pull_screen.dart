@@ -1,8 +1,11 @@
+import 'package:diohub/common/misc/detail_tile.dart';
+import 'package:diohub/common/misc/detail_tile_content.dart';
 import 'package:diohub/common/misc/info_card.dart';
 import 'package:diohub/graphql/queries/issues_pulls/__generated__/issue_pull_info.data.gql.dart';
 import 'package:diohub/graphql/queries/issues_pulls/__generated__/timeline.data.gql.dart';
-import 'package:diohub/models/issues/issue_model.dart';
-import 'package:diohub/view/issues_pulls/issue_pull_screen.dart';
+import 'package:diohub/utils/get_date.dart';
+import 'package:diohub/view/issues_pulls/issue_pull_info_template.dart';
+import 'package:diohub/view/issues_pulls/models/issue_pull_state.dart';
 import 'package:diohub/view/issues_pulls/widgets/pull_changed_files_list.dart';
 import 'package:diohub/view/issues_pulls/widgets/pulls_commits_list.dart';
 import 'package:flutter/material.dart';
@@ -84,77 +87,46 @@ class PullScreenState extends State<PullScreen>
       ],
       uri: data.url,
       onRefresh: widget.onRefresh,
-      additionalAboutWidgets: [
-        if (data.merged)
-          InfoCard(
-            title: 'Merged',
-            leading: const Icon(
-              Octicons.git_merge,
-              color: Colors.deepPurpleAccent,
-            ),
-            child: Text(
-              data.mergedAt!.toIso8601String(),
-            ),
-          ),
-        InfoCard(
+      additionalDetailTiles: [
+        // Commits
+        DetailTile(
           title: 'Commits',
-          leading: const Icon(
-            Octicons.git_commit,
-          ),
-          child: Text(
-            data.commits.totalCount.toString(),
-          ),
+          icon: Octicons.git_commit,
           onTap: () {
-            // _templateKey.currentState?.dynamicTabsController
-            //   .openTab('commits');
+            _templateKey.currentState?.dynamicTabsController.openTab('commits');
           },
-        ),
-        InfoCard(
-          title: 'Changed Files',
-          leading: const Icon(
-            Octicons.file_diff,
-          ),
-          onTap: () {
-            // _templateKey.currentState?.dynamicTabsController
-            //   .openTab('files_changed');
-          },
-          child: Text(
-            data.changedFiles.toString(),
+          child: DetailTileCount(
+            data.commits.totalCount,
+            'commit',
+            'commits',
           ),
         ),
+        // Files changed
+        DetailTile(
+          title: 'Files changed',
+          icon: Octicons.file_diff,
+          onTap: () {
+            _templateKey.currentState?.dynamicTabsController
+                .openTab('files_changed');
+          },
+          child: DetailTileCount(
+            data.changedFiles,
+            'file',
+            'files',
+          ),
+        ),
+        // Merged date (if merged)
+        if (data.merged)
+          DetailTile(
+            title: 'Merged',
+            icon: Octicons.git_merge,
+            child: DetailTileText(
+              getDate(data.mergedAt.toString(), shorten: false),
+              color: Colors.deepPurple,
+            ),
+          ),
       ],
     );
   }
 
-  Widget getIcon(
-    final IssueState state,
-    final double size, {
-    required final bool merged,
-  }) {
-    switch (state) {
-      case IssueState.CLOSED:
-        if (merged) {
-          return Icon(
-            Octicons.git_merge,
-            color: Colors.deepPurpleAccent,
-            size: size,
-          );
-        } else {
-          return Icon(
-            Octicons.git_pull_request,
-            color: Colors.red,
-            size: size,
-          );
-        }
-      // case GIssueState.REOPENED:
-      case IssueState.OPEN:
-        return Icon(
-          Octicons.git_pull_request,
-          color: Colors.green,
-          size: size,
-        );
-      default:
-        throw UnimplementedError();
-    }
-  }
 }

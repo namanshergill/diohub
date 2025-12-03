@@ -74,11 +74,16 @@ class AnimatedDynamicSliverAppBar extends StatefulWidget {
     this.clipBehavior,
     this.appBarClipper,
     this.scrollController,
+    this.appBarContentScrollController,
     this.animationController,
     this.heightBuffer = 1.0,
   });
 
   final ScrollController? scrollController;
+
+  /// Scroll controller for the app bar content (when it's scrollable).
+  /// Used to check if app bar content is scrolled to top before allowing collapse.
+  final ScrollController? appBarContentScrollController;
 
   /// The widget to display in the flexible space area.
   /// This content will be measured to determine the app bar's height.
@@ -334,13 +339,9 @@ class AnimatedDynamicSliverAppBarState
       systemOverlayStyle: widget.systemOverlayStyle,
       forceMaterialTransparency: widget.forceMaterialTransparency,
       clipBehavior: widget.clipBehavior,
-      flexibleSpace: GestureDetector(
-        onVerticalDragStart: (details) {
-          var sc =
-              widget.scrollController ?? PrimaryScrollController.of(context);
-          sc.animateTo(0,
-              curve: Curves.easeIn, duration: Duration(milliseconds: 300));
-        },
+      flexibleSpace: _SmartFlexibleSpaceBar(
+        scrollController: widget.scrollController,
+        appBarContentScrollController: widget.appBarContentScrollController,
         child: FlexibleSpaceBar(
           background: AnimatedBuilder(
             animation:
@@ -430,6 +431,116 @@ class _InvisibleExpandedTitleState extends State<_InvisibleExpandedTitle> {
     return AnimatedOpacity(
       opacity: (_visible ?? false) ? 1 : 0,
       duration: Duration(milliseconds: 200),
+      child: widget.child,
+    );
+  }
+}
+
+/// Smart wrapper for FlexibleSpaceBar that handles drag-to-expand when collapsed
+/// but allows scrolling when expanded. When expanded, only allows collapse
+/// when app bar content is scrolled to the top.
+class _SmartFlexibleSpaceBar extends StatefulWidget {
+  const _SmartFlexibleSpaceBar({
+    required this.child,
+    this.scrollController,
+    this.appBarContentScrollController,
+  });
+
+  final Widget child;
+  final ScrollController? scrollController;
+  final ScrollController? appBarContentScrollController;
+
+  @override
+  State<_SmartFlexibleSpaceBar> createState() => _SmartFlexibleSpaceBarState();
+}
+
+class _SmartFlexibleSpaceBarState extends State<_SmartFlexibleSpaceBar> {
+  ScrollPosition? _position;
+  bool _isCollapsed = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _removeListener();
+    _addListener();
+    _updateCollapsedState();
+  }
+
+  @override
+  void dispose() {
+    _removeListener();
+    super.dispose();
+  }
+
+  void _addListener() {
+    _position = Scrollable.maybeOf(context)?.position;
+    _position?.addListener(_updateCollapsedState);
+  }
+
+  void _removeListener() {
+    _position?.removeListener(_updateCollapsedState);
+  }
+
+  void _updateCollapsedState() {
+    final FlexibleSpaceBarSettings? settings =
+        context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+    final bool isCollapsed =
+        settings == null || settings.currentExtent <= settings.minExtent + 10;
+    if (_isCollapsed != isCollapsed && mounted) {
+      setState(() {
+        _isCollapsed = isCollapsed;
+      });
+    }
+  }
+
+  bool _isAppBarContentAtTop() {
+    if (widget.appBarContentScrollController == null) {
+      return true; // If no controller, assume at top
+    }
+    return widget.appBarContentScrollController!.positions.isEmpty ||
+        widget.appBarContentScrollController!.position.pixels <= 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Only handle drag-to-expand when collapsed
+    if (_isCollapsed) {
+      return GestureDetector(
+        onVerticalDragStart: (details) {
+          final ScrollController? sc =
+              widget.scrollController ?? PrimaryScrollController.of(context);
+          sc?.animateTo(
+            0,
+            curve: Curves.easeIn,
+            duration: const Duration(milliseconds: 300),
+          );
+        },
+        child: widget.child,
+      );
+    }
+
+    // When expanded, prevent collapse when app bar content is not at top
+    // Aggressively consume ALL scroll notifications from main scroll view
+    // when app bar content is scrolled, allowing only app bar content to scroll
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        // Only intercept if app bar content is not at top
+        if (!_isAppBarContentAtTop()) {
+          // App bar content SingleChildScrollView has depth 0
+          // Main NestedScrollView has depth 1 or higher
+          // Consume ALL notifications from main scroll view (depth >= 1)
+          // This prevents any collapse attempts when app bar content is scrolled
+          if (notification.depth >= 1) {
+            // This is from the main scroll view - consume it to prevent collapse
+            return true; // Consume ALL notifications from main scroll view
+          }
+          // Allow all notifications from app bar content (depth 0) to pass through
+          // This enables app bar content scrolling
+        }
+        // When app bar content is at top, allow all notifications to pass through
+        // This enables normal collapse behavior
+        return false;
+      },
       child: widget.child,
     );
   }

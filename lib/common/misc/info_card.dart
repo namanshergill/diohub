@@ -32,7 +32,7 @@ class InfoCard extends StatelessWidget {
     super.key,
     this.title,
     this.leading,
-    this.headerPadding = const EdgeInsets.only(top: 8, left: 8, right: 8),
+    this.headerPadding = const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     final VoidCallback? onHeaderTap,
     this.headerColor,
     this.elevation,
@@ -50,7 +50,7 @@ class InfoCard extends StatelessWidget {
               ),
               child: Padding(
                 padding: childPadding ??
-                    const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                 child: Row(
                   children: <Widget>[
                     Flexible(child: child),
@@ -71,7 +71,7 @@ class InfoCard extends StatelessWidget {
     super.key,
     this.title,
     this.leading,
-    this.headerPadding = const EdgeInsets.only(top: 8, left: 8, right: 8),
+    this.headerPadding = const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     this.onHeaderTap,
     this.headerColor,
     this.elevation,
@@ -108,43 +108,49 @@ class InfoCard extends StatelessWidget {
       );
 
   Widget _buildUI(final BuildContext context) => IntrinsicWidth(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            CardHeader(
-              onTap: onHeaderTap,
-              elevation: elevation,
-              color: headerColor,
-              child: Padding(
-                padding: headerPadding,
-                child: Row(
-                  // mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    _buildDescriptors(context),
-                    if (trailing != null) trailing!,
-                  ],
+        child: Material(
+          elevation: elevation ?? 0,
+          color: context.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              CardHeader(
+                onTap: onHeaderTap,
+                elevation: 0, // Remove elevation from header since parent has it
+                color: headerColor,
+                child: Padding(
+                  padding: headerPadding,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      _buildDescriptors(context),
+                      if (trailing != null) trailing!,
+                    ],
+                  ),
                 ),
               ),
-            ),
-            ...List<Widget>.generate(children.length, (final int index) {
-              final bool isLast = index == children.length - 1;
-              return Column(
-                children: <Widget>[
-                  if (index > 0)
-                    const Divider(
-                      height: 0,
+              ...List<Widget>.generate(children.length, (final int index) {
+                final bool isLast = index == children.length - 1;
+                return Column(
+                  children: <Widget>[
+                    if (index > 0)
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: context.colorScheme.outlineVariant.withOpacity(0.5),
+                      ),
+                    BasicCard.linked(
+                      elevation: 0, // Remove elevation since parent has it
+                      cardLinkType:
+                          isLast ? CardLinkType.atTop : CardLinkType.both,
+                      child: children[index],
                     ),
-                  BasicCard.linked(
-                    elevation: elevation,
-                    cardLinkType:
-                        isLast ? CardLinkType.atTop : CardLinkType.both,
-                    child: children[index],
-                  ),
-                ],
-              );
-            }),
-          ],
+                  ],
+                );
+              }),
+            ],
+          ),
         ),
       );
 
@@ -155,12 +161,13 @@ class InfoCard extends StatelessWidget {
               data: context.themeData.copyWith(
                 iconTheme: context.themeData.iconTheme.copyWith(
                   size: 16,
-                  color: context.colorScheme.onSurface.asHint(),
+                  color: context.colorScheme.primary,
                 ),
               ),
               child: DefaultTextStyle(
-                style: context.textTheme.bodyMedium!.asHint().copyWith(
-                      fontWeight: FontWeight.bold,
+                style: context.textTheme.labelMedium!.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: context.colorScheme.onSurface,
                     ),
                 child: leading!,
               ),
@@ -171,8 +178,11 @@ class InfoCard extends StatelessWidget {
             ),
           if (title != null)
             Text(
-              title!, style: context.textTheme.bodyMedium?.asHint(),
-              // .copyWith(fontWeight: FontWeight.bold),
+              title!,
+              style: context.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: context.colorScheme.onSurface,
+              ),
             ),
         ],
       );
