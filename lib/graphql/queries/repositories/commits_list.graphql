@@ -1,0 +1,136 @@
+# Query commits from default branch
+query commitsList($owner: String!, $repo: String!, $first: Int!, $after: String, $path: String, $author: CommitAuthor) {
+  repository(name: $repo, owner: $owner) {
+    defaultBranchRef {
+      target {
+        ... on Commit {
+          history(
+            first: $first
+            after: $after
+            path: $path
+            author: $author
+          ) {
+            edges {
+              cursor
+              node {
+                ...commitListItem
+              }
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# Query commits from a specific branch/ref
+query commitsListByRef($owner: String!, $repo: String!, $ref: String!, $first: Int!, $after: String, $path: String, $author: CommitAuthor) {
+  repository(name: $repo, owner: $owner) {
+    ref(qualifiedName: $ref) {
+      target {
+        ... on Commit {
+          history(
+            first: $first
+            after: $after
+            path: $path
+            author: $author
+          ) {
+            edges {
+              cursor
+              node {
+                ...commitListItem
+              }
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# Query commits from a specific commit OID
+query commitsListByOid($owner: String!, $repo: String!, $oid: GitObjectID!, $first: Int!, $after: String, $path: String, $author: CommitAuthor) {
+  repository(name: $repo, owner: $owner) {
+    object(oid: $oid) {
+      ... on Commit {
+        history(
+          first: $first
+          after: $after
+          path: $path
+          author: $author
+        ) {
+          edges {
+            cursor
+            node {
+              ...commitListItem
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    }
+  }
+}
+
+fragment commitListItem on Commit {
+  oid
+  abbreviatedOid
+  message
+  messageHeadline
+  commitUrl
+  url
+  resourcePath
+  additions
+  deletions
+  changedFilesIfAvailable
+  authoredDate
+  committedDate
+  author {
+    avatarUrl
+    name
+    email
+    date
+    user {
+      login
+      avatarUrl
+      url
+      ... on User {
+        name
+      }
+    }
+  }
+  committer {
+    avatarUrl
+    name
+    email
+    date
+    user {
+      login
+      avatarUrl
+      url
+      ... on User {
+        name
+      }
+    }
+  }
+  parents(first: 1) {
+    edges {
+      node {
+        oid
+        abbreviatedOid
+      }
+    }
+  }
+}
+

@@ -92,6 +92,13 @@ android {
         abi {
             enable true
             universalApk true
+            exclude 'armeabi', 'mips', 'mips64'
+        }
+    }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+            excludes += ['**/lib/armeabi/**', '**/lib/mips/**', '**/lib/mips64/**']
         }
     }
     namespace 'com.felix.diohub'

@@ -1,10 +1,7 @@
-import 'package:diohub/common/misc/info_card.dart';
-import 'package:diohub/common/misc/language_indicator.dart';
-import 'package:diohub/common/misc/repository_card.dart';
 import 'package:diohub/models/repositories/repository_model.dart';
 import 'package:diohub/utils/markdown_emoji.dart';
+import 'package:diohub/utils/utils.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 
 class AboutRepository extends StatefulWidget {
   const AboutRepository(this.repo, {required this.onTabOpened, super.key});
@@ -17,170 +14,47 @@ class AboutRepository extends StatefulWidget {
 }
 
 class AboutRepositoryState extends State<AboutRepository> {
-  late List<AboutScreenTile> tiles;
-
   @override
-  void initState() {
-    tiles = <AboutScreenTile>[
-      AboutScreenTile(
-        widget.repo.language ?? 'Code',
-        icon: Octicons.code,
-        onTap: () {
-          widget.onTabOpened('Code');
-        },
-      ),
-      AboutScreenTile(
-        'Issues',
-        icon: Octicons.issue_opened,
-        trailing: widget.repo.openIssues!.toString(),
-        onTap: () {
-          widget.onTabOpened('Issues');
-        },
-      ),
-      AboutScreenTile(
-        'Pulls',
-        icon: Octicons.git_pull_request,
-        trailing: widget.repo.openIssues!.toString(),
-        onTap: () {
-          widget.onTabOpened('Pull Requests');
-        },
-      ),
-      AboutScreenTile(
-        'More',
-        icon: Icons.menu,
-        onTap: () {
-          widget.onTabOpened('More');
-        },
-      ),
-    ];
-    super.initState();
-  }
-
-  @override
-  Widget build(final BuildContext context) => SingleChildScrollView(
-        child: Column(
-          children: <Widget>[
-            Placeholder(
-              child: ListView.separated(
-                separatorBuilder:
-                    (final BuildContext context, final int index) =>
-                        const Divider(
-                  height: 0,
+  Widget build(final BuildContext context) => SafeArea(
+        top: false,
+        bottom: false,
+        child: Builder(
+          builder: (BuildContext context) {
+            return CustomScrollView(
+              key: const PageStorageKey<String>('About'),
+              slivers: <Widget>[
+                SliverOverlapInjector(
+                  handle:
+                      NestedScrollView.sliverOverlapAbsorberHandleFor(context),
                 ),
-                shrinkWrap: true,
-                itemCount: tiles.length,
-                itemBuilder: (final BuildContext context, final int index) {
-                  final AboutScreenTile item = tiles[index];
-                  return ListTile(
-                    leading: Icon(item.icon),
-                    title: Text(item.label),
-                    onTap: item.onTap,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        if (item.trailing != null) Text(item.trailing!),
-                        const Icon(Icons.arrow_right_rounded),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Description only
+                        if (widget.repo.description != null)
+                          Text(
+                            emoteText(widget.repo.description!),
+                            style: context.textTheme.bodyMedium,
+                          )
+                        else
+                          Text(
+                            'No description provided.',
+                            style: context.textTheme.bodyMedium?.copyWith(
+                              color: context.colorScheme.onSurfaceVariant,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
                       ],
                     ),
-                  );
-                },
-              ),
-            ),
-            InfoCard(
-              title: 'Name',
-              child: Row(
-                children: <Widget>[
-                  Flexible(child: Text(widget.repo.name!)),
-                ],
-              ),
-            ),
-            if (widget.repo.description != null)
-              InfoCard(
-                title: 'About',
-                child: Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: Text(emoteText(widget.repo.description!)),
-                    ),
-                  ],
-                ),
-              ),
-            if (widget.repo.language != null)
-              InfoCard(
-                title: 'Language',
-                child: Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: LanguageIndicator(
-                        widget.repo.language,
-                        // size: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            if (widget.repo.fork!)
-              InfoCard(
-                title: 'Forked from',
-                child: RepositoryCard(widget.repo.source),
-              ),
-            if (widget.repo.homepage != null &&
-                widget.repo.homepage!.isNotEmpty)
-              // InfoCard(
-              //   title: 'Homepage',
-              //   child: Row(
-              //     children: <Widget>[
-              //       Flexible(child: Text(widget.repo.homepage!)),
-              //     ],
-              //   ),
-              // ),
-              if (widget.repo.license != null)
-                InfoCard(
-                  title: 'License',
-                  child: Row(
-                    children: <Widget>[
-                      Flexible(child: Text(widget.repo.license!.name!)),
-                    ],
                   ),
                 ),
-            InfoCard(
-              title: 'Stats',
-              child: Row(
-                children: <Widget>[
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Open issues: ${widget.repo.openIssuesCount}',
-                      ),
-                      const SizedBox(
-                        height: 8,
-                      ),
-                      Text('Forks: ${widget.repo.forksCount}'),
-                      const SizedBox(
-                        height: 8,
-                      ),
-                      Text('Watchers: ${widget.repo.watchersCount}'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       );
 }
 
-class AboutScreenTile {
-  AboutScreenTile(
-    this.label, {
-    required this.icon,
-    required this.onTap,
-    this.trailing,
-  });
-
-  final String label;
-  final IconData icon;
-  final String? trailing;
-  final VoidCallback onTap;
-}

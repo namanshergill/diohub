@@ -18,7 +18,7 @@ class IssuePullTimeline extends StatefulWidget {
     required this.number,
     required this.owner,
     required this.repoName,
-    required this.initComment,
+    // required this.initComment,
     required this.issueUrl,
     required this.isPull,
     this.commentsSince,
@@ -36,7 +36,7 @@ class IssuePullTimeline extends StatefulWidget {
   final String repoName;
   final String owner;
   final String? pullNodeID;
-  final BaseComment initComment;
+  // final BaseComment initComment;
   final Uri issueUrl;
   final int number;
   final bool? isLocked;
@@ -121,17 +121,18 @@ class IssuePullTimelineState extends State<IssuePullTimeline> {
                         'Load the whole timeline?',
                         textAlign: TextAlign.center,
                         style: context.textTheme.labelSmall,
-                      ),
+                        ),
                     ],
                   ),
                 ),
               ),
-              if (widget.initComment.createdAt.isAfter(
-                commentsSince!.subtract(const Duration(seconds: 30)),
-              ))
-                PaddingWrap(
-                  child: widget.initComment,
-                ),
+                //if (widget.initComment.createdAt.isAfter(
+                // commentsSince!.subtract(const Duration(seconds: 30)),
+              //))
+                // PaddingWrap(
+                //   // child: widget.initComment,
+                //   child: Container(),
+                // ),
             ],
           )
         : Column(
@@ -184,9 +185,7 @@ class IssuePullTimelineState extends State<IssuePullTimeline> {
               // const SizedBox(
               //   height: 16,
               // ),
-              PaddingWrap(
-                child: widget.initComment,
-              ),
+            
             ],
           );
     return Stack(

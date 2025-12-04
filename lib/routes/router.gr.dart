@@ -1,3 +1,4 @@
+// dart format width=80
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
 // **************************************************************************
@@ -39,10 +40,7 @@ class AuthRoute extends _i15.PageRouteInfo<AuthRouteArgs> {
     List<_i15.PageRouteInfo>? children,
   }) : super(
           AuthRoute.name,
-          args: AuthRouteArgs(
-            key: key,
-            onAuthenticated: onAuthenticated,
-          ),
+          args: AuthRouteArgs(key: key, onAuthenticated: onAuthenticated),
           initialChildren: children,
         );
 
@@ -51,8 +49,9 @@ class AuthRoute extends _i15.PageRouteInfo<AuthRouteArgs> {
   static _i15.PageInfo page = _i15.PageInfo(
     name,
     builder: (data) {
-      final args =
-          data.argsAs<AuthRouteArgs>(orElse: () => const AuthRouteArgs());
+      final args = data.argsAs<AuthRouteArgs>(
+        orElse: () => const AuthRouteArgs(),
+      );
       return _i1.AuthScreen(
         key: args.key,
         onAuthenticated: args.onAuthenticated,
@@ -62,10 +61,7 @@ class AuthRoute extends _i15.PageRouteInfo<AuthRouteArgs> {
 }
 
 class AuthRouteArgs {
-  const AuthRouteArgs({
-    this.key,
-    this.onAuthenticated,
-  });
+  const AuthRouteArgs({this.key, this.onAuthenticated});
 
   final _i16.Key? key;
 
@@ -75,6 +71,16 @@ class AuthRouteArgs {
   String toString() {
     return 'AuthRouteArgs{key: $key, onAuthenticated: $onAuthenticated}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! AuthRouteArgs) return false;
+    return key == other.key && onAuthenticated == other.onAuthenticated;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ onAuthenticated.hashCode;
 }
 
 /// generated route for
@@ -133,6 +139,20 @@ class ChangesViewerArgs {
   String toString() {
     return 'ChangesViewerArgs{patch: $patch, contentURL: $contentURL, fileType: $fileType, key: $key}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! ChangesViewerArgs) return false;
+    return patch == other.patch &&
+        contentURL == other.contentURL &&
+        fileType == other.fileType &&
+        key == other.key;
+  }
+
+  @override
+  int get hashCode =>
+      patch.hashCode ^ contentURL.hashCode ^ fileType.hashCode ^ key.hashCode;
 }
 
 /// generated route for
@@ -144,10 +164,7 @@ class CommitInfoRoute extends _i15.PageRouteInfo<CommitInfoRouteArgs> {
     List<_i15.PageRouteInfo>? children,
   }) : super(
           CommitInfoRoute.name,
-          args: CommitInfoRouteArgs(
-            commitURL: commitURL,
-            key: key,
-          ),
+          args: CommitInfoRouteArgs(commitURL: commitURL, key: key),
           initialChildren: children,
         );
 
@@ -157,19 +174,13 @@ class CommitInfoRoute extends _i15.PageRouteInfo<CommitInfoRouteArgs> {
     name,
     builder: (data) {
       final args = data.argsAs<CommitInfoRouteArgs>();
-      return _i3.CommitInfoScreen(
-        commitURL: args.commitURL,
-        key: args.key,
-      );
+      return _i3.CommitInfoScreen(commitURL: args.commitURL, key: args.key);
     },
   );
 }
 
 class CommitInfoRouteArgs {
-  const CommitInfoRouteArgs({
-    required this.commitURL,
-    this.key,
-  });
+  const CommitInfoRouteArgs({required this.commitURL, this.key});
 
   final String commitURL;
 
@@ -179,6 +190,16 @@ class CommitInfoRouteArgs {
   String toString() {
     return 'CommitInfoRouteArgs{commitURL: $commitURL, key: $key}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! CommitInfoRouteArgs) return false;
+    return commitURL == other.commitURL && key == other.key;
+  }
+
+  @override
+  int get hashCode => commitURL.hashCode ^ key.hashCode;
 }
 
 /// generated route for
@@ -249,6 +270,27 @@ class FileViewerAPIArgs {
   String toString() {
     return 'FileViewerAPIArgs{sha: $sha, repoURL: $repoURL, fileName: $fileName, branch: $branch, repoName: $repoName, key: $key}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! FileViewerAPIArgs) return false;
+    return sha == other.sha &&
+        repoURL == other.repoURL &&
+        fileName == other.fileName &&
+        branch == other.branch &&
+        repoName == other.repoName &&
+        key == other.key;
+  }
+
+  @override
+  int get hashCode =>
+      sha.hashCode ^
+      repoURL.hashCode ^
+      fileName.hashCode ^
+      branch.hashCode ^
+      repoName.hashCode ^
+      key.hashCode;
 }
 
 /// generated route for
@@ -274,8 +316,9 @@ class HomeRoute extends _i15.PageRouteInfo<HomeRouteArgs> {
   static _i15.PageInfo page = _i15.PageInfo(
     name,
     builder: (data) {
-      final args =
-          data.argsAs<HomeRouteArgs>(orElse: () => const HomeRouteArgs());
+      final args = data.argsAs<HomeRouteArgs>(
+        orElse: () => const HomeRouteArgs(),
+      );
       return _i5.HomeScreen(
         key: args.key,
         deepLinkData: args.deepLinkData,
@@ -286,11 +329,7 @@ class HomeRoute extends _i15.PageRouteInfo<HomeRouteArgs> {
 }
 
 class HomeRouteArgs {
-  const HomeRouteArgs({
-    this.key,
-    this.deepLinkData,
-    this.buildThemePZero,
-  });
+  const HomeRouteArgs({this.key, this.deepLinkData, this.buildThemePZero});
 
   final _i16.Key? key;
 
@@ -302,6 +341,19 @@ class HomeRouteArgs {
   String toString() {
     return 'HomeRouteArgs{key: $key, deepLinkData: $deepLinkData, buildThemePZero: $buildThemePZero}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! HomeRouteArgs) return false;
+    return key == other.key &&
+        deepLinkData == other.deepLinkData &&
+        buildThemePZero == other.buildThemePZero;
+  }
+
+  @override
+  int get hashCode =>
+      key.hashCode ^ deepLinkData.hashCode ^ buildThemePZero.hashCode;
 }
 
 /// generated route for
@@ -372,6 +424,27 @@ class IssuePullRouteArgs {
   String toString() {
     return 'IssuePullRouteArgs{number: $number, repoName: $repoName, ownerName: $ownerName, key: $key, commentsSince: $commentsSince, initialIndex: $initialIndex}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! IssuePullRouteArgs) return false;
+    return number == other.number &&
+        repoName == other.repoName &&
+        ownerName == other.ownerName &&
+        key == other.key &&
+        commentsSince == other.commentsSince &&
+        initialIndex == other.initialIndex;
+  }
+
+  @override
+  int get hashCode =>
+      number.hashCode ^
+      repoName.hashCode ^
+      ownerName.hashCode ^
+      key.hashCode ^
+      commentsSince.hashCode ^
+      initialIndex.hashCode;
 }
 
 /// generated route for
@@ -383,10 +456,7 @@ class LandingLoadingRoute extends _i15.PageRouteInfo<LandingLoadingRouteArgs> {
     List<_i15.PageRouteInfo>? children,
   }) : super(
           LandingLoadingRoute.name,
-          args: LandingLoadingRouteArgs(
-            key: key,
-            initLink: initLink,
-          ),
+          args: LandingLoadingRouteArgs(key: key, initLink: initLink),
           initialChildren: children,
         );
 
@@ -396,20 +466,15 @@ class LandingLoadingRoute extends _i15.PageRouteInfo<LandingLoadingRouteArgs> {
     name,
     builder: (data) {
       final args = data.argsAs<LandingLoadingRouteArgs>(
-          orElse: () => const LandingLoadingRouteArgs());
-      return _i7.LandingLoadingScreen(
-        key: args.key,
-        initLink: args.initLink,
+        orElse: () => const LandingLoadingRouteArgs(),
       );
+      return _i7.LandingLoadingScreen(key: args.key, initLink: args.initLink);
     },
   );
 }
 
 class LandingLoadingRouteArgs {
-  const LandingLoadingRouteArgs({
-    this.key,
-    this.initLink,
-  });
+  const LandingLoadingRouteArgs({this.key, this.initLink});
 
   final _i16.Key? key;
 
@@ -419,6 +484,16 @@ class LandingLoadingRouteArgs {
   String toString() {
     return 'LandingLoadingRouteArgs{key: $key, initLink: $initLink}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! LandingLoadingRouteArgs) return false;
+    return key == other.key && initLink == other.initLink;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ initLink.hashCode;
 }
 
 /// generated route for
@@ -477,6 +552,20 @@ class NewIssueRouteArgs {
   String toString() {
     return 'NewIssueRouteArgs{repo: $repo, owner: $owner, key: $key, template: $template}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! NewIssueRouteArgs) return false;
+    return repo == other.repo &&
+        owner == other.owner &&
+        key == other.key &&
+        template == other.template;
+  }
+
+  @override
+  int get hashCode =>
+      repo.hashCode ^ owner.hashCode ^ key.hashCode ^ template.hashCode;
 }
 
 /// generated route for
@@ -489,10 +578,7 @@ class OtherUserProfileRoute
     List<_i15.PageRouteInfo>? children,
   }) : super(
           OtherUserProfileRoute.name,
-          args: OtherUserProfileRouteArgs(
-            login: login,
-            key: key,
-          ),
+          args: OtherUserProfileRouteArgs(login: login, key: key),
           initialChildren: children,
         );
 
@@ -502,19 +588,13 @@ class OtherUserProfileRoute
     name,
     builder: (data) {
       final args = data.argsAs<OtherUserProfileRouteArgs>();
-      return _i9.OtherUserProfileScreen(
-        args.login,
-        key: args.key,
-      );
+      return _i9.OtherUserProfileScreen(args.login, key: args.key);
     },
   );
 }
 
 class OtherUserProfileRouteArgs {
-  const OtherUserProfileRouteArgs({
-    required this.login,
-    this.key,
-  });
+  const OtherUserProfileRouteArgs({required this.login, this.key});
 
   final String login;
 
@@ -524,6 +604,16 @@ class OtherUserProfileRouteArgs {
   String toString() {
     return 'OtherUserProfileRouteArgs{login: $login, key: $key}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! OtherUserProfileRouteArgs) return false;
+    return login == other.login && key == other.key;
+  }
+
+  @override
+  int get hashCode => login.hashCode ^ key.hashCode;
 }
 
 /// generated route for
@@ -576,16 +666,25 @@ class PRReviewRouteArgs {
   String toString() {
     return 'PRReviewRouteArgs{nodeID: $nodeID, pullNodeID: $pullNodeID, key: $key}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! PRReviewRouteArgs) return false;
+    return nodeID == other.nodeID &&
+        pullNodeID == other.pullNodeID &&
+        key == other.key;
+  }
+
+  @override
+  int get hashCode => nodeID.hashCode ^ pullNodeID.hashCode ^ key.hashCode;
 }
 
 /// generated route for
 /// [_i11.PlaceHolderScreen]
 class PlaceHolderRoute extends _i15.PageRouteInfo<void> {
   const PlaceHolderRoute({List<_i15.PageRouteInfo>? children})
-      : super(
-          PlaceHolderRoute.name,
-          initialChildren: children,
-        );
+      : super(PlaceHolderRoute.name, initialChildren: children);
 
   static const String name = 'PlaceHolderRoute';
 
@@ -665,6 +764,27 @@ class RepositoryRouteArgs {
   String toString() {
     return 'RepositoryRouteArgs{repositoryURL: $repositoryURL, branch: $branch, index: $index, deepLinkData: $deepLinkData, key: $key, initSHA: $initSHA}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! RepositoryRouteArgs) return false;
+    return repositoryURL == other.repositoryURL &&
+        branch == other.branch &&
+        index == other.index &&
+        deepLinkData == other.deepLinkData &&
+        key == other.key &&
+        initSHA == other.initSHA;
+  }
+
+  @override
+  int get hashCode =>
+      repositoryURL.hashCode ^
+      branch.hashCode ^
+      index.hashCode ^
+      deepLinkData.hashCode ^
+      key.hashCode ^
+      initSHA.hashCode;
 }
 
 /// generated route for
@@ -735,6 +855,27 @@ class SearchOverlayRouteArgs {
   String toString() {
     return 'SearchOverlayRouteArgs{searchData: $searchData, multiHero: $multiHero, onSubmit: $onSubmit, message: $message, heroTag: $heroTag, key: $key}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! SearchOverlayRouteArgs) return false;
+    return searchData == other.searchData &&
+        multiHero == other.multiHero &&
+        onSubmit == other.onSubmit &&
+        message == other.message &&
+        heroTag == other.heroTag &&
+        key == other.key;
+  }
+
+  @override
+  int get hashCode =>
+      searchData.hashCode ^
+      multiHero.hashCode ^
+      onSubmit.hashCode ^
+      message.hashCode ^
+      heroTag.hashCode ^
+      key.hashCode;
 }
 
 /// generated route for
@@ -746,10 +887,7 @@ class WikiViewer extends _i15.PageRouteInfo<WikiViewerArgs> {
     List<_i15.PageRouteInfo>? children,
   }) : super(
           WikiViewer.name,
-          args: WikiViewerArgs(
-            key: key,
-            repoURL: repoURL,
-          ),
+          args: WikiViewerArgs(key: key, repoURL: repoURL),
           initialChildren: children,
         );
 
@@ -758,21 +896,16 @@ class WikiViewer extends _i15.PageRouteInfo<WikiViewerArgs> {
   static _i15.PageInfo page = _i15.PageInfo(
     name,
     builder: (data) {
-      final args =
-          data.argsAs<WikiViewerArgs>(orElse: () => const WikiViewerArgs());
-      return _i14.WikiViewer(
-        key: args.key,
-        repoURL: args.repoURL,
+      final args = data.argsAs<WikiViewerArgs>(
+        orElse: () => const WikiViewerArgs(),
       );
+      return _i14.WikiViewer(key: args.key, repoURL: args.repoURL);
     },
   );
 }
 
 class WikiViewerArgs {
-  const WikiViewerArgs({
-    this.key,
-    this.repoURL,
-  });
+  const WikiViewerArgs({this.key, this.repoURL});
 
   final _i16.Key? key;
 
@@ -782,4 +915,14 @@ class WikiViewerArgs {
   String toString() {
     return 'WikiViewerArgs{key: $key, repoURL: $repoURL}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! WikiViewerArgs) return false;
+    return key == other.key && repoURL == other.repoURL;
+  }
+
+  @override
+  int get hashCode => key.hashCode ^ repoURL.hashCode;
 }

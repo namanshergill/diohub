@@ -2,6 +2,7 @@ import 'package:diohub/common/misc/scroll_dynamic_elevation.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:dynamic_sliver_app_bar/src/animated_dynamic_sliver_app_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sliver_tools/sliver_tools.dart';
 
 class DynamicScroll extends StatefulWidget {
@@ -13,6 +14,8 @@ class DynamicScroll extends StatefulWidget {
     this.pinnedWidget,
     this.contentVersion,
     this.animationController,
+    this.actions,
+    this.expandedByDefault = false,
     super.key,
   });
 
@@ -23,6 +26,8 @@ class DynamicScroll extends StatefulWidget {
   final Widget body;
   final int? contentVersion;
   final AnimationController? animationController;
+  final List<Widget>? actions;
+  final bool expandedByDefault;
 
   @override
   State<DynamicScroll> createState() => _DynamicScrollState();
@@ -37,13 +42,15 @@ class _DynamicScrollState extends State<DynamicScroll> {
   @override
   void initState() {
     super.initState();
-    // Scroll to collapse the app bar on initial load
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        // Scroll down by a large amount to ensure app bar is collapsed
-        _scrollController.jumpTo(1000);
-      }
-    });
+    // Scroll to collapse the app bar on initial load if not expanded by default
+    if (!widget.expandedByDefault) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          // Scroll down by a large amount to ensure app bar is collapsed
+          _scrollController.jumpTo(1000);
+        }
+      });
+    }
   }
 
   @override
@@ -67,6 +74,8 @@ class _DynamicScrollState extends State<DynamicScroll> {
                   key: _appBarKey,
                   animationController: widget.animationController,
                   appBarContentScrollController: _appBarContentScrollController,
+                  scrollController: _scrollController,
+                  actions: widget.actions,
                   // backgroundColor: Colors.transparent,
                   // elevation: 0,
                   toolbarHeight: 64,
@@ -94,30 +103,32 @@ class _DynamicScrollState extends State<DynamicScroll> {
                             });
                             return true;
                           },
-                          child: _ScrollableAppBarContent(
-                            scrollController: _appBarContentScrollController,
-                            child: Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: <Widget>[
-                                  KeyedSubtree(
-                                    key: _expandedWidgetKey,
-                                    child: widget.expandedWidget,
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(10.0),
-                                    child: Container(
-                                      width: 40,
-                                      height: 5,
-                                      decoration: BoxDecoration(
-                                        color: context.colorScheme.onInverseSurface,
-                                        borderRadius: BorderRadius.circular(10),
+                          child: _AppBarStateListener(
+                            child: _ScrollableAppBarContent(
+                              scrollController: _appBarContentScrollController,
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: <Widget>[
+                                    KeyedSubtree(
+                                      key: _expandedWidgetKey,
+                                      child: widget.expandedWidget,
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(10.0),
+                                      child: Container(
+                                        width: 40,
+                                        height: 5,
+                                        decoration: BoxDecoration(
+                                          color: context.colorScheme.onInverseSurface,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -125,7 +136,32 @@ class _DynamicScrollState extends State<DynamicScroll> {
                       ),
                     ),
                   ),
-                  title: widget.collapsedWidget,
+                  title: GestureDetector(
+                    onPanDown: (details) {
+                      // Drag down on collapsed title to expand
+                      if (_scrollController.hasClients &&
+                          _scrollController.position.pixels > 0) {
+                        _scrollController.animateTo(
+                          0,
+                          curve: Curves.easeIn,
+                          duration: const Duration(milliseconds: 300),
+                        );
+                      }
+                    },
+                    onVerticalDragStart: (details) {
+                      // Also handle vertical drag start
+                      if (_scrollController.hasClients &&
+                          _scrollController.position.pixels > 0) {
+                        _scrollController.animateTo(
+                          0,
+                          curve: Curves.easeIn,
+                          duration: const Duration(milliseconds: 300),
+                        );
+                      }
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: widget.collapsedWidget,
+                  ),
                   // bottom: bottom,
                   // snap: true,
                   pinned: true,
@@ -155,6 +191,56 @@ class _DynamicScrollState extends State<DynamicScroll> {
           },
         ),
       );
+}
+
+/// Listens to FlexibleSpaceBarSettings to detect app bar state changes
+class _AppBarStateListener extends StatefulWidget {
+  const _AppBarStateListener({
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  State<_AppBarStateListener> createState() => _AppBarStateListenerState();
+}
+
+class _AppBarStateListenerState extends State<_AppBarStateListener> {
+  bool _wasFullyCollapsed = true;
+  bool _wasFullyExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Builder(
+      builder: (context) {
+        final settings = context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+        if (settings != null) {
+          // Check if fully collapsed (within 5px of minExtent)
+          final isFullyCollapsed = (settings.currentExtent - settings.minExtent).abs() < 5;
+          // Check if fully expanded (within 5px of maxExtent)
+          final isFullyExpanded = (settings.currentExtent - settings.maxExtent).abs() < 5;
+          
+          // Trigger haptic feedback when transitioning between fully collapsed and fully expanded
+          if (isFullyCollapsed && !_wasFullyCollapsed) {
+            // Just became fully collapsed
+            HapticFeedback.lightImpact();
+            _wasFullyCollapsed = true;
+            _wasFullyExpanded = false;
+          } else if (isFullyExpanded && !_wasFullyExpanded) {
+            // Just became fully expanded
+            HapticFeedback.lightImpact();
+            _wasFullyExpanded = true;
+            _wasFullyCollapsed = false;
+          } else {
+            // Update state tracking
+            _wasFullyCollapsed = isFullyCollapsed;
+            _wasFullyExpanded = isFullyExpanded;
+          }
+        }
+        return widget.child;
+      },
+    );
+  }
 }
 
 /// Wrapper that makes app bar content scrollable when it exceeds available height

@@ -173,7 +173,11 @@ class AnimatedDynamicSliverAppBarState
       oldWidget.animationController?.removeListener(_onAnimationTick);
       widget.animationController?.addListener(_onAnimationTick);
     }
-    updateHeight();
+    // Don't update height on hot reload - only update if content actually changed
+    if (oldWidget.flexibleSpace != widget.flexibleSpace ||
+        oldWidget.heightBuffer != widget.heightBuffer) {
+      updateHeight();
+    }
   }
 
   @override
@@ -204,20 +208,34 @@ class AnimatedDynamicSliverAppBarState
 
     // Schedule measurement for next frame
     SchedulerBinding.instance.scheduleFrameCallback((_) {
-      if (!mounted || !_isMeasuring) {
+      if (!mounted) {
         _isMeasuring = false;
         _frameCount = 0;
         return;
       }
 
-      final bool isStillAnimating = widget.animationController?.isAnimating ?? false;
-      
+      final bool isStillAnimating =
+          widget.animationController?.isAnimating ?? false;
+
+      // Stop measuring if animation stopped
+      if (!isStillAnimating) {
+        _isMeasuring = false;
+        _frameCount = 0;
+        // Final measurement to ensure accuracy
+        updateHeight();
+        return;
+      }
+
+      // Check if we're still supposed to be measuring
+      if (!_isMeasuring) {
+        return;
+      }
+
       _frameCount++;
       // Throttle: measure every 2 frames (30fps instead of 60fps)
       // This reduces rebuilds by ~50% while maintaining smooth animations
-      // Always measure on the last frame before animation stops to catch final height
-      final bool shouldMeasure = (_frameCount % 2 == 0) || !isStillAnimating;
-      
+      final bool shouldMeasure = (_frameCount % 2 == 0);
+
       if (shouldMeasure) {
         // Measure the content's natural size
         if (_childKey.currentContext != null) {
@@ -227,8 +245,8 @@ class AnimatedDynamicSliverAppBarState
             final double newHeight = renderBox.size.height;
 
             // Only update if height changed significantly (reduces unnecessary rebuilds)
-            // Use smaller threshold when animation is stopping to catch final changes
-            final double threshold = isStillAnimating ? 0.5 : 0.1;
+            // Use consistent threshold to avoid random height changes
+            final double threshold = 0.5;
             if ((newHeight - _height).abs() > threshold) {
               setState(() {
                 _height = newHeight +
@@ -240,14 +258,8 @@ class AnimatedDynamicSliverAppBarState
       }
 
       // Continue measuring if still animating
-      if (isStillAnimating) {
+      if (_isMeasuring && isStillAnimating) {
         _scheduleContinuousMeasurement();
-      } else {
-        // Animation completed
-        _isMeasuring = false;
-        _frameCount = 0;
-        // Final measurement to ensure accuracy - always do this regardless of throttling
-        updateHeight();
       }
     });
   }
@@ -263,10 +275,15 @@ class AnimatedDynamicSliverAppBarState
       final RenderBox? renderBox =
           _childKey.currentContext!.findRenderObject() as RenderBox?;
       if (renderBox != null && renderBox.hasSize) {
-        setState(() {
-          _height = renderBox.size.height +
-              widget.heightBuffer; // Add buffer to prevent tiny overflow
-        });
+        final double newHeight = renderBox.size.height + widget.heightBuffer;
+
+        // Only update if height changed significantly (prevents hot reload from causing incremental increases)
+        // Use a larger threshold to prevent tiny increments from accumulating
+        if (_height == 0 || (newHeight - _height).abs() > 1.0) {
+          setState(() {
+            _height = newHeight;
+          });
+        }
       }
     });
   }
@@ -317,9 +334,12 @@ class AnimatedDynamicSliverAppBarState
               onPanDown: (details) {
                 try {
                   var sc = PrimaryScrollController.of(context);
-                  sc.animateTo(sc.initialScrollOffset + 100,
-                      curve: Curves.bounceIn,
-                      duration: Duration(milliseconds: 300));
+                  // Check if the scroll controller is attached before animating
+                  if (sc.hasClients && sc.positions.isNotEmpty) {
+                    sc.animateTo(sc.initialScrollOffset + 100,
+                        curve: Curves.bounceIn,
+                        duration: Duration(milliseconds: 300));
+                  }
                 } catch (e) {
                   // Ignore scroll errors
                 }
@@ -440,8 +460,8 @@ class _InvisibleExpandedTitleState extends State<_InvisibleExpandedTitle> {
     // Cache settings to avoid repeated lookups
     _cachedSettings ??=
         context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
-    bool visible =
-        _cachedSettings == null || _cachedSettings!.currentExtent <= _cachedSettings!.minExtent;
+    bool visible = _cachedSettings == null ||
+        _cachedSettings!.currentExtent <= _cachedSettings!.minExtent;
     if (_visible != visible) {
       setState(() {
         _visible = visible;
@@ -510,8 +530,8 @@ class _SmartFlexibleSpaceBarState extends State<_SmartFlexibleSpaceBar> {
     // Cache settings to avoid repeated lookups
     _cachedSettings ??=
         context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
-    final bool isCollapsed =
-        _cachedSettings == null || _cachedSettings!.currentExtent <= _cachedSettings!.minExtent + 10;
+    final bool isCollapsed = _cachedSettings == null ||
+        _cachedSettings!.currentExtent <= _cachedSettings!.minExtent + 10;
     if (_isCollapsed != isCollapsed && mounted) {
       setState(() {
         _isCollapsed = isCollapsed;
@@ -536,7 +556,10 @@ class _SmartFlexibleSpaceBarState extends State<_SmartFlexibleSpaceBar> {
           // Handle vertical drag start to expand app bar
           final ScrollController? sc =
               widget.scrollController ?? PrimaryScrollController.of(context);
-          if (sc != null && sc.hasClients && sc.position.pixels > 0) {
+          if (sc != null &&
+              sc.hasClients &&
+              sc.positions.isNotEmpty &&
+              sc.position.pixels > 0) {
             sc.animateTo(
               0,
               curve: Curves.easeIn,

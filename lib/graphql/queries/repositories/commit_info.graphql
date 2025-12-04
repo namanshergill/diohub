@@ -1,0 +1,107 @@
+query commitInfo($owner: String!, $repo: String!, $oid: GitObjectID!) {
+  repository(name: $repo, owner: $owner) {
+    object(oid: $oid) {
+      __typename
+      ... on Commit {
+        oid
+        abbreviatedOid
+        message
+        messageHeadline
+        messageBody
+        messageBodyHTML
+        messageHeadlineHTML
+        commitUrl
+        commitResourcePath
+        url
+        
+        resourcePath
+        additions
+        deletions
+        changedFilesIfAvailable
+        authoredDate
+        committedDate
+        authoredByCommitter
+        author {
+          avatarUrl
+          name
+          email
+          date
+          user {
+            login
+            avatarUrl
+            url
+            ... on User {
+              name
+              bio
+            }
+          }
+        }
+        committer {
+          avatarUrl
+          name
+          email
+          date
+          user {
+            login
+            avatarUrl
+            url
+            ... on User {
+              name
+              bio
+            }
+          }
+        }
+        parents(first: 10) {
+          edges {
+            node {
+              oid
+              abbreviatedOid
+              commitUrl
+              url
+            }
+          }
+        }
+        tree {
+          oid
+          abbreviatedOid
+        }
+        signature {
+          isValid
+          wasSignedByGitHub
+          signer {
+            email
+            name
+          }
+          payload
+          signature
+        }
+        comments {
+          totalCount
+        }
+        statusCheckRollup {
+          state
+        }
+        associatedPullRequests(first: 5) {
+          edges {
+            node {
+              number
+              title
+              url
+              state
+              isDraft
+            }
+          }
+        }
+        repository {
+          name
+          nameWithOwner
+          url
+          defaultBranchRef {
+            name
+          }
+        }
+      }
+    }
+  }
+}
+

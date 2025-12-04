@@ -22,7 +22,7 @@ class DetailTileContent extends StatelessWidget {
         fontWeight: FontWeight.w500,
         height: 1.3,
         color: textColor, // Explicitly override any theme color
-        fontSize: baseStyle.fontSize ?? 14,
+        fontSize: (baseStyle.fontSize ?? 14) * 0.9, // Slightly smaller (90% of original)
       ),
       child: child,
     );
@@ -49,7 +49,7 @@ class DetailTileText extends StatelessWidget {
       fontWeight: FontWeight.w500,
       height: 1.3,
       color: textColor, // Explicitly override any theme color
-      fontSize: themeStyle.fontSize ?? 14,
+      fontSize: (themeStyle.fontSize ?? 14) * 0.9, // Slightly smaller (90% of original)
     );
     
     return DetailTileContent(
@@ -155,7 +155,7 @@ class DetailTileUserStack extends StatelessWidget {
             height: 1.3,
             color: context.colorScheme.onSurface.withOpacity(0.6), // Explicitly override
             fontStyle: FontStyle.italic,
-            fontSize: context.textTheme.bodyMedium?.fontSize ?? 14,
+            fontSize: ((context.textTheme.bodyMedium?.fontSize ?? 14) * 0.9), // Slightly smaller
           ),
         ),
       );
@@ -193,7 +193,7 @@ class DetailTileUserStack extends StatelessWidget {
                 fontWeight: FontWeight.w500,
                 height: 1.3,
                 color: context.colorScheme.onSurface.withOpacity(0.7), // Explicitly override
-                fontSize: context.textTheme.bodyMedium?.fontSize ?? 14,
+                fontSize: ((context.textTheme.bodyMedium?.fontSize ?? 14) * 0.9), // Slightly smaller
               ),
             ),
           ],

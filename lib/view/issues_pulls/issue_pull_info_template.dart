@@ -1,8 +1,12 @@
 import 'package:diohub/common/animations/size_expanded_widget.dart';
+import 'package:diohub/common/misc/animated_tab_bar.dart';
 import 'package:diohub/common/misc/collapsible_app_bar.dart';
-import 'package:diohub/common/misc/compact_expand_button.dart';
+import 'package:diohub/common/misc/collapsible_detail_tiles.dart';
+import 'package:diohub/common/misc/collapsible_action_buttons.dart';
+import 'package:diohub/common/misc/action_card_builder.dart';
 import 'package:diohub/common/misc/detail_tile.dart';
 import 'package:diohub/common/misc/detail_tile_content.dart';
+import 'package:diohub/common/misc/highlighted_container.dart';
 import 'package:diohub/common/misc/theme_from_image.dart';
 import 'package:diohub/common/wrappers/dynamic_tabs_parent.dart';
 import 'package:diohub/common/wrappers/editing_wrapper.dart';
@@ -25,7 +29,6 @@ import 'package:diohub/view/issues_pulls/models/issue_pull_state.dart';
 import 'package:diohub/view/issues_pulls/widgets/about_tab.dart';
 import 'package:diohub/view/issues_pulls/widgets/discussion.dart';
 import 'package:diohub/view/issues_pulls/widgets/discussion_comment.dart';
-import 'package:flex_list/flex_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dynamic_tabs/flutter_dynamic_tabs.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
@@ -93,8 +96,7 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
   late EditingController<List<Glabel?>> labelsEditingController;
 
   late EditingController<String> titleEditingController;
-  bool _showAllActions = false;
-  bool _showAllDetailTiles = false;
+  int _contentVersion = 0;
   late final AnimationController _expandAnimationController =
       AnimationController(
     duration: const Duration(milliseconds: 300),
@@ -169,30 +171,8 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
           // Detail tiles
           _buildDetailTilesSection(context),
           const SizedBox(height: 16),
-          // Action buttons (primary actions always visible, secondary when expanded)
+          // Action buttons (includes expand button)
           _buildActionButtons(context),
-          // Action buttons expand button (only show if there are secondary actions)
-          Padding(
-            padding: EdgeInsets.only(
-              top: _showAllActions ? 16 : 8, // More space when expanded, less when collapsed
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              child: CompactExpandButton(
-                isExpanded: _showAllActions,
-                onTap: () {
-                  setState(() {
-                    _showAllActions = !_showAllActions;
-                  });
-                  if (_showAllActions) {
-                    _expandAnimationController.forward();
-                  } else {
-                    _expandAnimationController.reverse();
-                  }
-                },
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -207,48 +187,48 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
         children: [
           // State badge
           Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: widget.state.color.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: widget.state.color.withOpacity(0.3),
-              width: 1,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: widget.state.color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: widget.state.color.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                widget.state.icon(size: 12),
+                const SizedBox(width: 4),
+                Text(
+                  widget.state.text,
+                  style: context.textTheme.labelSmall?.copyWith(
+                    color: widget.state.color,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              widget.state.icon(size: 12),
-              const SizedBox(width: 4),
-              Text(
-                widget.state.text,
-                style: context.textTheme.labelSmall?.copyWith(
-                  color: widget.state.color,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        // Issue number
-        Text(
-          '#${widget.number}',
-          style: context.textTheme.labelMedium?.copyWith(
-            color: context.colorScheme.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        if (widget.isPinned) ...[
           const SizedBox(width: 8),
-          Icon(
-            Octicons.pin,
-            size: 14,
-            color: context.colorScheme.tertiary,
+          // Issue number
+          Text(
+            '#${widget.number}',
+            style: context.textTheme.labelMedium?.copyWith(
+              color: context.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ],
+          if (widget.isPinned) ...[
+            const SizedBox(width: 8),
+            Icon(
+              Octicons.pin,
+              size: 14,
+              color: context.colorScheme.tertiary,
+            ),
+          ],
         ],
       ),
     );
@@ -260,7 +240,7 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
       // Repository
       DetailTile(
         title: 'Repository',
-        icon: Octicons.repo,
+        actionType: DetailTileActionType.navigation,
         onTap: () async {
           await context.router.push(
             RepositoryRoute(
@@ -278,7 +258,7 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
       // Created date
       DetailTile(
         title: 'Created',
-        icon: Octicons.calendar,
+        actionType: DetailTileActionType.none,
         child: DetailTileText(
           getDate(widget.createdAt.toString(), shorten: false),
         ),
@@ -287,7 +267,7 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
       if (widget.createdBy != null)
         DetailTile(
           title: 'Author',
-          icon: Octicons.person,
+          actionType: DetailTileActionType.navigation,
           onTap: () {
             navigateToProfile(
               login: widget.createdBy!.login,
@@ -313,101 +293,20 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
       ...widget.additionalDetailTiles,
     ];
 
-    final allTiles = [...alwaysVisibleTiles, ...expandableTiles];
-    final visibleTiles = _showAllDetailTiles
-        ? allTiles
-        : alwaysVisibleTiles;
-
-    return Card(
-      color: Color.lerp(
-        context.colorScheme.surfaceContainer,
-        Colors.black,
-        0.1,
+    return CollapsibleDetailTiles(
+      alwaysVisibleTiles: alwaysVisibleTiles,
+      expandableTiles: expandableTiles,
+      visibilityConfig: DetailTilesVisibilityConfig.fixedCount(
+        defaultVisibleCount:
+            2, // Show 2 tiles by default (Assignee, Participants)
       ),
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: AnimatedSize(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        child: Column(
-          children: [
-            // Visible tiles
-            ...visibleTiles.asMap().entries.map((entry) {
-              final int index = entry.key;
-              final Widget tile = entry.value;
-              return Column(
-                children: [
-                  tile,
-                  if (index < visibleTiles.length - 1)
-                    Divider(
-                      height: 1,
-                      thickness: 1,
-                      indent: 12,
-                      endIndent: 12,
-                      color: context.colorScheme.outlineVariant.withOpacity(0.3),
-                    ),
-                ],
-              );
-            }).toList(),
-            // Expand button (only show if there are expandable tiles)
-            if (expandableTiles.isNotEmpty) ...[
-              if (visibleTiles.isNotEmpty)
-                Divider(
-                  height: 1,
-                  thickness: 1,
-                  indent: 12,
-                  endIndent: 12,
-                  color: context.colorScheme.outlineVariant.withOpacity(0.3),
-                ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Material(
-                    color: Color.lerp(
-                      context.colorScheme.surfaceContainer,
-                      Colors.black,
-                      0.1,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    child: InkWell(
-                      onTap: () {
-                        setState(() {
-                          _showAllDetailTiles = !_showAllDetailTiles;
-                        });
-                        if (_showAllDetailTiles) {
-                          _expandAnimationController.forward();
-                        } else {
-                          _expandAnimationController.reverse();
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        child: AnimatedRotation(
-                          duration: const Duration(milliseconds: 300),
-                          turns: _showAllDetailTiles ? 0.5 : 0,
-                          child: Icon(
-                            Icons.expand_more_rounded,
-                            size: 14,
-                            color: context.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+      onExpandChanged: (isExpanded) {
+        if (isExpanded) {
+          _expandAnimationController.forward();
+        } else {
+          _expandAnimationController.reverse();
+        }
+      },
     );
   }
 
@@ -422,15 +321,19 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
 
     return DetailTile(
       title: assigneeList.totalCount == 1 ? 'Assignee' : 'Assignees',
-      icon: Octicons.person_fill,
+      actionType: assigneeList.totalCount > 1
+          ? DetailTileActionType.bottomSheet
+          : assigneeList.totalCount == 1
+              ? DetailTileActionType.navigation
+              : DetailTileActionType.none,
       onTap: assigneeList.totalCount > 1
           ? () async {
               await BottomSheetPagination<NodeWithPaginationInfo<Gactor>>(
                 paginatedListItemBuilder: _paginatedListItemBuilder,
                 paginationFuture: (data) async =>
                     (await context.issueProvider(listen: false).getAssignees(
-                          after: data.lastItem?.cursor,
-                        ))
+                              after: data.lastItem?.cursor,
+                            ))
                         .map<NodeWithPaginationInfo<Gactor>>(
                           (e) => NodeWithPaginationInfo<Gactor>.fromEdge(e!),
                         )
@@ -448,8 +351,7 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
               : null,
       child: assigneeList.totalCount == 1
           ? DetailTileUser(
-              avatarUrl: assigneeList
-                  .limitedAvailableList.first.node.avatarUrl
+              avatarUrl: assigneeList.limitedAvailableList.first.node.avatarUrl
                   .toString(),
               login: assigneeList.limitedAvailableList.first.node.login,
             )
@@ -465,7 +367,7 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
   Widget _buildParticipantsDetailTile(BuildContext context) {
     return DetailTile(
       title: 'Participants',
-      icon: Octicons.people,
+      actionType: DetailTileActionType.bottomSheet,
       onTap: () async {
         await BottomSheetPagination<NodeWithPaginationInfo<Gactor>>(
           paginatedListItemBuilder: _paginatedListItemBuilder,
@@ -524,225 +426,75 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
       ];
 
   Widget _buildActionButtons(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final int columns = (constraints.maxWidth / 120).floor().clamp(3, 8);
-        final double cardWidth =
-            (constraints.maxWidth - (8 * (columns - 1))) / columns;
+    // Primary actions - always visible when enabled
+    final primaryActions = <ActionButtonData>[
+      ActionButtonData(
+        icon: (widget.state.state == GIssueState.OPEN ||
+                widget.state.state == GPullRequestState.OPEN)
+            ? Octicons.issue_closed
+            : Octicons.issue_reopened,
+        label: (widget.state.state == GIssueState.OPEN ||
+                widget.state.state == GPullRequestState.OPEN)
+            ? 'Close'
+            : 'Reopen',
+        enabled: widget.viewerCanReact,
+        isDestructive: (widget.state.state == GIssueState.OPEN ||
+            widget.state.state == GPullRequestState.OPEN),
+        isPositive: (widget.state.state != GIssueState.OPEN &&
+            widget.state.state != GPullRequestState.OPEN),
+        onTap: () {},
+      ),
+      ActionButtonData(
+        icon: Octicons.pencil,
+        label: 'Edit',
+        enabled: widget.viewerCanReact,
+        onTap: () {},
+      ),
+    ];
 
-        // Primary actions - always visible when enabled
-        final primaryActions = <_ActionCardData>[
-          _ActionCardData(
-            icon: (widget.state.state == GIssueState.OPEN ||
-                    widget.state.state == GPullRequestState.OPEN)
-                ? Octicons.issue_closed
-                : Octicons.issue_reopened,
-            label: (widget.state.state == GIssueState.OPEN ||
-                    widget.state.state == GPullRequestState.OPEN)
-                ? 'Close'
-                : 'Reopen',
-            enabled: widget.viewerCanReact,
-            isDestructive: (widget.state.state == GIssueState.OPEN ||
-                widget.state.state == GPullRequestState.OPEN),
-            isPositive: (widget.state.state != GIssueState.OPEN &&
-                widget.state.state != GPullRequestState.OPEN),
-            onTap: () {},
-          ),
-          _ActionCardData(
-            icon: Octicons.pencil,
-            label: 'Edit',
-            enabled: widget.viewerCanReact,
-            onTap: () {},
-          ),
-        ];
+    // Secondary actions - only visible when expanded
+    final secondaryActions = <ActionButtonData>[
+      ActionButtonData(
+        icon: Octicons.lock,
+        label: 'Lock',
+        enabled: widget.viewerCanReact,
+        onTap: () {},
+      ),
+      ActionButtonData(
+        icon: Octicons.pin,
+        label: widget.isPinned ? 'Unpin' : 'Pin',
+        enabled: widget.viewerCanReact,
+        onTap: () {},
+      ),
+    ];
 
-        // Secondary actions - only visible when expanded
-        final secondaryActions = <_ActionCardData>[
-          _ActionCardData(
-            icon: Octicons.lock,
-            label: 'Lock',
-            enabled: widget.viewerCanReact,
-            onTap: () {},
-          ),
-          _ActionCardData(
-            icon: Octicons.pin,
-            label: widget.isPinned ? 'Unpin' : 'Pin',
-            enabled: widget.viewerCanReact,
-            onTap: () {},
-          ),
-        ];
-
-        final enabledPrimaryActions = primaryActions.where((a) => a.enabled).toList();
-        final disabledPrimaryActions = primaryActions.where((a) => !a.enabled).toList();
-        final enabledSecondaryActions = secondaryActions.where((a) => a.enabled).toList();
-        final disabledSecondaryActions = secondaryActions.where((a) => !a.enabled).toList();
-
-        // Always show primary actions, conditionally show secondary actions
-        final visibleActions = <_ActionCardData>[
-          ...enabledPrimaryActions,
-          ...disabledPrimaryActions,
-          if (_showAllActions) ...enabledSecondaryActions,
-          if (_showAllActions) ...disabledSecondaryActions,
-        ];
-
-        return AnimatedSize(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          child: visibleActions.isNotEmpty
-              ? FlexList(
-                  horizontalSpacing: 8,
-                  verticalSpacing: 8,
-                  children: visibleActions.map((action) => SizedBox(
-                        width: cardWidth,
-                        child: _buildActionCard(
-                          context: context,
-                          icon: action.icon,
-                          label: action.label,
-                          enabled: action.enabled,
-                          isDestructive: action.isDestructive,
-                          isPositive: action.isPositive,
-                          onTap: action.onTap,
-                        ),
-                      )).toList(),
-                )
-              : const SizedBox.shrink(),
-        );
+    return CollapsibleActionButtons(
+      primaryActions: primaryActions,
+      secondaryActions: secondaryActions,
+      actionCardBuilder: (context, action) =>
+          buildCompactActionCard(context, action),
+      visibilityConfig: ActionButtonsVisibilityConfig.fixedCount(
+        defaultVisibleCount:
+            2, // Show 2 actions by default (Close/Reopen, Edit)
+      ),
+      onExpandChanged: (isExpanded) {
+        setState(() {
+          _contentVersion = isExpanded ? 1 : 0;
+        });
+        if (isExpanded) {
+          _expandAnimationController.forward();
+        } else {
+          _expandAnimationController.reverse();
+        }
       },
     );
   }
 
-  Widget _buildActionCard({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    VoidCallback? onTap,
-    bool enabled = true,
-    bool isDestructive = false,
-    bool isPositive = false,
-  }) {
-    Color backgroundColor;
-    Color iconColor;
-    Color textColor;
-
-    if (!enabled) {
-      backgroundColor =
-          context.colorScheme.surfaceContainerHighest.withOpacity(0.3);
-      iconColor = context.colorScheme.onSurfaceVariant.withOpacity(0.3);
-      textColor = context.colorScheme.onSurfaceVariant.withOpacity(0.3);
-    } else if (isDestructive) {
-      backgroundColor = context.colorScheme.errorContainer;
-      iconColor = context.colorScheme.error;
-      textColor = context.colorScheme.onErrorContainer;
-    } else if (isPositive) {
-      backgroundColor = Colors.green.withOpacity(0.12);
-      iconColor = Colors.green.shade700;
-      textColor = Colors.green.shade900;
-    } else {
-      backgroundColor = context.colorScheme.surfaceContainerHighest;
-      iconColor = context.colorScheme.primary;
-      textColor = context.colorScheme.onSurface;
-    }
-
-    return Material(
-      color: backgroundColor,
-      borderRadius: BorderRadius.circular(10),
-      child: AbsorbPointer(
-        absorbing: !enabled,
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: iconColor,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: context.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                    fontSize: 11,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildConversationButton(BuildContext context) {
-    return Material(
-      color: context.colorScheme.primaryContainer,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 1,
-      child: InkWell(
-        onTap: () {
-          try {
-            dynamicTabsController.openTab('Conversation');
-          } catch (e, s) {
-            log(e.toString(), stackTrace: s);
-          }
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color:
-                      context.colorScheme.onPrimaryContainer.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  Octicons.comment_discussion,
-                  size: 16,
-                  color: context.colorScheme.onPrimaryContainer,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Thread',
-                      style: context.textTheme.labelMedium?.copyWith(
-                        color: context.colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      '${widget.commentCount} ${widget.commentCount == 1 ? 'reply' : 'replies'}',
-                      style: context.textTheme.labelSmall?.copyWith(
-                        color: context.colorScheme.onPrimaryContainer
-                            .withOpacity(0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 16,
-                color: context.colorScheme.onPrimaryContainer,
-              ),
-            ],
-          ),
-        ),
-      ),
+    // Use a StatefulWidget that listens to tab changes including swipes
+    return _ConversationButtonWidget(
+      dynamicTabsController: dynamicTabsController,
+      commentCount: widget.commentCount,
     );
   }
 
@@ -766,17 +518,16 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
               onRefresh: widget.onRefresh,
               triggerMode: RefreshIndicatorTriggerMode.anywhere,
               child: DynamicScroll(
-                contentVersion: _showAllActions ? 1 : 0,
+                contentVersion: _contentVersion,
                 animationController: _expandAnimationController,
                 collapsedWidget: _buildCollapsedHeader(context),
                 expandedWidget: _buildExpandedHeader(context),
-                pinnedWidget: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: _buildConversationButton(context),
-                ),
-                bottom: SizeExpandedSection(
-                  expand: dynamicTabsController.activeLength > 1,
-                  child: buildTabsView(tabBar),
+                pinnedWidget: _buildConversationButton(context),
+                bottom: AnimatedTabBar(
+                  showTabBar: dynamicTabsController.activeLength > 1,
+                  tabBar: buildTabsView(tabBar),
+                  defaultPadding: const EdgeInsets.only(bottom: 8),
+                  topSpacing: 0,
                 ),
                 body: tabView,
               ),
@@ -802,24 +553,6 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
               createdAt: widget.createdAt,
               owner: widget.repoInfo.owner.login,
               repoName: widget.repoInfo.name,
-              initComment: BaseComment(
-                onQuote: () {},
-                resourceUri: Uri.parse('uri'),
-                isMinimized: false,
-                reactions: widget.reactionGroups,
-                viewerCanDelete: false,
-                viewerCanMinimize: false,
-                viewerCannotUpdateReasons: null,
-                viewerCanReact: widget.viewerCanReact,
-                viewerCanUpdate: false,
-                viewerDidAuthor: false,
-                createdAt: widget.createdAt,
-                author: widget.createdBy,
-                body: widget.body,
-                lastEditedAt: null,
-                bodyHTML: widget.bodyHTML,
-                authorAssociation: GCommentAuthorAssociation.NONE,
-              ),
               issueUrl: widget.uri,
               isPull: false,
             ),
@@ -861,21 +594,147 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
       );
 }
 
-class _ActionCardData {
-  const _ActionCardData({
-    required this.icon,
-    required this.label,
-    required this.enabled,
-    this.isDestructive = false,
-    this.isPositive = false,
-    this.onTap,
+/// Widget that listens to tab changes including swipe gestures
+class _ConversationButtonWidget extends StatefulWidget {
+  const _ConversationButtonWidget({
+    required this.dynamicTabsController,
+    required this.commentCount,
   });
 
-  final IconData icon;
-  final String label;
-  final bool enabled;
-  final bool isDestructive;
-  final bool isPositive;
-  final VoidCallback? onTap;
+  final DynamicTabsController dynamicTabsController;
+  final int commentCount;
+
+  @override
+  State<_ConversationButtonWidget> createState() =>
+      _ConversationButtonWidgetState();
 }
 
+class _ConversationButtonWidgetState extends State<_ConversationButtonWidget> {
+  String? _lastActiveIdentifier;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastActiveIdentifier = widget.dynamicTabsController.activeIdentifier;
+    widget.dynamicTabsController.addListener(_onControllerChanged);
+    // Schedule periodic checks to catch tab swipes
+    _scheduleCheck();
+  }
+
+  @override
+  void didUpdateWidget(_ConversationButtonWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dynamicTabsController != widget.dynamicTabsController) {
+      oldWidget.dynamicTabsController.removeListener(_onControllerChanged);
+      widget.dynamicTabsController.addListener(_onControllerChanged);
+      _lastActiveIdentifier = widget.dynamicTabsController.activeIdentifier;
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.dynamicTabsController.removeListener(_onControllerChanged);
+    super.dispose();
+  }
+
+  void _onControllerChanged() {
+    final current = widget.dynamicTabsController.activeIdentifier;
+    if (_lastActiveIdentifier != current && mounted) {
+      setState(() {
+        _lastActiveIdentifier = current;
+      });
+    }
+  }
+
+  void _scheduleCheck() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final current = widget.dynamicTabsController.activeIdentifier;
+      if (_lastActiveIdentifier != current) {
+        setState(() {
+          _lastActiveIdentifier = current;
+        });
+      }
+      // Schedule next check
+      _scheduleCheck();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isConversationActive =
+        widget.dynamicTabsController.activeIdentifier == 'Conversation';
+
+    return SizeExpandedSection(
+      expand: !isConversationActive,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: HighlightedContainer(
+          highlightColor: context.colorScheme.primary,
+          borderRadius: 12,
+          child: Material(
+            color: context.colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: () {
+                try {
+                  widget.dynamicTabsController.openTab('Conversation');
+                } catch (e, s) {
+                  log(e.toString(), stackTrace: s);
+                }
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: context.colorScheme.onPrimaryContainer
+                            .withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(
+                        Octicons.comment_discussion,
+                        size: 16,
+                        color: context.colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Thread',
+                            style: context.textTheme.labelMedium?.copyWith(
+                              color: context.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            '${widget.commentCount} ${widget.commentCount == 1 ? 'reply' : 'replies'}',
+                            style: context.textTheme.labelSmall?.copyWith(
+                              color: context.colorScheme.onPrimaryContainer
+                                  .withOpacity(0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                      color: context.colorScheme.onPrimaryContainer,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

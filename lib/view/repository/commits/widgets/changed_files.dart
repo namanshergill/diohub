@@ -15,15 +15,25 @@ class ChangedFiles extends StatefulWidget {
 class ChangedFilesState extends State<ChangedFiles> {
   @override
   Widget build(final BuildContext context) {
-    final CommitModel commit = Provider.of<CommitProvider>(context).data;
-    final List<FileElement> files =
-        Provider.of<CommitProvider>(context).data.files!;
+    final provider = Provider.of<CommitProvider>(context);
+    final commit = provider.data;
+    final List<FileElement>? files = provider.files;
+    
+    if (files == null || files.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('No changed files available'),
+        ),
+      );
+    }
+    
     return ListView(
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'Showing ${commit.files!.length} changed files with ${commit.stats!.additions} additions and ${commit.stats!.deletions}  deletions.',
+            'Showing ${files.length} changed files with ${commit.additions} additions and ${commit.deletions} deletions.',
             textAlign: TextAlign.center,
           ),
         ),

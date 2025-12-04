@@ -91,7 +91,7 @@ class PullScreenState extends State<PullScreen>
         // Commits
         DetailTile(
           title: 'Commits',
-          icon: Octicons.git_commit,
+          actionType: DetailTileActionType.tab,
           onTap: () {
             _templateKey.currentState?.dynamicTabsController.openTab('commits');
           },
@@ -104,7 +104,7 @@ class PullScreenState extends State<PullScreen>
         // Files changed
         DetailTile(
           title: 'Files changed',
-          icon: Octicons.file_diff,
+          actionType: DetailTileActionType.tab,
           onTap: () {
             _templateKey.currentState?.dynamicTabsController
                 .openTab('files_changed');
@@ -119,7 +119,7 @@ class PullScreenState extends State<PullScreen>
         if (data.merged)
           DetailTile(
             title: 'Merged',
-            icon: Octicons.git_merge,
+            actionType: DetailTileActionType.none,
             child: DetailTileText(
               getDate(data.mergedAt.toString(), shorten: false),
               color: Colors.deepPurple,
@@ -128,5 +128,4 @@ class PullScreenState extends State<PullScreen>
       ],
     );
   }
-
 }
