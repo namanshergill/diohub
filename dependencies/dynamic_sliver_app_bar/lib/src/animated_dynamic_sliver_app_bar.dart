@@ -157,6 +157,7 @@ class AnimatedDynamicSliverAppBarState
   // to calculate dynamically the size for the sliver app bar
   double _height = 0;
   bool _isMeasuring = false;
+  int _frameCount = 0; // For throttling measurements
 
   @override
   void initState() {
@@ -186,11 +187,13 @@ class AnimatedDynamicSliverAppBarState
     if (widget.animationController?.isAnimating ?? false) {
       if (!_isMeasuring) {
         _isMeasuring = true;
+        _frameCount = 0; // Reset frame counter
         _scheduleContinuousMeasurement();
       }
     } else {
       // Animation stopped
       _isMeasuring = false;
+      _frameCount = 0;
       // Final measurement after animation completes
       updateHeight();
     }
@@ -203,21 +206,28 @@ class AnimatedDynamicSliverAppBarState
     SchedulerBinding.instance.scheduleFrameCallback((_) {
       if (!mounted || !_isMeasuring) {
         _isMeasuring = false;
+        _frameCount = 0;
         return;
       }
 
-      // Measure the content's natural size
-      if (_childKey.currentContext != null) {
-        final RenderBox? renderBox =
-            _childKey.currentContext!.findRenderObject() as RenderBox?;
-        if (renderBox != null && renderBox.hasSize) {
-          final double newHeight = renderBox.size.height;
+      _frameCount++;
+      // Throttle: measure every 2 frames (30fps instead of 60fps)
+      // This reduces rebuilds by ~50% while maintaining smooth animations
+      if (_frameCount % 2 == 0) {
+        // Measure the content's natural size
+        if (_childKey.currentContext != null) {
+          final RenderBox? renderBox =
+              _childKey.currentContext!.findRenderObject() as RenderBox?;
+          if (renderBox != null && renderBox.hasSize) {
+            final double newHeight = renderBox.size.height;
 
-          if ((newHeight - _height).abs() > 0.5) {
-            setState(() {
-              _height = newHeight +
-                  widget.heightBuffer; // Add buffer to prevent tiny overflow
-            });
+            // Only update if height changed significantly (reduces unnecessary rebuilds)
+            if ((newHeight - _height).abs() > 0.5) {
+              setState(() {
+                _height = newHeight +
+                    widget.heightBuffer; // Add buffer to prevent tiny overflow
+              });
+            }
           }
         }
       }
@@ -228,6 +238,7 @@ class AnimatedDynamicSliverAppBarState
       } else {
         // Animation completed
         _isMeasuring = false;
+        _frameCount = 0;
         // Final measurement to ensure accuracy
         updateHeight();
       }
@@ -343,29 +354,31 @@ class AnimatedDynamicSliverAppBarState
         scrollController: widget.scrollController,
         appBarContentScrollController: widget.appBarContentScrollController,
         child: FlexibleSpaceBar(
-          background: AnimatedBuilder(
-            animation:
-                widget.animationController ?? const AlwaysStoppedAnimation(0),
-            builder: (context, child) {
-              final bool isAnimating =
-                  widget.animationController?.isAnimating ?? false;
-              // During animation, use OverflowBox to allow content to grow naturally
-              // When not animating, use normal Container
-              return isAnimating
-                  ? OverflowBox(
-                      minHeight: 0,
-                      maxHeight: double.infinity,
-                      alignment: Alignment.topCenter,
-                      child: Container(
-                        key: _childKey,
-                        child: widget.flexibleSpace,
-                      ),
-                    )
-                  : Container(
-                      key: _childKey,
-                      child: widget.flexibleSpace,
-                    );
-            },
+          background: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation:
+                  widget.animationController ?? const AlwaysStoppedAnimation(0),
+              builder: (context, child) {
+                final bool isAnimating =
+                    widget.animationController?.isAnimating ?? false;
+                // During animation, use OverflowBox to allow content to grow naturally
+                // When not animating, use normal Container
+                // The child parameter caches the widget tree to reduce rebuilds
+                return isAnimating
+                    ? OverflowBox(
+                        minHeight: 0,
+                        maxHeight: double.infinity,
+                        alignment: Alignment.topCenter,
+                        child: child,
+                      )
+                    : child!;
+              },
+              // Cache the content widget tree to avoid rebuilding it on every animation tick
+              child: Container(
+                key: _childKey,
+                child: widget.flexibleSpace,
+              ),
+            ),
           ),
         ),
       ),
@@ -390,6 +403,7 @@ class _InvisibleExpandedTitle extends StatefulWidget {
 class _InvisibleExpandedTitleState extends State<_InvisibleExpandedTitle> {
   ScrollPosition? _position;
   bool? _visible;
+  FlexibleSpaceBarSettings? _cachedSettings;
 
   @override
   void dispose() {
@@ -401,6 +415,7 @@ class _InvisibleExpandedTitleState extends State<_InvisibleExpandedTitle> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _removeListener();
+    _cachedSettings = null; // Reset cache when dependencies change
     _addListener();
   }
 
@@ -415,10 +430,11 @@ class _InvisibleExpandedTitleState extends State<_InvisibleExpandedTitle> {
   }
 
   void _positionListener() {
-    final FlexibleSpaceBarSettings? settings =
+    // Cache settings to avoid repeated lookups
+    _cachedSettings ??=
         context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
     bool visible =
-        settings == null || settings.currentExtent <= settings.minExtent;
+        _cachedSettings == null || _cachedSettings!.currentExtent <= _cachedSettings!.minExtent;
     if (_visible != visible) {
       setState(() {
         _visible = visible;
@@ -457,11 +473,13 @@ class _SmartFlexibleSpaceBar extends StatefulWidget {
 class _SmartFlexibleSpaceBarState extends State<_SmartFlexibleSpaceBar> {
   ScrollPosition? _position;
   bool _isCollapsed = true;
+  FlexibleSpaceBarSettings? _cachedSettings;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _removeListener();
+    _cachedSettings = null; // Reset cache when dependencies change
     _addListener();
     _updateCollapsedState();
   }
@@ -482,10 +500,11 @@ class _SmartFlexibleSpaceBarState extends State<_SmartFlexibleSpaceBar> {
   }
 
   void _updateCollapsedState() {
-    final FlexibleSpaceBarSettings? settings =
+    // Cache settings to avoid repeated lookups
+    _cachedSettings ??=
         context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
     final bool isCollapsed =
-        settings == null || settings.currentExtent <= settings.minExtent + 10;
+        _cachedSettings == null || _cachedSettings!.currentExtent <= _cachedSettings!.minExtent + 10;
     if (_isCollapsed != isCollapsed && mounted) {
       setState(() {
         _isCollapsed = isCollapsed;
@@ -506,20 +525,8 @@ class _SmartFlexibleSpaceBarState extends State<_SmartFlexibleSpaceBar> {
     // Only handle drag-to-expand when collapsed
     if (_isCollapsed) {
       return GestureDetector(
-        onPanDown: (details) {
-          // Detect downward drag to expand
-          final ScrollController? sc =
-              widget.scrollController ?? PrimaryScrollController.of(context);
-          if (sc != null && sc.hasClients && sc.position.pixels > 0) {
-            sc.animateTo(
-              0,
-              curve: Curves.easeIn,
-              duration: const Duration(milliseconds: 300),
-            );
-          }
-        },
         onVerticalDragStart: (details) {
-          // Also handle vertical drag start for better gesture detection
+          // Handle vertical drag start to expand app bar
           final ScrollController? sc =
               widget.scrollController ?? PrimaryScrollController.of(context);
           if (sc != null && sc.hasClients && sc.position.pixels > 0) {
