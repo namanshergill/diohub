@@ -413,7 +413,6 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
     final stargazersCount = repo.stargazersCount ?? 0;
     final forksCount = repo.forksCount ?? 0;
     final watchersCount = repo.watchersCount ?? 0;
-    final openIssuesCount = repo.openIssuesCount ?? 0;
 
     return HighlightedContainer(
       highlightColor: Theme.of(context).colorScheme.primary,
@@ -462,6 +461,7 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                       },
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: _buildStatItem(
                       context,
@@ -474,6 +474,7 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                       },
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: _buildStatItem(
                       context,
@@ -483,18 +484,6 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                       color: Colors.purple.shade400,
                       onTap: () {
                         // TODO: Navigate to watchers list or execute action
-                      },
-                    ),
-                  ),
-                  Expanded(
-                    child: _buildStatItem(
-                      context,
-                      icon: Octicons.issue_opened,
-                      label: 'Issues',
-                      value: openIssuesCount.toString(),
-                      color: Colors.green.shade400,
-                      onTap: () {
-                        tabController.openTab('Issues');
                       },
                     ),
                   ),
