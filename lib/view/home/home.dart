@@ -197,6 +197,13 @@ class HomeScreenState extends State<HomeScreen>
                 onTap: () => tabsController.openTab('Pulls'),
               ),
               ActionButtonData(
+                icon: Icons.settings_rounded,
+                label: 'App Settings',
+                onTap: () {
+                  // Navigate to settings
+                },
+              ),
+              ActionButtonData(
                 icon: Octicons.organization,
                 label: 'Organizations',
                 trailing: buildActionButtonTrailingCount(
@@ -217,17 +224,11 @@ class HomeScreenState extends State<HomeScreen>
                   // tabsController.openTab('repos');
                 },
               ),
-              ActionButtonData(
-                icon: Icons.settings_rounded,
-                label: 'App Settings',
-                onTap: () {
-                  // Navigate to settings
-                },
-              ),
             ],
             actionCardBuilder: (context, action) =>
                 buildStandardActionCard(context, action),
-            defaultVisibleCount: 2, // Only show Issues and PRs in compact mode
+            defaultVisibleCount:
+                3, // Show Issues, PRs, and App Settings in compact mode
             position: FloatingToolbarPosition.top,
             alignment: FloatingToolbarAlignment.center,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
