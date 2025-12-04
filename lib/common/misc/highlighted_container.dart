@@ -74,7 +74,8 @@ class HighlightedContainer extends StatelessWidget {
       switch (borderSide) {
         case BorderSideType.top:
           border = Border(
-            top: BorderSide(color: highlightColor, width: borderWidth),
+            top: BorderSide(
+                color: highlightColor.withOpacity(0.6), width: borderWidth),
           );
           // Clip bottom corners (opposite side) for consistent rounded borders
           clipRadius = BorderRadius.only(
@@ -84,7 +85,8 @@ class HighlightedContainer extends StatelessWidget {
           break;
         case BorderSideType.bottom:
           border = Border(
-            bottom: BorderSide(color: highlightColor, width: borderWidth),
+            bottom: BorderSide(
+                color: highlightColor.withOpacity(0.75), width: borderWidth),
           );
           // Clip top corners (opposite side) for consistent rounded borders
           clipRadius = BorderRadius.only(
@@ -94,7 +96,8 @@ class HighlightedContainer extends StatelessWidget {
           break;
         case BorderSideType.left:
           border = Border(
-            left: BorderSide(color: highlightColor, width: borderWidth),
+            left: BorderSide(
+                color: highlightColor.withOpacity(0.75), width: borderWidth),
           );
           // Clip right corners (opposite side) for consistent rounded borders
           clipRadius = BorderRadius.only(
@@ -104,7 +107,8 @@ class HighlightedContainer extends StatelessWidget {
           break;
         case BorderSideType.right:
           border = Border(
-            right: BorderSide(color: highlightColor, width: borderWidth),
+            right: BorderSide(
+                color: highlightColor.withOpacity(0.75), width: borderWidth),
           );
           // Clip left corners (opposite side) for consistent rounded borders
           clipRadius = BorderRadius.only(

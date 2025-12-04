@@ -14,6 +14,8 @@ import 'package:diohub/common/misc/deep_link_widget.dart';
 import 'package:diohub/common/misc/profile_banner.dart';
 import 'package:diohub/common/misc/scaffold_body.dart';
 import 'package:diohub/common/misc/theme_from_image.dart';
+import 'package:diohub/common/misc/expandable_info_card.dart';
+import 'package:diohub/common/misc/highlighted_container.dart';
 import 'package:diohub/common/wrappers/dynamic_tabs_parent.dart';
 import 'package:diohub/common/wrappers/provider_loading_progress_wrapper.dart';
 import 'package:diohub/models/popup/popup_type.dart';
@@ -245,6 +247,9 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
           // Detail tiles section
           _buildDetailTilesSection(context, repo),
           const SizedBox(height: 16),
+          // Description and Stats section
+          _buildDescriptionAndStats(context, repo),
+          const SizedBox(height: 16),
           // Action buttons (includes expand button)
           _buildActionButtons(context, repo),
         ],
@@ -377,6 +382,223 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
     );
   }
 
+  Widget _buildDescriptionAndStats(BuildContext context, RepositoryModel repo) {
+    final description = repo.description;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Description card
+        if (description != null && description.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: HighlightedContainer(
+              highlightColor: Theme.of(context).colorScheme.primary,
+              borderRadius: 12,
+              child: ExpandableInfoCard(
+                title: 'Description',
+                expandedContent: Text(description),
+                initiallyExpanded: false,
+              ),
+            ),
+          ),
+        ],
+        // Stats card
+        _buildRepositoryStats(context, repo),
+      ],
+    );
+  }
+
+  Widget _buildRepositoryStats(BuildContext context, RepositoryModel repo) {
+    final stargazersCount = repo.stargazersCount ?? 0;
+    final forksCount = repo.forksCount ?? 0;
+    final watchersCount = repo.watchersCount ?? 0;
+    final openIssuesCount = repo.openIssuesCount ?? 0;
+
+    return HighlightedContainer(
+      highlightColor: Theme.of(context).colorScheme.primary,
+      borderRadius: 12,
+      child: Material(
+        color: Color.lerp(
+          Theme.of(context).colorScheme.surfaceContainer,
+          Colors.black,
+          0.1,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Octicons.graph,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Stats',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatItem(
+                      context,
+                      icon: Octicons.star,
+                      label: 'Stars',
+                      value: stargazersCount.toString(),
+                      color: Colors.amber.shade400,
+                      onTap: () {
+                        // TODO: Navigate to stargazers list or execute action
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildStatItem(
+                      context,
+                      icon: Octicons.repo_forked,
+                      label: 'Forks',
+                      value: forksCount.toString(),
+                      color: Colors.blue.shade400,
+                      onTap: () {
+                        // TODO: Navigate to forks list or execute action
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildStatItem(
+                      context,
+                      icon: Octicons.eye,
+                      label: 'Watchers',
+                      value: watchersCount.toString(),
+                      color: Colors.purple.shade400,
+                      onTap: () {
+                        // TODO: Navigate to watchers list or execute action
+                      },
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildStatItem(
+                      context,
+                      icon: Octicons.issue_opened,
+                      label: 'Issues',
+                      value: openIssuesCount.toString(),
+                      color: Colors.green.shade400,
+                      onTap: () {
+                        tabController.openTab('Issues');
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+    VoidCallback? onTap,
+  }) {
+    if (onTap == null) {
+      // Non-tappable stat item
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 14,
+                  color: color,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  value,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Tappable stat item with visual feedback
+    return Material(
+      color: Theme.of(context)
+          .colorScheme
+          .surfaceContainerHighest
+          .withOpacity(0.2),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 14,
+                    color: color,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    value,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: color,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 11,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildActionButtons(BuildContext context, RepositoryModel repo) {
     // All actions - show all in primary to ensure minColumns is respected
     final primaryActions = <ActionButtonData>[
@@ -423,7 +645,7 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
     return CollapsibleActionButtons(
       primaryActions: primaryActions,
       secondaryActions: secondaryActions,
-      actionCardBuilder: (context, action) => buildStandardActionCard(
+      actionCardBuilder: (context, action) => buildAppBarActionCard(
         context,
         action,
         iconSize: 16, // Smaller icon

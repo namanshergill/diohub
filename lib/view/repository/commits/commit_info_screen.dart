@@ -8,7 +8,6 @@ import 'package:diohub/common/misc/collapsible_detail_tiles.dart';
 import 'package:diohub/common/misc/detail_tile.dart';
 import 'package:diohub/common/misc/detail_tile_content.dart';
 import 'package:diohub/common/misc/file_tree_view.dart';
-import 'package:diohub/common/misc/view_mode_switch.dart';
 import 'package:diohub/common/wrappers/dynamic_tabs_parent.dart';
 import 'package:diohub/common/wrappers/provider_loading_progress_wrapper.dart';
 import 'package:diohub/graphql/__generated__/schema.schema.gql.dart';
@@ -46,7 +45,6 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
   );
 
   int _contentVersion = 0;
-  bool _showTreeView = false;
 
   @override
   void dispose() {
@@ -483,198 +481,6 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
     );
   }
 
-  Widget _buildChangedFilesPreview(
-    GcommitInfoData_repository_object__asCommit commit,
-    CommitProvider provider,
-  ) {
-    final files = provider.files;
-    if (files == null || files.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Octicons.file_diff,
-              size: 16,
-              color: context.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Changed Files',
-              style: context.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: context.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              '${files.length} ${files.length == 1 ? 'file' : 'files'}',
-              style: context.textTheme.labelSmall?.copyWith(
-                color: context.colorScheme.onSurfaceVariant.withOpacity(0.7),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ViewModeSwitch(
-              value: _showTreeView,
-              onChanged: (value) {
-                setState(() {
-                  _showTreeView = value;
-                });
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (_showTreeView)
-          FileTreeView(
-            files: files,
-            onFileTap: (file) async {
-              if (file.patch != null) {
-                await AutoRouter.of(context).push(
-                  ChangesViewer(
-                    patch: file.patch!,
-                    contentURL: file.contentsUrl ?? '',
-                    fileType: file.filename?.split('.').last ?? '',
-                  ),
-                );
-              }
-            },
-          )
-        else
-          ...files.map((file) => _buildFileCard(file)).toList(),
-      ],
-    );
-  }
-
-  Widget _buildFileCard(FileElement file) {
-    final status = file.status;
-    Color statusColor;
-    IconData statusIcon;
-    String statusText;
-    String subtitleText;
-
-    if (status == CommitStatus.ADDED) {
-      statusColor = Colors.green.shade400;
-      statusIcon = Octicons.diff_added;
-      statusText = '+${file.additions ?? 0}';
-      subtitleText = 'File added';
-    } else if (status == CommitStatus.REMOVED) {
-      statusColor = Colors.red.shade400;
-      statusIcon = Octicons.diff_removed;
-      statusText = '-${file.deletions ?? 0}';
-      subtitleText = 'File removed';
-    } else {
-      statusColor = context.colorScheme.primary;
-      statusIcon = Octicons.diff_modified;
-      final additions = file.additions ?? 0;
-      final deletions = file.deletions ?? 0;
-      final changes = file.changes ?? 0;
-      statusText = '+$additions -$deletions';
-      subtitleText = '$changes changes';
-    }
-
-    final filename = file.filename ?? '';
-    final displayName = _showTreeView && filename.contains('/')
-        ? filename.substring(filename.lastIndexOf('/') + 1)
-        : filename;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Color.lerp(
-          context.colorScheme.surfaceContainer,
-          Colors.black,
-          0.1,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: file.patch != null
-              ? () async {
-                  await AutoRouter.of(context).push(
-                    ChangesViewer(
-                      patch: file.patch!,
-                      contentURL: file.contentsUrl ?? '',
-                      fileType: file.filename?.split('.').last ?? '',
-                    ),
-                  );
-                }
-              : null,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    statusIcon,
-                    size: 20,
-                    color: statusColor,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        displayName,
-                        style: context.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: context.colorScheme.onSurface,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitleText,
-                        style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colorScheme.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      statusText,
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    ),
-                    if (file.patch != null) ...[
-                      const SizedBox(height: 2),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: 16,
-                        color: context.colorScheme.onSurfaceVariant
-                            .withOpacity(0.5),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildActionButtons(
       GcommitInfoData_repository_object__asCommit commit) {
     final primaryActions = <ActionButtonData>[
@@ -720,7 +526,7 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
       primaryActions: primaryActions,
       secondaryActions: secondaryActions,
       actionCardBuilder: (context, action) =>
-          buildStandardActionCard(context, action),
+          buildAppBarActionCard(context, action),
       visibilityConfig: ActionButtonsVisibilityConfig.fixedCount(
         defaultVisibleCount:
             2, // Show 2 actions by default (Browse Files, View on GitHub)
@@ -781,9 +587,32 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
                     _buildAssociatedPRs(commit),
                     const SizedBox(height: 16),
                   ],
-                  // Changed Files Preview
-                  if (provider.files != null && provider.files!.isNotEmpty)
-                    _buildChangedFilesPreview(commit, provider),
+                ],
+              ),
+            ),
+          ),
+          // Changed Files Tree View (handles both tree and flat views internally)
+          if (provider.files != null && provider.files!.isNotEmpty)
+            FileTreeView(
+              files: provider.files!,
+              onFileTap: (file) async {
+                if (file.patch != null) {
+                  await AutoRouter.of(context).push(
+                    ChangesViewer(
+                      patch: file.patch!,
+                      contentURL: file.contentsUrl ?? '',
+                      fileType: file.filename?.split('.').last ?? '',
+                    ),
+                  );
+                }
+              },
+            ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   const SizedBox(height: 16),
                   // Commit message body (if multi-line, show full)
                   if (commit.messageBody.isNotEmpty) ...[

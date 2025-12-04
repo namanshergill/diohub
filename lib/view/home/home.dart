@@ -6,6 +6,7 @@ import 'package:diohub/common/misc/animated_tab_bar.dart';
 import 'package:diohub/common/misc/collapsible_app_bar.dart';
 import 'package:diohub/common/misc/collapsible_action_buttons.dart';
 import 'package:diohub/common/misc/action_card_builder.dart';
+import 'package:diohub/common/misc/floating_action_toolbar.dart';
 import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/misc/profile_banner.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
@@ -142,104 +143,103 @@ class HomeScreenState extends State<HomeScreen>
   @override
   Widget build(final BuildContext context) {
     super.build(context);
-    return SafeArea(
-      child: DynamicTabsParent(
-        controller: tabsController,
-        builder: (final BuildContext context, final PreferredSizeWidget tabBar,
-                final Widget tabView) =>
-            DynamicScroll(
-          expandedByDefault: true,
-          contentVersion: 0,
-          animationController: _expandAnimationController,
-          collapsedWidget: buildCollapsedAppBar(context),
-          bottom: AnimatedTabBar(
-            showTabBar: tabsController.activeLength > 1,
-            tabBar: tabBar,
-            defaultPadding: const EdgeInsets.only(bottom: 8),
-            topSpacing: 0,
-          ),
-          expandedWidget: Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: Column(
-              children: <Widget>[
-                buildProfileCard(context),
-                const SizedBox(
-                  height: 16,
+    return SizedBox.expand(
+      child: Stack(
+        children: [
+          SafeArea(
+            child: DynamicTabsParent(
+              controller: tabsController,
+              builder: (final BuildContext context,
+                      final PreferredSizeWidget tabBar, final Widget tabView) =>
+                  DynamicScroll(
+                expandedByDefault: true,
+                contentVersion: 0,
+                animationController: _expandAnimationController,
+                collapsedWidget: buildCollapsedAppBar(context),
+                bottom: AnimatedTabBar(
+                  showTabBar: tabsController.activeLength > 1,
+                  tabBar: tabBar,
+                  defaultPadding: const EdgeInsets.only(bottom: 8),
+                  topSpacing: 0,
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: CollapsibleActionButtons(
-                    primaryActions: [
-                      ActionButtonData(
-                        icon: Octicons.issue_opened,
-                        label: 'Issues',
-                        trailing: buildActionButtonTrailingCount(
-                          context,
-                          context.viewer.issues.totalCount,
-                        ),
-                        actionType: ActionButtonActionType.tab,
-                        onTap: () => tabsController.openTab('Issues'),
-                      ),
-                      ActionButtonData(
-                        icon: Octicons.git_pull_request,
-                        label: 'Pull Requests',
-                        trailing: buildActionButtonTrailingCount(
-                          context,
-                          context.viewer.pullRequests.totalCount,
-                        ),
-                        actionType: ActionButtonActionType.tab,
-                        onTap: () => tabsController.openTab('Pulls'),
-                      ),
-                      ActionButtonData(
-                        icon: Octicons.organization,
-                        label: 'Organizations',
-                        trailing: buildActionButtonTrailingCount(
-                          context,
-                          context.viewer.organizations.totalCount,
-                        ),
-                        actionType: ActionButtonActionType.tab,
-                        onTap: () => tabsController.openTab('orgs'),
-                      ),
+                expandedWidget: Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Column(
+                    children: <Widget>[
+                      buildProfileCard(context),
                     ],
-                    secondaryActions: [
-                      ActionButtonData(
-                        icon: Octicons.repo,
-                        label: 'Repositories',
-                        trailing: buildActionButtonTrailingCount(
-                          context,
-                          context.viewer.repositories.totalCount,
-                        ),
-                        onTap: () {
-                          // tabsController.openTab('repos');
-                        },
-                      ),
-                      ActionButtonData(
-                        icon: Icons.settings_rounded,
-                        label: 'App Settings',
-                        onTap: () {
-                          // Navigate to settings
-                        },
-                      ),
-                    ],
-                    actionCardBuilder: (context, action) =>
-                        buildStandardActionCard(context, action),
-                    visibilityConfig: const ActionButtonsVisibilityConfig(),
-                    horizontalSpacing: 12,
-                    verticalSpacing: 12,
-                    onExpandChanged: (isExpanded) {
-                      if (isExpanded) {
-                        _expandAnimationController.forward();
-                      } else {
-                        _expandAnimationController.reverse();
-                      }
-                    },
                   ),
                 ),
-              ],
+                body: tabView,
+              ),
             ),
           ),
-          body: tabView,
-        ),
+          FloatingActionToolbar(
+            actions: [
+              ActionButtonData(
+                icon: Octicons.issue_opened,
+                label: 'Issues',
+                trailing: buildActionButtonTrailingCount(
+                  context,
+                  context.viewer.issues.totalCount,
+                ),
+                actionType: ActionButtonActionType.tab,
+                onTap: () => tabsController.openTab('Issues'),
+              ),
+              ActionButtonData(
+                icon: Octicons.git_pull_request,
+                label: 'Pull Requests',
+                trailing: buildActionButtonTrailingCount(
+                  context,
+                  context.viewer.pullRequests.totalCount,
+                ),
+                actionType: ActionButtonActionType.tab,
+                onTap: () => tabsController.openTab('Pulls'),
+              ),
+              ActionButtonData(
+                icon: Octicons.organization,
+                label: 'Organizations',
+                trailing: buildActionButtonTrailingCount(
+                  context,
+                  context.viewer.organizations.totalCount,
+                ),
+                actionType: ActionButtonActionType.tab,
+                onTap: () => tabsController.openTab('orgs'),
+              ),
+              ActionButtonData(
+                icon: Octicons.repo,
+                label: 'Repositories',
+                trailing: buildActionButtonTrailingCount(
+                  context,
+                  context.viewer.repositories.totalCount,
+                ),
+                onTap: () {
+                  // tabsController.openTab('repos');
+                },
+              ),
+              ActionButtonData(
+                icon: Icons.settings_rounded,
+                label: 'App Settings',
+                onTap: () {
+                  // Navigate to settings
+                },
+              ),
+            ],
+            actionCardBuilder: (context, action) =>
+                buildStandardActionCard(context, action),
+            defaultVisibleCount: 2, // Only show Issues and PRs in compact mode
+            position: FloatingToolbarPosition.top,
+            alignment: FloatingToolbarAlignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            onExpandChanged: (isExpanded) {
+              if (isExpanded) {
+                _expandAnimationController.forward();
+              } else {
+                _expandAnimationController.reverse();
+              }
+            },
+          ),
+        ],
       ),
     );
   }

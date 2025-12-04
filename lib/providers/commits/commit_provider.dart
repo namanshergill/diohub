@@ -3,7 +3,8 @@ import 'package:diohub/models/commits/commit_model.dart';
 import 'package:diohub/providers/base_provider.dart';
 import 'package:diohub/services/repositories/repo_services.dart';
 
-class CommitProvider extends BaseDataProvider<GcommitInfoData_repository_object__asCommit> {
+class CommitProvider
+    extends BaseDataProvider<GcommitInfoData_repository_object__asCommit> {
   CommitProvider(this.commitURL);
   final String commitURL;
 
@@ -17,7 +18,7 @@ class CommitProvider extends BaseDataProvider<GcommitInfoData_repository_object_
   }) async {
     // Parse commit URL to get owner, repo, and oid
     final parsed = RepositoryServices.parseCommitURL(commitURL);
-    
+
     // Fetch commit info using GraphQL
     final commitInfo = await RepositoryServices.getCommitInfo(
       owner: parsed.owner,

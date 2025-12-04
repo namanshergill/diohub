@@ -1,5 +1,4 @@
 import 'package:diohub/common/markdown_view/markdown_body.dart';
-import 'package:diohub/common/misc/expandable_info_card.dart';
 import 'package:diohub/common/misc/loading_indicator.dart';
 import 'package:diohub/common/wrappers/provider_loading_progress_wrapper.dart';
 import 'package:diohub/common/wrappers/scroll_to_top_wrapper.dart';
@@ -38,7 +37,6 @@ class RepositoryReadmeState extends State<RepositoryReadme>
             (final BuildContext context, final RepoReadmeProvider value) {
           final RepositoryProvider repoProvider =
               Provider.of<RepositoryProvider>(context);
-          final String? description = repoProvider.data.description;
 
           return ScrollToTopWrapper(
             builder: (
@@ -46,27 +44,10 @@ class RepositoryReadmeState extends State<RepositoryReadme>
               final ScrollViewProperties properties,
             ) =>
                 SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Repository description (if available)
-                  if (description != null && description.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8, bottom: 8),
-                      child: ExpandableInfoCard(
-                        title: 'Description',
-                        expandedContent: Text(description),
-                        initiallyExpanded: false,
-                      ),
-                    ),
-                  ],
-                  // Readme content
-                  MarkdownRenderAPI(
-                    value.data!.content!,
-                    repoContext: repoProvider.data.fullName,
-                    branch: Provider.of<RepoBranchProvider>(context).currentSHA,
-                  ),
-                ],
+              child: MarkdownRenderAPI(
+                value.data!.content!,
+                repoContext: repoProvider.data.fullName,
+                branch: Provider.of<RepoBranchProvider>(context).currentSHA,
               ),
             ),
           );

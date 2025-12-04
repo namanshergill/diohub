@@ -72,6 +72,7 @@ dependencies:
   flutter_widget_from_html: ^0.17.1
   #  google_nav_bar: ^5.0.6
   freezed: ^3.1.0
+  liquid_glass_renderer: ^0.2.0-dev.4
   gql: ^1.0.1-alpha+1730759315362
   gql_dio_link: ^2.0.0
   gql_exec: ^1.0.1-alpha+1709845491450
@@ -105,6 +106,7 @@ dependencies:
   shared_preferences: ^2.5.3
   shimmer: ^3.0.0
   sliver_tools: ^0.2.12
+  flutter_sticky_header: ^0.8.0
   sqlite3_flutter_libs: ^0.5.41
   #  tabbed_view: ^1.18.0
   #  super_context_menu: ^0.9.0-dev.5

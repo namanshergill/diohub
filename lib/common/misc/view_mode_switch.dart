@@ -1,5 +1,6 @@
 import 'package:diohub/utils/utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 
 /// A sleek switch component for toggling between two view modes.
 ///
@@ -9,7 +10,7 @@ class ViewModeSwitch extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.leftIcon = Icons.list,
-    this.rightIcon = Icons.account_tree,
+    this.rightIcon = Octicons.file_directory,
     this.iconSize = 16,
     super.key,
   });
@@ -23,10 +24,10 @@ class ViewModeSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
       decoration: BoxDecoration(
         color: context.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -38,10 +39,10 @@ class ViewModeSwitch extends StatelessWidget {
             onTap: () => onChanged(false),
             color: context.colorScheme.onSurfaceVariant,
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 3),
           SizedBox(
-            width: 40,
-            height: 20,
+            width: 32,
+            height: 16,
             child: FittedBox(
               fit: BoxFit.contain,
               child: Switch(
@@ -51,7 +52,7 @@ class ViewModeSwitch extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 3),
           _IconButton(
             icon: rightIcon,
             size: iconSize,
@@ -86,9 +87,9 @@ class _IconButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         child: Padding(
-          padding: const EdgeInsets.all(4),
+          padding: const EdgeInsets.all(3),
           child: Icon(
             icon,
             size: size,
