@@ -225,12 +225,12 @@ class HomeScreenState extends State<HomeScreen>
                 },
               ),
             ],
-            actionCardBuilder: (context, action, onCollapse) =>
-                buildStandardActionCard(context, action,
-                    onCollapse: onCollapse),
+            actionCardBuilder: (context, action) =>
+                buildStandardActionCard(context, action),
             defaultVisibleCount:
                 3, // Show Issues, PRs, and App Settings in compact mode
-            position: FloatingToolbarPosition.bottom,
+            position: FloatingToolbarPosition.top,
+            alignment: FloatingToolbarAlignment.center,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             onExpandChanged: (isExpanded) {
               if (isExpanded) {

@@ -6,8 +6,7 @@ import 'package:diohub/common/misc/app_bar.dart';
 import 'package:diohub/common/misc/collapsible_detail_tiles.dart';
 import 'package:diohub/common/misc/collapsible_action_buttons.dart';
 import 'package:diohub/common/misc/action_card_builder.dart';
-import 'package:diohub/common/misc/floating_action_toolbar.dart'
-    as floating_toolbar;
+import 'package:diohub/common/misc/floating_action_toolbar.dart';
 import 'package:diohub/common/misc/detail_tile.dart';
 import 'package:diohub/common/misc/detail_tile_content.dart';
 import 'package:diohub/common/misc/animated_tab_bar.dart';
@@ -729,101 +728,103 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                     final RepositoryModel repo = value.data;
                     return ThemeFromImage(
                       // imageUri: repo.owner?.avatarUrl,
-                      builder: (context) => Stack(
-                        children: [
-                          DynamicTabsParent(
-                            controller: tabController,
-                            builder: (
-                              final BuildContext context,
-                              final PreferredSizeWidget tabs,
-                              final Widget tabView,
-                            ) =>
-                                DynamicScroll(
-                              contentVersion: 0,
-                              animationController: _expandAnimationController,
-                              collapsedWidget:
-                                  _buildCollapsedHeader(context, repo),
-                              expandedWidget:
-                                  _buildExpandedHeader(context, repo),
-                              pinnedWidget: Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                                child: BranchButton(repo: repo),
+                      builder: (context) => SizedBox.expand(
+                        child: Stack(
+                          children: [
+                            DynamicTabsParent(
+                              controller: tabController,
+                              builder: (
+                                final BuildContext context,
+                                final PreferredSizeWidget tabs,
+                                final Widget tabView,
+                              ) =>
+                                  DynamicScroll(
+                                contentVersion: 0,
+                                animationController: _expandAnimationController,
+                                collapsedWidget:
+                                    _buildCollapsedHeader(context, repo),
+                                expandedWidget:
+                                    _buildExpandedHeader(context, repo),
+                                pinnedWidget: Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                                  child: BranchButton(repo: repo),
+                                ),
+                                actions: repo.htmlUrl != null
+                                    ? <Widget>[ShareButton(repo.htmlUrl!)]
+                                    : null,
+                                bottom: AnimatedTabBar(
+                                  showTabBar: tabController.activeLength > 1,
+                                  tabBar: tabs,
+                                  defaultPadding:
+                                      const EdgeInsets.only(bottom: 8),
+                                  topSpacing: 4.0,
+                                ),
+                                body: loading
+                                    ? const Center(
+                                        child: CircularProgressIndicator())
+                                    : tabView,
                               ),
-                              actions: repo.htmlUrl != null
-                                  ? <Widget>[ShareButton(repo.htmlUrl!)]
-                                  : null,
-                              bottom: AnimatedTabBar(
-                                showTabBar: tabController.activeLength > 1,
-                                tabBar: tabs,
-                                defaultPadding:
-                                    const EdgeInsets.only(bottom: 8),
-                                topSpacing: 4.0,
-                              ),
-                              body: loading
-                                  ? const Center(
-                                      child: CircularProgressIndicator())
-                                  : tabView,
                             ),
-                          ),
-                          floating_toolbar.FloatingActionToolbar(
-                            actions: [
-                              ActionButtonData(
-                                icon: Octicons.file_code,
-                                label: repo.language ?? 'Code',
-                                iconColor: repo.language != null
-                                    ? Color(getLangColor(repo.language))
-                                    : null,
-                                trailing: repo.size != null
-                                    ? buildActionButtonTrailingSize(
-                                        context, repo.size!)
-                                    : null,
-                                onTap: () => tabController.openTab('Code'),
-                              ),
-                              ActionButtonData(
-                                icon: Octicons.book,
-                                label: 'Readme',
-                                onTap: () => tabController.openTab('Readme'),
-                              ),
-                              ActionButtonData(
-                                icon: Octicons.issue_opened,
-                                label: 'Issues',
-                                trailing: repo.openIssuesCount != null
-                                    ? buildActionButtonTrailingCount(
-                                        context, repo.openIssuesCount!)
-                                    : null,
-                                onTap: () => tabController.openTab('Issues'),
-                              ),
-                              ActionButtonData(
-                                icon: Octicons.git_pull_request,
-                                label: 'Pull Requests',
-                                trailing: repo.openIssuesCount != null
-                                    ? buildActionButtonTrailingCount(
-                                        context, repo.openIssuesCount!)
-                                    : null,
-                                onTap: () =>
-                                    tabController.openTab('Pull Requests'),
-                              ),
-                              ActionButtonData(
-                                icon: Icons.menu_rounded,
-                                label: 'More',
-                                onTap: () => tabController.openTab('More'),
-                              ),
-                            ],
-                            defaultVisibleCount: 3,
-                            position:
-                                floating_toolbar.FloatingToolbarPosition.bottom,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            onExpandChanged: (isExpanded) {
-                              if (isExpanded) {
-                                _expandAnimationController.forward();
-                              } else {
-                                _expandAnimationController.reverse();
-                              }
-                            },
-                          ),
-                        ],
+                            FloatingActionToolbar(
+                              actions: [
+                                ActionButtonData(
+                                  icon: Octicons.file_code,
+                                  label: repo.language ?? 'Code',
+                                  iconColor: repo.language != null
+                                      ? Color(getLangColor(repo.language))
+                                      : null,
+                                  trailing: repo.size != null
+                                      ? buildActionButtonTrailingSize(
+                                          context, repo.size!)
+                                      : null,
+                                  onTap: () => tabController.openTab('Code'),
+                                ),
+                                ActionButtonData(
+                                  icon: Octicons.book,
+                                  label: 'Readme',
+                                  onTap: () => tabController.openTab('Readme'),
+                                ),
+                                ActionButtonData(
+                                  icon: Octicons.issue_opened,
+                                  label: 'Issues',
+                                  trailing: repo.openIssuesCount != null
+                                      ? buildActionButtonTrailingCount(
+                                          context, repo.openIssuesCount!)
+                                      : null,
+                                  onTap: () => tabController.openTab('Issues'),
+                                ),
+                                ActionButtonData(
+                                  icon: Octicons.git_pull_request,
+                                  label: 'Pull Requests',
+                                  trailing: repo.openIssuesCount != null
+                                      ? buildActionButtonTrailingCount(
+                                          context, repo.openIssuesCount!)
+                                      : null,
+                                  onTap: () =>
+                                      tabController.openTab('Pull Requests'),
+                                ),
+                                ActionButtonData(
+                                  icon: Octicons.kebab_horizontal,
+                                  label: 'More',
+                                  onTap: () => tabController.openTab('More'),
+                                ),
+                              ],
+                              actionCardBuilder: buildStandardActionCard,
+                              defaultVisibleCount: 3,
+                              position: FloatingToolbarPosition.bottom,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                              onExpandChanged: (isExpanded) {
+                                if (isExpanded) {
+                                  _expandAnimationController.forward();
+                                } else {
+                                  _expandAnimationController.reverse();
+                                }
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },

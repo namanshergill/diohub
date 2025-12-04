@@ -48,7 +48,6 @@ Widget buildStandardActionCard(
   double iconSize = 20,
   double borderRadius = 14,
   EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-  VoidCallback? onCollapse,
 }) {
   Color iconColor;
   Color textColor;
@@ -93,12 +92,7 @@ Widget buildStandardActionCard(
     child: AbsorbPointer(
       absorbing: !action.enabled,
       child: InkWell(
-        onTap: action.enabled
-            ? () {
-                action.onTap?.call();
-                onCollapse?.call();
-              }
-            : null,
+        onTap: action.enabled ? action.onTap : null,
         borderRadius: BorderRadius.circular(borderRadius),
         child: Padding(
           padding: padding,
