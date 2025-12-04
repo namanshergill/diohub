@@ -18,7 +18,7 @@ class ChangedFilesState extends State<ChangedFiles> {
     final provider = Provider.of<CommitProvider>(context);
     final commit = provider.data;
     final List<FileElement>? files = provider.files;
-    
+
     if (files == null || files.isEmpty) {
       return const Center(
         child: Padding(
@@ -27,7 +27,7 @@ class ChangedFilesState extends State<ChangedFiles> {
         ),
       );
     }
-    
+
     return ListView(
       children: <Widget>[
         Padding(

@@ -118,14 +118,14 @@ class UserProfileScreenState<T extends UserInfoModel>
                       ),
                 ),
                 if (data.name != null && data.login != null)
-                  Text(
-                    data.login!,
-                    style: Theme.of(context).textTheme.bodyMedium,
+                          Text(
+                            data.login!,
+                            style: Theme.of(context).textTheme.bodyMedium,
                     overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-          ),
+                          ),
+                      ],
+                    ),
+                ),
           const SizedBox(height: 16),
           // Detail tiles section
           _buildDetailTilesSection(context),
@@ -198,7 +198,7 @@ class UserProfileScreenState<T extends UserInfoModel>
             // Handle email tap
           },
           child: DetailTileText(data.email!),
-        ),
+                                  ),
       );
     }
 
@@ -212,7 +212,7 @@ class UserProfileScreenState<T extends UserInfoModel>
             // Handle Twitter tap
           },
           child: DetailTileText('@${data.twitterUsername}'),
-        ),
+                            ),
       );
     }
 
@@ -314,7 +314,7 @@ class UserProfileScreenState<T extends UserInfoModel>
           onTap: () {
             // TODO: Navigate to following list
           },
-        ),
+                        ),
       );
     }
 
@@ -384,11 +384,11 @@ class UserProfileScreenState<T extends UserInfoModel>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[tabBar],
               ),
-            ],
+          ],
           ),
         ),
         body: tabView,
-      ),
-    );
+        ),
+      );
   }
 }

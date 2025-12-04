@@ -152,83 +152,83 @@ class _CollapsibleDetailTilesState extends State<CollapsibleDetailTiles> {
           borderWidth: 2.0,
           borderRadius: 12.0,
           child: Card(
-            color: Color.lerp(
-              context.colorScheme.surfaceContainer,
-              Colors.black,
-              0.1,
-            ),
-            elevation: 0,
-            margin: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              child: Column(
-                children: [
-                  // Visible tiles
-                  ...visibleTiles.asMap().entries.map((entry) {
-                    final int index = entry.key;
-                    final Widget tile = entry.value;
+          color: Color.lerp(
+            context.colorScheme.surfaceContainer,
+            Colors.black,
+            0.1,
+          ),
+          elevation: 0,
+          margin: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child: Column(
+              children: [
+                // Visible tiles
+                ...visibleTiles.asMap().entries.map((entry) {
+                  final int index = entry.key;
+                  final Widget tile = entry.value;
                     final bool isLastTile = index == visibleTiles.length - 1;
                     // Never show divider after the last tile
-                    return Column(
-                      children: [
-                        tile,
+                  return Column(
+                    children: [
+                      tile,
                         if (!isLastTile)
-                          Divider(
-                            height: 1,
-                            thickness: 1,
-                            indent: 12,
-                            endIndent: 12,
-                            color: context.colorScheme.outlineVariant.withOpacity(0.3),
-                          ),
-                      ],
-                    );
-                  }).toList(),
-                  // Expand button (only show if there are expandable tiles or hidden alwaysVisibleTiles)
+                        Divider(
+                          height: 1,
+                          thickness: 1,
+                          indent: 12,
+                          endIndent: 12,
+                          color: context.colorScheme.outlineVariant.withOpacity(0.3),
+                        ),
+                    ],
+                  );
+                }).toList(),
+                // Expand button (only show if there are expandable tiles or hidden alwaysVisibleTiles)
                   if (widget.expandableTiles.isNotEmpty || hasHiddenAlwaysVisible) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: Material(
-                          color: Color.lerp(
-                            context.colorScheme.surfaceContainer,
-                            Colors.black,
-                            0.1,
-                          ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: Material(
+                        color: Color.lerp(
+                          context.colorScheme.surfaceContainer,
+                          Colors.black,
+                          0.1,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _showAllTiles = !_showAllTiles;
+                            });
+                            widget.onExpandChanged?.call(_showAllTiles);
+                          },
                           borderRadius: BorderRadius.circular(12),
-                          child: InkWell(
-                            onTap: () {
-                              setState(() {
-                                _showAllTiles = !_showAllTiles;
-                              });
-                              widget.onExpandChanged?.call(_showAllTiles);
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              child: AnimatedRotation(
-                                duration: const Duration(milliseconds: 300),
-                                turns: _showAllTiles ? 0.5 : 0,
-                                child: Icon(
-                                  Icons.expand_more_rounded,
-                                  size: 14,
-                                  color: context.colorScheme.onSurfaceVariant,
-                                ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            child: AnimatedRotation(
+                              duration: const Duration(milliseconds: 300),
+                              turns: _showAllTiles ? 0.5 : 0,
+                              child: Icon(
+                                Icons.expand_more_rounded,
+                                size: 14,
+                                color: context.colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ],
+              ],
               ),
             ),
           ),
@@ -251,7 +251,7 @@ class _CollapsibleDetailTilesState extends State<CollapsibleDetailTiles> {
     
     // Ensure min <= max for clamp to work correctly
     final int safeMinPerRow = minPerRow < allAlwaysVisible.length ? minPerRow : allAlwaysVisible.length;
-    
+
     // Calculate how many tiles fit based on width
     final int tilesThatFit = (constraints.maxWidth / config.tileWidth)
         .floor()

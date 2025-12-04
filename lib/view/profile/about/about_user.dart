@@ -16,9 +16,9 @@ class AboutUser extends StatelessWidget {
     if (userInfoModel!.bio != null) {
       tiles.add(
         DetailTile(
-          title: 'Bio',
+            title: 'Bio',
           child: DetailTileText(userInfoModel!.bio!),
-        ),
+          ),
       );
     }
 
@@ -27,7 +27,7 @@ class AboutUser extends StatelessWidget {
         DetailTile(
           title: 'Location',
           child: DetailTileText(userInfoModel!.location!),
-        ),
+            ),
       );
     }
 
@@ -36,7 +36,7 @@ class AboutUser extends StatelessWidget {
         DetailTile(
           title: 'Company',
           child: DetailTileText(userInfoModel!.company!),
-        ),
+              ),
       );
     }
 
@@ -48,7 +48,7 @@ class AboutUser extends StatelessWidget {
             getDate(
               userInfoModel!.createdAt.toString(),
               shorten: false,
-            ),
+              ),
           ),
         ),
       );
@@ -63,10 +63,10 @@ class AboutUser extends StatelessWidget {
     if (userInfoModel!.email != null) {
       tiles.add(
         DetailTile(
-          title: 'Email',
-          onTap: () async =>
-              URLActions(uri: Uri.parse('mailto:${userInfoModel!.email}'))
-                  .launchURL(),
+            title: 'Email',
+            onTap: () async =>
+                URLActions(uri: Uri.parse('mailto:${userInfoModel!.email}'))
+                    .launchURL(),
           child: DetailTileText(userInfoModel!.email!),
         ),
       );
@@ -82,17 +82,17 @@ class AboutUser extends StatelessWidget {
             ),
           ).launchURL(),
           child: DetailTileText('@${userInfoModel!.twitterUsername}'),
-        ),
+          ),
       );
     }
 
     if (userInfoModel!.blog?.isNotEmpty ?? false) {
       tiles.add(
         DetailTile(
-          title: 'Blog',
-          onTap: URLActions(uri: Uri.parse(userInfoModel!.blog!)).launchURL,
+            title: 'Blog',
+            onTap: URLActions(uri: Uri.parse(userInfoModel!.blog!)).launchURL,
           child: DetailTileText(userInfoModel!.blog!),
-        ),
+          ),
       );
     }
 
@@ -113,7 +113,7 @@ class AboutUser extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.all(16.0),
           child: Text('No information available'),
-        ),
+          ),
       );
     }
 
@@ -125,9 +125,9 @@ class AboutUser extends StatelessWidget {
           expandableTiles: expandableTiles,
           visibilityConfig: DetailTilesVisibilityConfig.fixedCount(
             defaultVisibleCount: alwaysVisibleTiles.length.clamp(0, 3),
+            ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
   }
 }

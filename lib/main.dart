@@ -19,6 +19,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_portal/flutter_portal.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 
@@ -196,37 +197,39 @@ class _RootAppState extends State<RootApp> {
           } else {
             // logic to set standard static themes here
           }
-          return MaterialApp.router(
-            theme: getTheme(
-              context,
-              brightness: Brightness.light,
-              colorScheme: lightScheme,
-            ),
-            darkTheme: getTheme(
-              context,
-              brightness: Brightness.dark,
-              colorScheme: darkScheme,
-            ),
-            localizationsDelegates: const <LocalizationsDelegate>[
-              DefaultMaterialLocalizations.delegate,
-              DefaultCupertinoLocalizations.delegate,
-              DefaultWidgetsLocalizations.delegate,
-            ],
-            // getTheme(context, brightness: Brightness.light),
-            // darkTheme: getTheme(context, brightness: Brightness.dark),
-            routerDelegate: customRouter.delegate(
-              deepLinkBuilder: (final PlatformDeepLink deepLink) =>
-                  DeepLink(<PageRouteInfo>[
-                LandingLoadingRoute(
-                  initLink: deepLink.configuration.uri,
-                ),
-              ]),
-              navigatorObservers: () => <NavigatorObserver>[
-                ChuckerFlutter.navigatorObserver,
+          return riverpod.ProviderScope(
+            child: MaterialApp.router(
+              theme: getTheme(
+                context,
+                brightness: Brightness.light,
+                colorScheme: lightScheme,
+              ),
+              darkTheme: getTheme(
+                context,
+                brightness: Brightness.dark,
+                colorScheme: darkScheme,
+              ),
+              localizationsDelegates: const <LocalizationsDelegate>[
+                DefaultMaterialLocalizations.delegate,
+                DefaultCupertinoLocalizations.delegate,
+                DefaultWidgetsLocalizations.delegate,
               ],
-              rebuildStackOnDeepLink: true,
+              // getTheme(context, brightness: Brightness.light),
+              // darkTheme: getTheme(context, brightness: Brightness.dark),
+              routerDelegate: customRouter.delegate(
+                deepLinkBuilder: (final PlatformDeepLink deepLink) =>
+                    DeepLink(<PageRouteInfo>[
+                  LandingLoadingRoute(
+                    initLink: deepLink.configuration.uri,
+                  ),
+                ]),
+                navigatorObservers: () => <NavigatorObserver>[
+                  ChuckerFlutter.navigatorObserver,
+                ],
+                rebuildStackOnDeepLink: true,
+              ),
+              routeInformationParser: customRouter.defaultRouteParser(),
             ),
-            routeInformationParser: customRouter.defaultRouteParser(),
           );
         },
       );
