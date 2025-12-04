@@ -1,7 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:diohub/common/issues/issue_label.dart';
 import 'package:diohub/common/misc/tappable_card.dart';
-import 'package:diohub/graphql/__generated__/schema.schema.gql.dart';
 import 'package:diohub/models/issues/issue_model.dart';
 import 'package:diohub/models/pull_requests/pull_request_model.dart';
 import 'package:diohub/routes/router.gr.dart';
@@ -28,73 +27,54 @@ class PullListCard extends StatelessWidget {
   final bool showRepoName;
 
   @override
-  Widget build(final BuildContext context) => BasicCard(
-        onTap: () async {
-          print(item.links!.self!.href!
-              .replaceAll(
-                'https://api.github.com/repos/',
-                '',
-              )
-              .split('/'));
-          final String repoName = item.links!.self!.href!
-              .replaceAll(
-                'https://api.github.com/repos/',
-                '',
-              )
-              .split('/')
-              .sublist(1, 2)
-              .join();
-          final String ownerName = item.links!.self!.href!
-              .replaceAll(
-                'https://api.github.com/repos/',
-                '',
-              )
-              .split('/')
-              .sublist(0, 1)
-              .join();
-          print(repoName);
-          print(ownerName);
-          await context.router.push(
-            IssuePullRoute(
-              number: item.number!,
-              repoName: repoName,
-              ownerName: ownerName,
-            ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  GetPullIcon(item.state!, item.mergedAt),
-                  const SizedBox(
-                    width: 4,
-                  ),
-                  if (showRepoName)
-                    Flexible(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: Text(
-                          item.links!.self!.href!
-                              .replaceAll(
-                                'https://api.github.com/repos/',
-                                '',
-                              )
-                              .split('/')
-                              .sublist(0, 2)
-                              .join('/'),
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              // color: Provider.of<PaletteSettings>(context)
-                              //     .currentSetting
-                              //     .faded3,
-                              ),
-                        ),
+  Widget build(final BuildContext context) {
+    final String? href = item.links?.self?.href;
+    final String repoPath = href?.replaceAll('https://api.github.com/repos/', '') ?? '';
+    final List<String> pathParts = repoPath.split('/');
+    final String repoName = pathParts.length >= 2 ? pathParts[1] : '';
+    final String ownerName = pathParts.isNotEmpty ? pathParts[0] : '';
+    
+    return BasicCard(
+      onTap: href != null && item.number != null
+          ? () async {
+              await context.router.push(
+                IssuePullRoute(
+                  number: item.number!,
+                  repoName: repoName,
+                  ownerName: ownerName,
+                ),
+              );
+            }
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                GetPullIcon(item.state ?? IssueState.OPEN, item.mergedAt),
+                const SizedBox(
+                  width: 4,
+                ),
+                if (showRepoName && repoPath.isNotEmpty)
+                  Flexible(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Text(
+                        pathParts.length >= 2
+                            ? pathParts.sublist(0, 2).join('/')
+                            : repoPath,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            // color: Provider.of<PaletteSettings>(context)
+                            //     .currentSetting
+                            //     .faded3,
+                            ),
                       ),
                     ),
+                  ),
+                if (item.number != null)
                   Text(
                     '#${item.number}',
                     style: const TextStyle(
@@ -103,33 +83,35 @@ class PullListCard extends StatelessWidget {
                         //     .faded3,
                         ),
                   ),
-                ],
-              ),
-              const SizedBox(
-                height: 8,
-              ),
+              ],
+            ),
+            const SizedBox(
+              height: 8,
+            ),
+            if (item.title != null)
               Text(
                 item.title!,
                 // style: Theme.of(context).textTheme.bodyMedium,
               ),
-              if (!compact)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const SizedBox(
-                      height: 8,
-                    ),
-                    Text(
-                      item.state == GIssueState.CLOSED
-                          ? item.mergedAt != null
-                              ? 'By ${item.user!.login}, merged ${getDate(item.mergedAt.toString(), shorten: false)}.'
-                              : 'By ${item.user!.login}, closed ${getDate(item.closedAt.toString(), shorten: false)}.'
-                          : 'Opened ${getDate(item.createdAt.toString(), shorten: false)} by ${item.user!.login}',
-                      style: context.textTheme.bodySmall?.asHint(),
-                    ),
-                    const SizedBox(
-                      height: 8,
-                    ),
+            if (!compact)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const SizedBox(
+                    height: 8,
+                  ),
+                  Text(
+                    item.state == IssueState.CLOSED
+                        ? item.mergedAt != null
+                            ? 'By ${item.user?.login ?? 'Unknown'}, merged ${getDate(item.mergedAt.toString(), shorten: false)}.'
+                            : 'By ${item.user?.login ?? 'Unknown'}, closed ${getDate(item.closedAt?.toString() ?? '', shorten: false)}.'
+                        : 'Opened ${getDate(item.createdAt?.toString() ?? '', shorten: false)} by ${item.user?.login ?? 'Unknown'}',
+                    style: context.textTheme.bodySmall?.asHint(),
+                  ),
+                  const SizedBox(
+                    height: 8,
+                  ),
+                  if (item.labels != null && item.labels!.isNotEmpty)
                     Wrap(
                       children: List<Widget>.generate(
                         item.labels!.length,
@@ -142,12 +124,13 @@ class PullListCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ],
-                ),
-            ],
-          ),
+                ],
+              ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 class GetPullIcon extends StatelessWidget {

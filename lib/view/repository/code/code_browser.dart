@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:diohub/common/animations/size_expanded_widget.dart';
 import 'package:diohub/common/bottom_sheet/bottom_sheets.dart';
-import 'package:diohub/common/misc/button.dart';
 import 'package:diohub/common/misc/highlighted_container.dart';
 import 'package:diohub/common/misc/loading_indicator.dart';
 import 'package:diohub/common/wrappers/provider_loading_progress_wrapper.dart';
@@ -66,7 +65,10 @@ class CodeBrowserState extends State<CodeBrowser>
               children: <Widget>[
                 if (context.read<RepoBranchProvider>().isCommit &&
                     value.tree.isNotEmpty)
-                  _buildPathWidget(value, context),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: _buildPathWidget(value, context),
+                  ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: value.status == Status.loaded
@@ -98,7 +100,6 @@ class CodeBrowserState extends State<CodeBrowser>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                    
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: HighlightedContainer(
@@ -267,34 +268,99 @@ class CodeBrowserState extends State<CodeBrowser>
       SizeExpandedSection(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            children: <Widget>[
-              Button(
-                padding: const EdgeInsets.all(8),
+          child: HighlightedContainer(
+            highlightColor: context.colorScheme.primary,
+            borderRadius: 12,
+            child: Material(
+              color: context.colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
                 onTap: value.status == Status.loaded
                     ? () {
                         context.read<RepoBranchProvider>().reloadBranch();
                       }
                     : null,
-                child: Column(
-                  children: <Widget>[
-                    Text(
-                      'Currently browsing commit ${Provider.of<RepoBranchProvider>(context).currentSHA.substring(0, 6)}.',
-                      textAlign: TextAlign.center,
-                      style: context.textTheme.labelSmall?.asBold(),
-                    ),
-                    Text(
-                      'Load the latest code?',
-                      textAlign: TextAlign.center,
-                      style: context.textTheme.labelMedium?.asBold(),
-                    ),
-                  ],
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: <Widget>[
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: context.colorScheme.primary.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Octicons.git_commit,
+                          size: 20,
+                          color: context.colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Text(
+                              'Currently browsing commit',
+                              style: context.textTheme.labelSmall?.copyWith(
+                                color: context.colorScheme.onSurfaceVariant,
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: <Widget>[
+                                Text(
+                                  Provider.of<RepoBranchProvider>(context)
+                                      .currentSHA
+                                      .substring(0, 7),
+                                  style: context.textTheme.bodySmall?.copyWith(
+                                    fontFamily: 'monospace',
+                                    fontWeight: FontWeight.w600,
+                                    color: context.colorScheme.primary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '·',
+                                  style: context.textTheme.bodySmall?.copyWith(
+                                    color: context.colorScheme.onSurfaceVariant
+                                        .withOpacity(0.5),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    'Tap to load latest commits',
+                                    style:
+                                        context.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 10,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.refresh_rounded,
+                        size: 20,
+                        color: context.colorScheme.primary,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(
-                height: 16,
-              ),
-            ],
+            ),
           ),
         ),
       );

@@ -1,0 +1,72 @@
+query pullCommitsList($owner: String!, $repo: String!, $number: Int!, $first: Int!, $after: String) {
+  repository(name: $repo, owner: $owner) {
+    pullRequest(number: $number) {
+      commits(first: $first, after: $after) {
+        edges {
+          cursor
+          node {
+            commit {
+              ...commitListItem
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}
+
+fragment commitListItem on Commit {
+  oid
+  abbreviatedOid
+  message
+  messageHeadline
+  commitUrl
+  url
+  resourcePath
+  additions
+  deletions
+  changedFilesIfAvailable
+  authoredDate
+  committedDate
+  author {
+    avatarUrl
+    name
+    email
+    date
+    user {
+      login
+      avatarUrl
+      url
+      ... on User {
+        name
+      }
+    }
+  }
+  committer {
+    avatarUrl
+    name
+    email
+    date
+    user {
+      login
+      avatarUrl
+      url
+      ... on User {
+        name
+      }
+    }
+  }
+  parents(first: 1) {
+    edges {
+      node {
+        oid
+        abbreviatedOid
+      }
+    }
+  }
+}
+

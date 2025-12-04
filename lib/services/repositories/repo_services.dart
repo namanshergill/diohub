@@ -3,6 +3,8 @@ import 'package:dio/dio.dart';
 import 'package:diohub/app/api_handler/dio.dart';
 import 'package:diohub/graphql/queries/issues_pulls/__generated__/issue_templates.data.gql.dart';
 import 'package:diohub/graphql/queries/issues_pulls/__generated__/issue_templates.req.gql.dart';
+import 'package:diohub/graphql/queries/repositories/__generated__/commit_info.data.gql.dart';
+import 'package:diohub/graphql/queries/repositories/__generated__/commit_info.req.gql.dart';
 import 'package:diohub/graphql/queries/repositories/__generated__/repo_info.data.gql.dart';
 import 'package:diohub/graphql/queries/repositories/__generated__/repo_info.req.gql.dart';
 import 'package:diohub/models/commits/commit_model.dart';
@@ -140,6 +142,168 @@ class RepositoryServices {
       refreshCache: refresh,
     );
     return CommitModel.fromJson(response.data!);
+  }
+
+  // Helper to parse commit URL and extract owner, repo, and oid
+  // Format: https://api.github.com/repos/{owner}/{repo}/commits/{oid}
+  static ({String owner, String repo, String oid}) parseCommitURL(
+    final String commitURL,
+  ) {
+    final List<String> parts = commitURL.split('/');
+    // Find 'repos' index
+    final int reposIndex = parts.indexWhere((p) => p == 'repos');
+    if (reposIndex == -1 || reposIndex + 3 >= parts.length) {
+      throw Exception('Invalid commit URL format');
+    }
+    final String owner = parts[reposIndex + 1];
+    final String repo = parts[reposIndex + 2];
+    final String oid = parts[reposIndex + 4]; // Skip 'commits'
+    return (owner: owner, repo: repo, oid: oid);
+  }
+
+  // Helper to parse repo URL and extract owner and repo
+  // Format: https://api.github.com/repos/{owner}/{repo}
+  static ({String owner, String repo}) parseRepoURL(
+    final String repoURL,
+  ) {
+    final List<String> parts = repoURL.split('/');
+    final int reposIndex = parts.indexWhere((p) => p == 'repos');
+    if (reposIndex == -1 || reposIndex + 2 >= parts.length) {
+      throw Exception('Invalid repo URL format');
+    }
+    final String owner = parts[reposIndex + 1];
+    final String repo = parts[reposIndex + 2];
+    return (owner: owner, repo: repo);
+  }
+
+  // Get paginated commits list using GraphQL
+  // TODO: Uncomment after running GraphQL code generator:
+  // flutter pub run build_runner build
+  /*
+  static Future<({
+    List<GcommitsListData_repository_defaultBranchRef_target__asCommit_history_edges?> edges,
+    bool hasNextPage,
+    String? endCursor,
+  })> getCommitsListGQL({
+    required final String owner,
+    required final String repo,
+    required final int first,
+    final String? after,
+    final String? path,
+    final String? ref,
+    final String? oid,
+    final String? authorEmail,
+    final bool refresh = false,
+  }) async {
+    // Determine which query to use
+    if (oid != null) {
+      final GQLResponse response = await _gqlHandler.query(
+        GcommitsListByOidReq(
+          (final GcommitsListByOidReqBuilder b) => b
+            ..vars.owner = owner
+            ..vars.repo = repo
+            ..vars.oid = oid
+            ..vars.first = first
+            ..vars.after = after
+            ..vars.path = path
+            ..vars.author = authorEmail != null
+                ? (GcommitAuthorBuilder()
+                  ..email = authorEmail)
+                : null,
+        ),
+        refreshCache: refresh,
+      );
+      final data = GcommitsListByOidData.fromJson(response.data!)!.repository!;
+      final commit = data.object!.when(
+        commit: (c) => c,
+        orElse: () => throw Exception('Object is not a Commit'),
+      );
+      return (
+        edges: commit.history.edges!.toList(),
+        hasNextPage: commit.history.pageInfo.hasNextPage,
+        endCursor: commit.history.pageInfo.endCursor,
+      );
+    } else if (ref != null) {
+      final GQLResponse response = await _gqlHandler.query(
+        GcommitsListByRefReq(
+          (final GcommitsListByRefReqBuilder b) => b
+            ..vars.owner = owner
+            ..vars.repo = repo
+            ..vars.ref = ref
+            ..vars.first = first
+            ..vars.after = after
+            ..vars.path = path
+            ..vars.author = authorEmail != null
+                ? (GcommitAuthorBuilder()
+                  ..email = authorEmail)
+                : null,
+        ),
+        refreshCache: refresh,
+      );
+      final data = GcommitsListByRefData.fromJson(response.data!)!.repository!;
+      final commit = data.ref!.target!.when(
+        commit: (c) => c,
+        orElse: () => throw Exception('Target is not a Commit'),
+      );
+      return (
+        edges: commit.history.edges!.toList(),
+        hasNextPage: commit.history.pageInfo.hasNextPage,
+        endCursor: commit.history.pageInfo.endCursor,
+      );
+    } else {
+      final GQLResponse response = await _gqlHandler.query(
+        GcommitsListReq(
+          (final GcommitsListReqBuilder b) => b
+            ..vars.owner = owner
+            ..vars.repo = repo
+            ..vars.first = first
+            ..vars.after = after
+            ..vars.path = path
+            ..vars.author = authorEmail != null
+                ? (GcommitAuthorBuilder()
+                  ..email = authorEmail)
+                : null,
+        ),
+        refreshCache: refresh,
+      );
+      final data = GcommitsListData.fromJson(response.data!)!.repository!;
+      final commit = data.defaultBranchRef!.target!.when(
+        commit: (c) => c,
+        orElse: () => throw Exception('Target is not a Commit'),
+      );
+      return (
+        edges: commit.history.edges!.toList(),
+        hasNextPage: commit.history.pageInfo.hasNextPage,
+        endCursor: commit.history.pageInfo.endCursor,
+      );
+    }
+  }
+  */
+
+  // Get commit info using GraphQL
+  static Future<GcommitInfoData_repository_object__asCommit> getCommitInfo({
+    required final String owner,
+    required final String repo,
+    required final String oid,
+    final bool refresh = false,
+  }) async {
+    final GQLResponse response = await _gqlHandler.query(
+      GcommitInfoReq(
+        (final GcommitInfoReqBuilder b) => b
+          ..vars.owner = owner
+          ..vars.repo = repo
+          ..vars.oid = oid,
+      ),
+      refreshCache: refresh,
+    );
+    final data = GcommitInfoData.fromJson(response.data!)!.repository!;
+    if (data.object == null) {
+      throw Exception('Commit not found');
+    }
+    return data.object!.when(
+      commit: (commit) => commit,
+      orElse: () => throw Exception('Object is not a Commit'),
+    );
   }
 
   // Ref: https://docs.github.com/en/rest/reference/repos#get-repository-permissions-for-a-user

@@ -1,9 +1,11 @@
 import 'package:auto_route/annotations.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:diohub/adapters/deep_linking_handler.dart';
-import 'package:diohub/common/animations/size_expanded_widget.dart';
 import 'package:diohub/common/events/events.dart';
+import 'package:diohub/common/misc/animated_tab_bar.dart';
 import 'package:diohub/common/misc/collapsible_app_bar.dart';
+import 'package:diohub/common/misc/collapsible_action_buttons.dart';
+import 'package:diohub/common/misc/action_card_builder.dart';
 import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/misc/profile_banner.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
@@ -19,20 +21,6 @@ import 'package:diohub/view/home/widgets/pulls_tab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dynamic_tabs/flutter_dynamic_tabs.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
-
-class _ActionCard {
-  final IconData icon;
-  final String label;
-  final int? count;
-  final VoidCallback onTap;
-
-  _ActionCard({
-    required this.icon,
-    required this.label,
-    required this.count,
-    required this.onTap,
-  });
-}
 
 @RoutePage()
 class HomeScreen extends StatefulWidget {
@@ -56,7 +44,6 @@ class HomeScreenState extends State<HomeScreen>
   bool get wantKeepAlive => true;
 
   // late TabController _tabController;
-  bool _showAllActions = false;
   late final AnimationController _expandAnimationController =
       AnimationController(
     duration: const Duration(milliseconds: 300),
@@ -161,12 +148,15 @@ class HomeScreenState extends State<HomeScreen>
         builder: (final BuildContext context, final PreferredSizeWidget tabBar,
                 final Widget tabView) =>
             DynamicScroll(
-          contentVersion: _showAllActions ? 1 : 0,
+          expandedByDefault: true,
+          contentVersion: 0,
           animationController: _expandAnimationController,
           collapsedWidget: buildCollapsedAppBar(context),
-          bottom: SizeExpandedSection(
-            expand: tabsController.activeLength > 1,
-            child: tabBar,
+          bottom: AnimatedTabBar(
+            showTabBar: tabsController.activeLength > 1,
+            tabBar: tabBar,
+            defaultPadding: const EdgeInsets.only(bottom: 8),
+            topSpacing: 0,
           ),
           expandedWidget: Padding(
             padding: const EdgeInsets.only(top: 16),
@@ -176,164 +166,73 @@ class HomeScreenState extends State<HomeScreen>
                 const SizedBox(
                   height: 16,
                 ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // All actions with wrap layout
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            // Calculate number of columns based on available width
-                            final int columns = (constraints.maxWidth / 160)
-                                .floor()
-                                .clamp(2, 6);
-                            final double cardWidth =
-                                (constraints.maxWidth - (12 * (columns - 1))) /
-                                    columns;
-
-                            // All available actions
-                            final allActions = [
-                              _ActionCard(
-                                icon: Octicons.issue_opened,
-                                label: 'Issues',
-                                count: context.viewer.issues.totalCount,
-                                onTap: () => tabsController.openTab('Issues'),
-                              ),
-                              _ActionCard(
-                                icon: Octicons.git_pull_request,
-                                label: 'Pull Requests',
-                                count: context.viewer.pullRequests.totalCount,
-                                onTap: () => tabsController.openTab('Pulls'),
-                              ),
-                              _ActionCard(
-                                icon: Octicons.organization,
-                                label: 'Organizations',
-                                count: context.viewer.organizations.totalCount,
-                                onTap: () => tabsController.openTab('orgs'),
-                              ),
-                              _ActionCard(
-                                icon: Octicons.repo,
-                                label: 'Repositories',
-                                count: context.viewer.repositories.totalCount,
-                                onTap: () {
-                                  // tabsController.openTab('repos');
-                                },
-                              ),
-                              _ActionCard(
-                                icon: Icons.settings_rounded,
-                                label: 'App Settings',
-                                count: null,
-                                onTap: () {
-                                  // Navigate to settings
-                                },
-                              ),
-                            ];
-
-                            // Show as many cards as fit in one row
-                            final int visibleCount =
-                                columns.clamp(2, allActions.length);
-                            final List<_ActionCard> visibleActions =
-                                allActions.take(visibleCount).toList();
-                            final List<_ActionCard> hiddenActions =
-                                allActions.skip(visibleCount).toList();
-
-                            return Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              children: [
-                                // Visible actions
-                                ...visibleActions.map((action) => SizedBox(
-                                      width: cardWidth,
-                                      child: _buildQuickActionCard(
-                                        context: context,
-                                        icon: action.icon,
-                                        label: action.label,
-                                        count: action.count,
-                                        onTap: action.onTap,
-                                      ),
-                                    )),
-                                // Hidden actions (expandable)
-                                if (_showAllActions)
-                                  ...hiddenActions.asMap().entries.map((entry) {
-                                    final action = entry.value;
-                                    final isLastAndSettings =
-                                        entry.key == hiddenActions.length - 1 &&
-                                            action.label == 'App Settings';
-
-                                    return SizedBox(
-                                      width: isLastAndSettings
-                                          ? constraints.maxWidth
-                                          : cardWidth,
-                                      child: _buildQuickActionCard(
-                                        context: context,
-                                        icon: action.icon,
-                                        label: action.label,
-                                        count: action.count,
-                                        onTap: action.onTap,
-                                      ),
-                                    );
-                                  }),
-                                // Compact toggle button (only if there are hidden actions)
-                                if (hiddenActions.isNotEmpty)
-                                  SizedBox(
-                                    width: constraints.maxWidth,
-                                    child: Material(
-                                      color: context
-                                          .colorScheme.surfaceContainerHighest
-                                          .withOpacity(0.5),
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: InkWell(
-                                        onTap: () {
-                                          setState(() {
-                                            _showAllActions = !_showAllActions;
-                                          });
-                                          if (_showAllActions) {
-                                            _expandAnimationController
-                                                .forward();
-                                          } else {
-                                            _expandAnimationController
-                                                .reverse();
-                                          }
-                                        },
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 10,
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              AnimatedRotation(
-                                                duration: const Duration(
-                                                    milliseconds: 300),
-                                                turns:
-                                                    _showAllActions ? 0.5 : 0,
-                                                child: Icon(
-                                                  Icons.expand_more_rounded,
-                                                  size: 16,
-                                                  color: context.colorScheme
-                                                      .onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            );
-                          },
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: CollapsibleActionButtons(
+                    primaryActions: [
+                      ActionButtonData(
+                        icon: Octicons.issue_opened,
+                        label: 'Issues',
+                        trailing: buildActionButtonTrailingCount(
+                          context,
+                          context.viewer.issues.totalCount,
                         ),
+                        actionType: ActionButtonActionType.tab,
+                        onTap: () => tabsController.openTab('Issues'),
                       ),
-                      const SizedBox(height: 4),
+                      ActionButtonData(
+                        icon: Octicons.git_pull_request,
+                        label: 'Pull Requests',
+                        trailing: buildActionButtonTrailingCount(
+                          context,
+                          context.viewer.pullRequests.totalCount,
+                        ),
+                        actionType: ActionButtonActionType.tab,
+                        onTap: () => tabsController.openTab('Pulls'),
+                      ),
+                      ActionButtonData(
+                        icon: Octicons.organization,
+                        label: 'Organizations',
+                        trailing: buildActionButtonTrailingCount(
+                          context,
+                          context.viewer.organizations.totalCount,
+                        ),
+                        actionType: ActionButtonActionType.tab,
+                        onTap: () => tabsController.openTab('orgs'),
+                      ),
                     ],
+                    secondaryActions: [
+                      ActionButtonData(
+                        icon: Octicons.repo,
+                        label: 'Repositories',
+                        trailing: buildActionButtonTrailingCount(
+                          context,
+                          context.viewer.repositories.totalCount,
+                        ),
+                        onTap: () {
+                          // tabsController.openTab('repos');
+                        },
+                      ),
+                      ActionButtonData(
+                        icon: Icons.settings_rounded,
+                        label: 'App Settings',
+                        onTap: () {
+                          // Navigate to settings
+                        },
+                      ),
+                    ],
+                    actionCardBuilder: (context, action) =>
+                        buildStandardActionCard(context, action),
+                    visibilityConfig: const ActionButtonsVisibilityConfig(),
+                    horizontalSpacing: 12,
+                    verticalSpacing: 12,
+                    onExpandChanged: (isExpanded) {
+                      if (isExpanded) {
+                        _expandAnimationController.forward();
+                      } else {
+                        _expandAnimationController.reverse();
+                      }
+                    },
                   ),
                 ),
               ],
@@ -397,59 +296,6 @@ class HomeScreenState extends State<HomeScreen>
           ),
         ],
       );
-
-  Widget _buildQuickActionCard({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required int? count,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: context.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    icon,
-                    size: 18,
-                    color: context.colorScheme.primary,
-                  ),
-                  const Spacer(),
-                  if (count != null)
-                    Text(
-                      count.toString(),
-                      style: context.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: context.colorScheme.onSurface,
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: context.textTheme.bodySmall?.copyWith(
-                  color: context.colorScheme.onSurfaceVariant,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Row buildCollapsedAppBar(final BuildContext context) => Row(
         mainAxisAlignment: MainAxisAlignment.center,

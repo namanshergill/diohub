@@ -1,5 +1,5 @@
 import 'package:diohub/common/bottom_sheet/bottom_sheets.dart';
-import 'package:diohub/common/misc/info_card.dart';
+import 'package:diohub/common/misc/highlighted_container.dart';
 import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/wrappers/infinite_scroll_wrapper.dart';
 import 'package:diohub/common/wrappers/provider_loading_progress_wrapper.dart';
@@ -21,77 +21,102 @@ class BranchButton extends StatelessWidget {
   @override
   Widget build(final BuildContext context) =>
       ProviderLoadingProgressWrapper<RepoBranchProvider>(
-        loadingBuilder: (final BuildContext context) => Container(),
+        loadingBuilder: (final BuildContext context) => Container(
+          height: 48,
+        ),
         childBuilder: (
           final BuildContext context,
           final RepoBranchProvider value,
         ) =>
-            InfoCard(
-          leading: InfoCard.leadingIcon(
-            icon: Octicons.git_branch,
-          ),
-          trailing: InfoCard.dropdownTrailingIcon,
-          onTap: () async {
-            try {
-              final String currentBranch =
-                  context.read<RepoBranchProvider>().currentSHA;
-              Future<void> changeBranch(final String branch) async {
-                await Provider.of<RepoBranchProvider>(
-                  context,
-                  listen: false,
-                ).setBranch(branch);
-              }
-
-              await BottomSheetPagination<RepoBranchListItemModel>(
-                paginatedListItemBuilder: (
-                  final BuildContext context,
-                  final ScrollWrapperBuilderData<RepoBranchListItemModel> data,
-                ) =>
-                    Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Card(
-                    // borderRadius: medBorderRadius,
-                    color: data.item.name == currentBranch
-                        ? context.colorScheme.primary
-                        : context.colorScheme.surface,
-                    child: InkPot(
-                      onTap: () async {
-                        await changeBranch(data.item.name!);
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                        }
-                      },
-                      child: _buildListBranchItem(data, currentBranch, context),
+            HighlightedContainer(
+              highlightColor: context.colorScheme.primary,
+              child: Material(
+                        color: context.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+              onTap: () async {
+                try {
+                  final String currentBranch =
+                      context.read<RepoBranchProvider>().currentSHA;
+                  Future<void> changeBranch(final String branch) async {
+                    await Provider.of<RepoBranchProvider>(
+                      context,
+                      listen: false,
+                    ).setBranch(branch);
+                  }
+              
+                  await BottomSheetPagination<RepoBranchListItemModel>(
+                    paginatedListItemBuilder: (
+                      final BuildContext context,
+                      final ScrollWrapperBuilderData<RepoBranchListItemModel> data,
+                    ) =>
+                        Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Card(
+                        color: data.item.name == currentBranch
+                            ? context.colorScheme.primary
+                            : context.colorScheme.surface,
+                        child: InkPot(
+                          onTap: () async {
+                            await changeBranch(data.item.name!);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                            }
+                          },
+                          child: _buildListBranchItem(data, currentBranch, context),
+                        ),
+                      ),
                     ),
-                  ),
+                    paginationFuture: (
+                      data,
+                    ) async =>
+                        RepositoryServices.fetchBranchList(
+                      _repo!.url!,
+                      data.pageNumber,
+                      data.pageSize,
+                      refresh: data.refresh,
+                    ),
+                  title: 'Branches in ${_repo?.owner?.login!}/${_repo?.name}',
+                ).openSheet(context);
+              } on Exception {
+                rethrow;
+              }
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: Row(
+                  children: <Widget>[
+                    Icon(
+                      Octicons.git_branch,
+                      size: 18,
+                      color: context.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        value.currentSHA,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_drop_down_rounded,
+                      size: 20,
+                      color: context.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                    ),
+                  ],
                 ),
-                paginationFuture: (
-                  data,
-                ) async =>
-                    RepositoryServices.fetchBranchList(
-                  _repo!.url!,
-                  data.pageNumber,
-                  data.pageSize,
-                  refresh: data.refresh,
-                ),
-                title: 'Branches in ${_repo?.owner?.login!}/${_repo?.name}',
-              ).openSheet(context);
-            } on Exception catch (e) {
-              rethrow;
-            }
-          },
-          child: Row(
-            children: <Widget>[
-              Text(
-                value.currentSHA,
-                overflow: TextOverflow.ellipsis,
               ),
-            ],
-          ),
-        ),
+                        ),
+                      ),
+            ),
       );
 
   Padding _buildListBranchItem(
