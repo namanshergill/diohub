@@ -210,10 +210,15 @@ class AnimatedDynamicSliverAppBarState
         return;
       }
 
+      final bool isStillAnimating = widget.animationController?.isAnimating ?? false;
+      
       _frameCount++;
       // Throttle: measure every 2 frames (30fps instead of 60fps)
       // This reduces rebuilds by ~50% while maintaining smooth animations
-      if (_frameCount % 2 == 0) {
+      // Always measure on the last frame before animation stops to catch final height
+      final bool shouldMeasure = (_frameCount % 2 == 0) || !isStillAnimating;
+      
+      if (shouldMeasure) {
         // Measure the content's natural size
         if (_childKey.currentContext != null) {
           final RenderBox? renderBox =
@@ -222,7 +227,9 @@ class AnimatedDynamicSliverAppBarState
             final double newHeight = renderBox.size.height;
 
             // Only update if height changed significantly (reduces unnecessary rebuilds)
-            if ((newHeight - _height).abs() > 0.5) {
+            // Use smaller threshold when animation is stopping to catch final changes
+            final double threshold = isStillAnimating ? 0.5 : 0.1;
+            if ((newHeight - _height).abs() > threshold) {
               setState(() {
                 _height = newHeight +
                     widget.heightBuffer; // Add buffer to prevent tiny overflow
@@ -233,13 +240,13 @@ class AnimatedDynamicSliverAppBarState
       }
 
       // Continue measuring if still animating
-      if (widget.animationController?.isAnimating ?? false) {
+      if (isStillAnimating) {
         _scheduleContinuousMeasurement();
       } else {
         // Animation completed
         _isMeasuring = false;
         _frameCount = 0;
-        // Final measurement to ensure accuracy
+        // Final measurement to ensure accuracy - always do this regardless of throttling
         updateHeight();
       }
     });
