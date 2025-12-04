@@ -506,15 +506,31 @@ class _SmartFlexibleSpaceBarState extends State<_SmartFlexibleSpaceBar> {
     // Only handle drag-to-expand when collapsed
     if (_isCollapsed) {
       return GestureDetector(
-        onVerticalDragStart: (details) {
+        onPanDown: (details) {
+          // Detect downward drag to expand
           final ScrollController? sc =
               widget.scrollController ?? PrimaryScrollController.of(context);
-          sc?.animateTo(
-            0,
-            curve: Curves.easeIn,
-            duration: const Duration(milliseconds: 300),
-          );
+          if (sc != null && sc.hasClients && sc.position.pixels > 0) {
+            sc.animateTo(
+              0,
+              curve: Curves.easeIn,
+              duration: const Duration(milliseconds: 300),
+            );
+          }
         },
+        onVerticalDragStart: (details) {
+          // Also handle vertical drag start for better gesture detection
+          final ScrollController? sc =
+              widget.scrollController ?? PrimaryScrollController.of(context);
+          if (sc != null && sc.hasClients && sc.position.pixels > 0) {
+            sc.animateTo(
+              0,
+              curve: Curves.easeIn,
+              duration: const Duration(milliseconds: 300),
+            );
+          }
+        },
+        behavior: HitTestBehavior.opaque,
         child: widget.child,
       );
     }
