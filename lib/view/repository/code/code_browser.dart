@@ -3,9 +3,8 @@ import 'dart:async';
 import 'package:diohub/common/animations/size_expanded_widget.dart';
 import 'package:diohub/common/bottom_sheet/bottom_sheets.dart';
 import 'package:diohub/common/misc/button.dart';
-import 'package:diohub/common/misc/ink_pot.dart';
+import 'package:diohub/common/misc/highlighted_container.dart';
 import 'package:diohub/common/misc/loading_indicator.dart';
-import 'package:diohub/common/misc/tappable_card.dart';
 import 'package:diohub/common/wrappers/provider_loading_progress_wrapper.dart';
 import 'package:diohub/providers/base_provider.dart';
 import 'package:diohub/providers/repository/branch_provider.dart';
@@ -70,25 +69,21 @@ class CodeBrowserState extends State<CodeBrowser>
                   _buildPathWidget(value, context),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Button(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 8,
-                    ),
-                    color: context.colorScheme.primary,
-                    onTap: value.status == Status.loaded
-                        ? () {
-                            showCommitHistory(
-                              context,
-                              value.tree.last.commit!.sha,
-                            );
-                          }
-                        : null,
-                    child: value.status == Status.loaded
-                        ? const CommitInfoButton()
-                        : const LoadingIndicator(),
-                  ),
+                  child: value.status == Status.loaded
+                      ? _buildCommitButton(context, value)
+                      : Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            color: context.colorScheme.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const LoadingIndicator(),
+                        ),
                 ),
+                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -103,45 +98,79 @@ class CodeBrowserState extends State<CodeBrowser>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      const SizedBox(
-                        height: 16,
-                      ),
+                    
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: SizedBox(
-                          height: 30,
-                          child: ListView.separated(
-                            physics: const BouncingScrollPhysics(),
-                            shrinkWrap: true,
-                            scrollDirection: Axis.horizontal,
-                            itemCount: value.tree.length,
-                            separatorBuilder:
-                                (final BuildContext context, final int index) =>
-                                    const Center(child: Text(' /')),
-                            itemBuilder:
-                                (final BuildContext context, final int index) =>
-                                    Material(
-                              // color: transparent,
-                              child: InkPot(
-                                // borderRadius: smallBorderRadius,
-                                onTap: () {
-                                  if (index != value.tree.length - 1) {
-                                    Provider.of<CodeProvider>(
-                                      context,
-                                      listen: false,
-                                    ).popTreeUntil(value.tree[index]);
-                                  }
-                                },
-                                child: Center(
-                                  child: Text(
-                                    ' ${index == 0 ? Provider.of<RepositoryProvider>(context).data.name! : value.tree[index - 1].tree![value.pathIndex[index - 1]].path!}',
-                                    style: TextStyle(
-                                      color: index == value.tree.length - 1
-                                          ? context.colorScheme.primary
-                                          : null,
-                                      fontWeight: index == value.tree.length - 1
-                                          ? FontWeight.bold
-                                          : FontWeight.w500,
+                        child: HighlightedContainer(
+                          highlightColor: context.colorScheme.primary,
+                          borderRadius: 12,
+                          child: Container(
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: context.colorScheme.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: ListView.separated(
+                              physics: const BouncingScrollPhysics(),
+                              shrinkWrap: true,
+                              scrollDirection: Axis.horizontal,
+                              itemCount: value.tree.length,
+                              separatorBuilder: (final BuildContext context,
+                                      final int index) =>
+                                  Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 4),
+                                child: Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 16,
+                                  color: context.colorScheme.onSurfaceVariant
+                                      .withOpacity(0.5),
+                                ),
+                              ),
+                              itemBuilder: (final BuildContext context,
+                                      final int index) =>
+                                  Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    if (index != value.tree.length - 1) {
+                                      Provider.of<CodeProvider>(
+                                        context,
+                                        listen: false,
+                                      ).popTreeUntil(value.tree[index]);
+                                    }
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        index == 0
+                                            ? Provider.of<RepositoryProvider>(
+                                                    context)
+                                                .data
+                                                .name!
+                                            : value
+                                                .tree[index - 1]
+                                                .tree![
+                                                    value.pathIndex[index - 1]]
+                                                .path!,
+                                        style: context.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: index == value.tree.length - 1
+                                              ? context.colorScheme.primary
+                                              : context
+                                                  .colorScheme.onSurfaceVariant,
+                                          fontWeight:
+                                              index == value.tree.length - 1
+                                                  ? FontWeight.w600
+                                                  : FontWeight.w500,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -150,30 +179,27 @@ class CodeBrowserState extends State<CodeBrowser>
                           ),
                         ),
                       ),
+                      const SizedBox(
+                        height: 16,
+                      ),
                     ],
                   ),
                 ),
                 SizeExpandedSection(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: BasicCard(
-                      elevation: BasicCard.hintElevation,
-                      child: DecoratedBox(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: HighlightedContainer(
+                      highlightColor: context.colorScheme.primary,
+                      borderRadius: 16,
+                      child: Container(
                         decoration: BoxDecoration(
-                          // borderRadius: medBorderRadius,
-                          // color: Provider.of<PaletteSettings>(context)
-                          //     .currentSetting
-                          //     .secondary,
-                          border: Border.all(
-                            // color: Provider.of<PaletteSettings>(context)
-                            //     .currentSetting
-                            //     .faded1,
-                            width: 0.5,
-                          ),
+                          color: context.colorScheme.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: ListView.separated(
                           physics: const NeverScrollableScrollPhysics(),
                           shrinkWrap: true,
+                          padding: const EdgeInsets.symmetric(vertical: 4),
                           itemBuilder:
                               (final BuildContext context, final int index) =>
                                   BrowserListTile(
@@ -186,8 +212,11 @@ class CodeBrowserState extends State<CodeBrowser>
                           ),
                           separatorBuilder:
                               (final BuildContext context, final int index) =>
-                                  const Divider(
-                            height: 0,
+                                  Divider(
+                            height: 1,
+                            thickness: 0.5,
+                            indent: 60,
+                            color: context.colorScheme.surfaceContainerHighest,
                           ),
                           itemCount: value.tree.last.tree!.length,
                         ),
@@ -200,6 +229,33 @@ class CodeBrowserState extends State<CodeBrowser>
             loadingBuilder: (final BuildContext context) => Container(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCommitButton(
+    final BuildContext context,
+    final CodeProvider value,
+  ) {
+    return HighlightedContainer(
+      highlightColor: context.colorScheme.primary,
+      borderRadius: 12,
+      child: Material(
+        color: context.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: () {
+            showCommitHistory(
+              context,
+              value.tree.last.commit!.sha,
+            );
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: const Padding(
+            padding: EdgeInsets.all(16),
+            child: CommitInfoButton(),
+          ),
+        ),
       ),
     );
   }

@@ -11,105 +11,110 @@ class CommitInfoButton extends StatelessWidget {
   @override
   Widget build(final BuildContext context) => Consumer<CodeProvider>(
         builder:
-            (final BuildContext context, final CodeProvider value, final _) =>
-                Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
-            const SizedBox(
-              width: 16,
-            ),
-            Flexible(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Flexible(
-                    child: Text(
-                      value.tree.last.commit!.commit!.message!.length > 25
-                          ? '${value.tree.last.commit!.commit!.message!.substring(0, 25)}...'
-                          : value.tree.last.commit!.commit!.message!,
-                      style: context.textTheme.bodyLarge,
+            (final BuildContext context, final CodeProvider value, final _) {
+          final commit = value.tree.last.commit!;
+          final commitMessage = commit.commit!.message ?? '';
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              // Main content
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    // Commit message
+                    Text(
+                      commitMessage,
+                      style: context.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(
-                    height: 5,
-                  ),
-                  Row(
-                    children: <Widget>[
-                      ProfileTile.avatar(
-                        avatarUrl:
-                            value.tree.last.commit!.author?.avatarUrl ?? '',
-                        size: 13,
-                        padding: EdgeInsets.zero,
-                      ),
-                      const SizedBox(
-                        width: 5,
-                      ),
-                      Text(
-                        value.tree.last.commit!.author?.login ?? 'N/A',
-                        style: context.textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    // Author and date row
+                    Row(
+                      children: <Widget>[
+                        ProfileTile.avatar(
+                          avatarUrl: commit.author?.avatarUrl ?? '',
+                          size: 14,
+                          padding: EdgeInsets.zero,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          commit.author?.login ?? 'N/A',
+                          style: context.textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '·',
+                          style: context.textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.onSurfaceVariant
+                                .withOpacity(0.5),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          getDate(
+                            commit.commit!.committer!.date.toString(),
+                            shorten: true,
+                          ),
+                          style: context.textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.onSurfaceVariant
+                                .withOpacity(0.7),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                Row(
+              const SizedBox(width: 12),
+              // SHA badge - centered vertically
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: context.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    const Icon(
+                    Icon(
                       Octicons.git_commit,
-                      size: 11,
-                    ),
-                    const SizedBox(
-                      width: 5,
-                    ),
-                    Text(
-                      value.tree.last.commit!.sha!.substring(0, 6),
-                      style: context.textTheme.bodyMedium,
-                    ),
-                    const Icon(
-                      Icons.arrow_drop_down,
                       size: 13,
-                      // color: Provider.of<PaletteSettings>(context)
-                      //     .currentSetting
-                      //     .faded3,
+                      color: context.colorScheme.primary,
                     ),
-                  ],
-                ),
-                const SizedBox(
-                  height: 5,
-                ),
-                Row(
-                  children: <Widget>[
-                    const Icon(
-                      Icons.timelapse_outlined,
-                      size: 11,
-                      // color: Provider.of<PaletteSettings>(context)
-                      //     .currentSetting
-                      //     .faded3,
-                    ),
-                    const SizedBox(
-                      width: 5,
-                    ),
+                    const SizedBox(width: 6),
                     Text(
-                      getDate(
-                        value.tree.last.commit!.commit!.committer!.date
-                            .toString(),
-                        shorten: false,
+                      commit.sha!.substring(0, 7),
+                      style: context.textTheme.labelSmall?.copyWith(
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.w600,
+                        color: context.colorScheme.primary,
                       ),
-                      style: context.textTheme.bodySmall,
                     ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(
-              width: 8,
-            ),
-          ],
-        ),
+              ),
+              const SizedBox(width: 8),
+              // Dropdown arrow indicating bottom sheet
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 20,
+                color: context.colorScheme.onSurfaceVariant.withOpacity(0.5),
+              ),
+            ],
+          );
+        },
       );
 }

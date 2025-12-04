@@ -1,10 +1,10 @@
 import 'package:auto_route/auto_route.dart';
-import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/models/repositories/code_tree_model.dart';
 import 'package:diohub/providers/repository/branch_provider.dart';
 import 'package:diohub/providers/repository/code_provider.dart';
 import 'package:diohub/providers/repository/repository_provider.dart';
 import 'package:diohub/routes/router.gr.dart';
+import 'package:diohub/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_material_design_icons/flutter_material_design_icons.dart';
 import 'package:provider/provider.dart';
@@ -16,36 +16,50 @@ class BrowserListTile extends StatelessWidget {
   final String? repoURL;
   final int index;
 
+  String _formatFileSize(int? sizeInBytes) {
+    if (sizeInBytes == null) return '';
+    if (sizeInBytes < 1024) {
+      return '$sizeInBytes B';
+    } else if (sizeInBytes < 1024 * 1024) {
+      return '${(sizeInBytes / 1024).toStringAsFixed(1)} KB';
+    } else if (sizeInBytes < 1024 * 1024 * 1024) {
+      return '${(sizeInBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    } else {
+      return '${(sizeInBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+    }
+  }
+
   @override
   Widget build(final BuildContext context) {
-    Icon? getIcon() {
+    final isFile = tree.type == Type.BLOB;
+    final isFolder = tree.type == Type.TREE;
+
+    IconData getIconData() {
       switch (tree.type) {
         case Type.TREE:
-          return const Icon(
-            Icons.folder,
-            // color: Provider.of<PaletteSettings>(context).currentSetting.faded3,
-          );
+          return Icons.folder_rounded;
         case Type.BLOB:
-          return const Icon(
-            MdiIcons.file,
-            // color: Provider.of<PaletteSettings>(context).currentSetting.faded3,
-          );
+          return MdiIcons.file;
         case null:
-          return const Icon(
-            MdiIcons.emoticonConfused,
-            // color: Provider.of<PaletteSettings>(context).currentSetting.faded3,
-          );
+          return MdiIcons.emoticonConfused;
       }
     }
 
+    Color getIconColor() {
+      if (isFolder) {
+        return context.colorScheme.primary;
+      }
+      return context.colorScheme.onSurfaceVariant;
+    }
+
     return Material(
-      // color: transparent,
-      child: InkPot(
+      color: Colors.transparent,
+      child: InkWell(
         onTap: () async {
-          if (tree.type == Type.TREE) {
+          if (isFolder) {
             Provider.of<CodeProvider>(context, listen: false)
                 .pushTree(tree.sha!, index);
-          } else if (tree.type == Type.BLOB) {
+          } else if (isFile) {
             await AutoRouter.of(context).push(
               FileViewerAPI(
                 repoURL: repoURL,
@@ -61,15 +75,53 @@ class BrowserListTile extends StatelessWidget {
             );
           }
         },
+        borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: <Widget>[
-              getIcon()!,
-              const SizedBox(
-                width: 16,
+              // Icon with circle background
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: isFolder
+                      ? context.colorScheme.primary.withOpacity(0.1)
+                      : context.colorScheme.surfaceContainerHighest,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  getIconData(),
+                  size: 18,
+                  color: getIconColor(),
+                ),
               ),
-              Flexible(child: Text(tree.path!)),
+              const SizedBox(width: 12),
+              // File/folder name
+              Expanded(
+                child: Text(
+                  tree.path ?? '',
+                  style: context.textTheme.bodyMedium,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Size and chevron
+              if (isFile && tree.size != null) ...[
+                Text(
+                  _formatFileSize(tree.size),
+                  style: context.textTheme.bodySmall?.copyWith(
+                    color: context.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: context.colorScheme.onSurfaceVariant.withOpacity(0.4),
+              ),
             ],
           ),
         ),
