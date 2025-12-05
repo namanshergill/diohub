@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:diohub/adapters/deep_linking_handler.dart';
 import 'package:diohub/app/api_handler/response_handler.dart';
+import 'package:diohub/common/bottom_sheet/bottom_sheets.dart';
 import 'package:diohub/common/misc/collapsible_app_bar.dart';
 import 'package:diohub/common/misc/app_bar.dart';
 import 'package:diohub/common/misc/collapsible_detail_tiles.dart';
@@ -106,6 +107,7 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
   void initState() {
     _setupTabs();
     tabController = DynamicTabsController(vsync: this, tabs: tabs);
+    tabController.addListener(_onTabChanged);
     initBranch = widget.branch;
     super.initState();
     // This HAS to be after the super initState call as some required data
@@ -115,8 +117,15 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
 
   @override
   void dispose() {
+    tabController.removeListener(_onTabChanged);
     _expandAnimationController.dispose();
     super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _setupProviders() {
@@ -589,6 +598,129 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
     );
   }
 
+  List<ActionButtonData> _buildToolbarActions(
+      BuildContext context, RepositoryModel repo) {
+    final allActions = [
+      ActionButtonData(
+        icon: Octicons.file_code,
+        label: repo.language ?? 'Code',
+        iconColor:
+            repo.language != null ? Color(getLangColor(repo.language)) : null,
+        trailing: repo.size != null
+            ? buildActionButtonTrailingSize(context, repo.size!)
+            : null,
+        onTap: () => tabController.openTab('Code'),
+      ),
+    
+      ActionButtonData(
+        icon: Octicons.issue_opened,
+        label: 'Issues',
+        trailing: repo.openIssuesCount != null
+            ? buildActionButtonTrailingCount(context, repo.openIssuesCount!)
+            : null,
+        onTap: () => tabController.openTab('Issues'),
+      ),  
+      ActionButtonData(
+        icon: Octicons.git_pull_request,
+        label: 'Pull Requests',
+        trailing: repo.openIssuesCount != null
+            ? buildActionButtonTrailingCount(context, repo.openIssuesCount!)
+            : null,
+        onTap: () => tabController.openTab('Pull Requests'),
+      ),ActionButtonData(
+        icon: Octicons.book,
+        label: 'Readme',
+        onTap: () => tabController.openTab('Readme'),
+      ),
+      ActionButtonData(
+        icon: Octicons.kebab_horizontal,
+        label: 'More',
+        onTap: () => tabController.openTab('More'),
+      ),
+    ];
+
+    // When on Issues tab, remove the Issues action
+    final currentTab = tabController.activeIdentifier;
+    if (currentTab == 'Issues') {
+      return allActions.where((action) => action.label != 'Issues').toList();
+    }
+
+    return allActions;
+  }
+
+  List<ActionButtonData>? _buildProminentActions(
+      BuildContext context, RepositoryModel repo) {
+    final currentTab = tabController.activeIdentifier;
+
+    // When on Issues tab, show "New Issue" as prominent action
+    if (currentTab == 'Issues') {
+      return [
+        ActionButtonData(
+          icon: Octicons.plus,
+          label: 'New Issue',
+          isPositive: true,
+          onTap: () async {
+            final issueTemplateProvider =
+                Provider.of<IssueTemplateProvider>(context, listen: false);
+            if (issueTemplateProvider.data.isNotEmpty) {
+              await showScrollableBottomSheet(
+                context,
+                headerBuilder: (
+                  final BuildContext context,
+                  final StateSetter setState,
+                ) =>
+                    const BottomSheetHeaderText(
+                  headerText: 'New Issue',
+                ),
+                scrollableBodyBuilder: (
+                  final BuildContext context,
+                  final StateSetter setState,
+                  final ScrollController scrollController,
+                ) =>
+                    ListenableProvider<RepositoryProvider>.value(
+                  value: Provider.of<RepositoryProvider>(
+                    context,
+                    listen: false,
+                  ),
+                  child: ListView.separated(
+                    controller: scrollController,
+                    padding: const EdgeInsets.only(bottom: 8),
+                    itemBuilder: (
+                      final BuildContext context,
+                      final int index,
+                    ) {
+                      if (issueTemplateProvider.data.length == index) {
+                        return const BlankIssueTemplate();
+                      } else {
+                        return IssueTemplateCard(
+                            issueTemplateProvider.data[index]);
+                      }
+                    },
+                    separatorBuilder: (
+                      final BuildContext context,
+                      final int index,
+                    ) =>
+                        const Divider(),
+                    itemCount: issueTemplateProvider.data.length + 1,
+                  ),
+                ),
+              );
+            } else {
+              await AutoRouter.of(context).push(
+                NewIssueRoute(
+                  owner: repo.owner!.login!,
+                  repo: repo.name!,
+                ),
+              );
+            }
+          },
+        ),
+      ];
+    }
+
+    return null;
+  }
+
   Widget _buildActionButtons(BuildContext context, RepositoryModel repo) {
     // All actions - show all in primary to ensure minColumns is respected
     final primaryActions = <ActionButtonData>[
@@ -767,52 +899,17 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                               ),
                             ),
                             FloatingActionToolbar(
-                              actions: [
-                                ActionButtonData(
-                                  icon: Octicons.file_code,
-                                  label: repo.language ?? 'Code',
-                                  iconColor: repo.language != null
-                                      ? Color(getLangColor(repo.language))
-                                      : null,
-                                  trailing: repo.size != null
-                                      ? buildActionButtonTrailingSize(
-                                          context, repo.size!)
-                                      : null,
-                                  onTap: () => tabController.openTab('Code'),
-                                ),
-                                ActionButtonData(
-                                  icon: Octicons.book,
-                                  label: 'Readme',
-                                  onTap: () => tabController.openTab('Readme'),
-                                ),
-                                ActionButtonData(
-                                  icon: Octicons.issue_opened,
-                                  label: 'Issues',
-                                  trailing: repo.openIssuesCount != null
-                                      ? buildActionButtonTrailingCount(
-                                          context, repo.openIssuesCount!)
-                                      : null,
-                                  onTap: () => tabController.openTab('Issues'),
-                                ),
-                                ActionButtonData(
-                                  icon: Octicons.git_pull_request,
-                                  label: 'Pull Requests',
-                                  trailing: repo.openIssuesCount != null
-                                      ? buildActionButtonTrailingCount(
-                                          context, repo.openIssuesCount!)
-                                      : null,
-                                  onTap: () =>
-                                      tabController.openTab('Pull Requests'),
-                                ),
-                                ActionButtonData(
-                                  icon: Octicons.kebab_horizontal,
-                                  label: 'More',
-                                  onTap: () => tabController.openTab('More'),
-                                ),
-                              ],
+                              key: ValueKey(tabController.activeIdentifier),
+                              actions: _buildToolbarActions(context, repo),
+                              prominentActions:
+                                  _buildProminentActions(context, repo),
                               actionCardBuilder: buildStandardActionCard,
-                              defaultVisibleCount: 3,
+                              // defaultVisibleCount: 2,
                               position: FloatingToolbarPosition.bottom,
+                              alignment:
+                                  MediaQuery.of(context).size.width >= 600.0
+                                      ? FloatingToolbarAlignment.right
+                                      : FloatingToolbarAlignment.center,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 12),
                               onExpandChanged: (isExpanded) {

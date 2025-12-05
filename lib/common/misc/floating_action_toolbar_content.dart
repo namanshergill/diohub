@@ -31,16 +31,6 @@ Widget buildToolbarContent({
   final disabledActions =
       regularActions.where((a) => a.enabled != true).toList();
 
-  // Debug logging for action filtering
-  debugPrint(
-    '[FloatingActionToolbar] Action filtering: '
-    'totalActions=${actions.length}, '
-    'prominentActions=${prominentActions?.length ?? 0}, '
-    'regularActions=${regularActions.length}, '
-    'enabledActions=${enabledActions.length}, '
-    'disabledActions=${disabledActions.length}',
-  );
-
   final visibleCount = callbacks.isExpanded
       ? (expandedVisibleCount ?? regularActions.length)
       : defaultVisibleCount;
@@ -262,18 +252,6 @@ Widget buildToolbarContent({
                                                           0 ||
                                                       expandAnimation.value <=
                                                           0.01) {
-                                                    // Debug logging for constraint issues
-                                                    if (constraints.maxWidth <=
-                                                            0 ||
-                                                        expandAnimation.value <=
-                                                            0.01) {
-                                                      debugPrint(
-                                                        '[FloatingActionToolbar] Skipping grid build: '
-                                                        'maxWidth=${constraints.maxWidth}, '
-                                                        'animationValue=${expandAnimation.value}, '
-                                                        'hasBoundedWidth=${constraints.hasBoundedWidth}',
-                                                      );
-                                                    }
                                                     // Return empty container if constraints are invalid or animation is too small
                                                     return const SizedBox
                                                         .shrink();
@@ -301,15 +279,6 @@ Widget buildToolbarContent({
                                                     ...disabledActions,
                                                   ];
 
-                                                  // Debug logging
-                                                  debugPrint(
-                                                    '[FloatingActionToolbar] Grid build: '
-                                                    'enabledActions=${enabledActions.length}, '
-                                                    'disabledActions=${disabledActions.length}, '
-                                                    'allActions=${allActions.length}, '
-                                                    'crossAxisCount=$crossAxisCount',
-                                                  );
-
                                                   if (allActions.isEmpty) {
                                                     return const SizedBox
                                                         .shrink();
@@ -335,14 +304,6 @@ Widget buildToolbarContent({
                                                       (rowCount * itemHeight) +
                                                           ((rowCount - 1) *
                                                               spacing);
-
-                                                  debugPrint(
-                                                    '[FloatingActionToolbar] Grid height calculation: '
-                                                    'rowCount=$rowCount, '
-                                                    'itemWidth=$itemWidth, '
-                                                    'itemHeight=$itemHeight, '
-                                                    'totalHeight=$totalHeight',
-                                                  );
 
                                                   // Ensure we have a valid height
                                                   // Add extra padding to prevent cutoff
@@ -422,6 +383,35 @@ Widget buildToolbarContent({
                                         )
                                       : const SizedBox.shrink(),
                                 ),
+                                // Prominent actions as full-width tiles (only when expanded)
+                                if (callbacks.isExpanded &&
+                                    prominentActions != null &&
+                                    prominentActions.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        ...prominentActions.map((action) {
+                                          return Padding(
+                                            padding: EdgeInsets.only(
+                                              bottom: action ==
+                                                      prominentActions.last
+                                                  ? 0
+                                                  : 6,
+                                            ),
+                                            child: (prominentActionBuilder ??
+                                                buildProminentActionCard)(
+                                              context,
+                                              action,
+                                            ),
+                                          );
+                                        }),
+                                      ],
+                                    ),
+                                  ),
                                 if (isNearTop) ...[
                                   expandCollapseButton,
                                 ] else ...[
@@ -433,28 +423,6 @@ Widget buildToolbarContent({
                           },
                         ),
                       ),
-                      // Prominent actions as full-width tiles at bottom (only when expanded)
-                      if (callbacks.isExpanded &&
-                          prominentActions != null &&
-                          prominentActions.isNotEmpty)
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ...prominentActions.map((action) {
-                              return Padding(
-                                padding: EdgeInsets.only(
-                                  bottom:
-                                      action == prominentActions.last ? 0 : 6,
-                                ),
-                                child: (prominentActionBuilder ??
-                                    buildProminentActionCard)(
-                                  context,
-                                  action,
-                                ),
-                              );
-                            }),
-                          ],
-                        ),
                     ],
                   ),
                 ),
@@ -495,18 +463,17 @@ Widget buildExpandCollapseButton(
   bool isNearTop,
 ) {
   // Arrow direction logic:
-  // - When at top: points down when collapsed (to expand down), up when expanded (to collapse up)
-  // - When at bottom: points up when collapsed (to expand up), down when expanded (to collapse down)
+  // - Always collapses down, so arrow always points down when expanded
+  // - When collapsed at top: points down (to expand down)
+  // - When collapsed at bottom: points up (to expand up)
   IconData arrowIcon;
-  if (isNearTop) {
-    // At top: collapsed -> down arrow (expand_more), expanded -> up arrow (expand_less)
-    arrowIcon = callbacks.isExpanded
-        ? Icons.expand_less_rounded // Up arrow to collapse upward
-        : Icons.expand_more_rounded; // Down arrow to expand downward
+  if (callbacks.isExpanded) {
+    // Expanded: always points down (to collapse down)
+    arrowIcon = Icons.expand_more_rounded;
   } else {
-    // At bottom: collapsed -> up arrow (expand_less), expanded -> down arrow (expand_more)
-    arrowIcon = callbacks.isExpanded
-        ? Icons.expand_more_rounded // Down arrow to collapse downward
+    // Collapsed: down at top, up at bottom
+    arrowIcon = isNearTop
+        ? Icons.expand_more_rounded // Down arrow to expand downward
         : Icons.expand_less_rounded; // Up arrow to expand upward
   }
 

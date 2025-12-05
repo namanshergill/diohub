@@ -162,6 +162,15 @@ class _FloatingActionToolbarState extends State<FloatingActionToolbar>
 
   @override
   Widget build(BuildContext context) {
+    final effectiveAlignment = widget.alignment != null
+        ? _convertAlignment(widget.alignment!)
+        : (widget.position == FloatingToolbarPosition.bottom
+            ? base.FloatingAlignment.right
+            : null);
+
+    print(
+        '[FloatingActionToolbar] build: position=${widget.position}, alignment=${widget.alignment}, effectiveAlignment=$effectiveAlignment');
+
     return base.FloatingExpandableWidget(
       contentBuilder: (context, callbacks) {
         // Sync local state with callbacks
@@ -189,9 +198,7 @@ class _FloatingActionToolbarState extends State<FloatingActionToolbar>
         );
       },
       position: _convertPosition(widget.position),
-      alignment: widget.alignment != null
-          ? _convertAlignment(widget.alignment!)
-          : null,
+      alignment: effectiveAlignment,
       padding: widget.padding,
       onExpandChanged: _onExpandChanged,
     );

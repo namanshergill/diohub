@@ -20,6 +20,7 @@ class ExpandableCallbacks {
     required this.collapse,
     required this.toggle,
     required this.isExpanded,
+    required this.nearPosition,
   });
 
   /// Callback to expand the widget
@@ -33,6 +34,9 @@ class ExpandableCallbacks {
 
   /// Whether the widget is currently expanded
   final bool isExpanded;
+
+  /// The position the widget is near (top or bottom)
+  final FloatingPosition nearPosition;
 }
 
 /// A floating expandable widget that handles drag, snap, and expand/collapse logic.
@@ -62,6 +66,7 @@ class FloatingExpandableWidget extends StatefulWidget {
     this.position = FloatingPosition.top,
     this.alignment,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    this.edgePadding = 8.0,
     this.onExpandChanged,
     super.key,
   });
@@ -81,6 +86,9 @@ class FloatingExpandableWidget extends StatefulWidget {
 
   /// Padding around the widget content
   final EdgeInsets padding;
+
+  /// Minimum padding from screen edges (default: 8)
+  final double edgePadding;
 
   /// Callback when expand state changes
   final void Function(bool isExpanded)? onExpandChanged;
@@ -142,9 +150,17 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     final RenderBox? renderBox =
         _widgetKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox != null && renderBox.hasSize) {
-      setState(() {
-        _widgetSize = renderBox.size;
-      });
+      final newSize = renderBox.size;
+      if (_widgetSize != newSize) {
+        print(
+            '[FloatingExpandableWidget] _measureWidgetSize: old=$_widgetSize, new=$newSize');
+        setState(() {
+          _widgetSize = newSize;
+        });
+      }
+    } else {
+      print(
+          '[FloatingExpandableWidget] _measureWidgetSize: renderBox is null or has no size');
     }
   }
 
@@ -210,6 +226,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     if (_position == null) {
       final screenSize = MediaQuery.of(context).size;
       final safeArea = MediaQuery.of(context).padding;
+      final viewPadding = MediaQuery.of(context).viewPadding;
 
       double initialX;
       double initialY;
@@ -227,8 +244,13 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           initialX = widget.padding.left + safeArea.left + widgetWidth / 2;
           break;
         case FloatingAlignment.right:
-          // No padding for right alignment - position at edge
-          initialX = screenSize.width - safeArea.right - widgetWidth / 2;
+          // Position at right edge - account for SafeArea and edge padding
+          initialX = screenSize.width -
+              safeArea.right -
+              widget.edgePadding -
+              widgetWidth / 2;
+          print(
+              '[FloatingExpandableWidget] _onPanStart right: initialX=$initialX (screenWidth=${screenSize.width}, safeArea.right=${safeArea.right}, edgePadding=${widget.edgePadding}, widgetWidth=$widgetWidth)');
           break;
         case FloatingAlignment.center:
           initialX = screenSize.width / 2;
@@ -240,8 +262,13 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           initialY = widget.padding.top + safeArea.top + widgetHeight / 2;
           break;
         case FloatingPosition.bottom:
-          // No padding for bottom position - position at edge
-          initialY = screenSize.height - safeArea.bottom - widgetHeight / 2;
+          // Position at bottom edge - account for viewPadding (includes navigation bar) and edge padding
+          initialY = screenSize.height -
+              viewPadding.bottom -
+              widget.edgePadding -
+              widgetHeight / 2;
+          print(
+              '[FloatingExpandableWidget] _onPanStart bottom: initialY=$initialY (screenHeight=${screenSize.height}, viewPadding.bottom=${viewPadding.bottom}, edgePadding=${widget.edgePadding}, widgetHeight=$widgetHeight)');
           break;
       }
 
@@ -267,14 +294,16 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
               ? 100.0
               : (_isExpanded ? 300.0 : 100.0);
 
-      final clampedX = newPosition.dx.clamp(
-        currentWidgetWidth / 2,
-        screenSize.width - currentWidgetWidth / 2,
-      );
+      final minX = currentWidgetWidth / 2 + widget.edgePadding;
+      final maxX =
+          screenSize.width - currentWidgetWidth / 2 - widget.edgePadding;
+      final clampedX = newPosition.dx.clamp(minX, maxX);
 
-      final minY = safeArea.top + currentWidgetHeight / 2;
-      final maxY =
-          screenSize.height - safeArea.bottom - currentWidgetHeight / 2;
+      final minY = safeArea.top + currentWidgetHeight / 2 + widget.edgePadding;
+      final maxY = screenSize.height -
+          safeArea.bottom -
+          currentWidgetHeight / 2 -
+          widget.edgePadding;
       final clampedY = newPosition.dy.clamp(minY, maxY);
 
       _position = Offset(clampedX, clampedY);
@@ -405,46 +434,91 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
 
     final screenSize = MediaQuery.of(context).size;
     final safeArea = MediaQuery.of(context).padding;
-    final toolbarHeight = _isExpanded
-        ? (_widgetSize?.height ?? 300.0)
-        : (_widgetSize?.height ?? 100.0);
+    final viewPadding = MediaQuery.of(context).viewPadding;
 
-    final effectiveHeight = (_widgetSize != null &&
-            _isExpanded == false &&
-            _widgetSize!.height > 200)
-        ? 100.0
-        : toolbarHeight;
+    // Get actual widget dimensions - use conservative estimate if not measured
+    // Use larger estimate to prevent clipping
+    final estimatedWidth = _isExpanded ? screenSize.width * 0.9 : 200.0;
+    final widgetWidth = _widgetSize?.width ?? estimatedWidth;
 
-    final effectiveAlignment = widget.alignment ??
-        (widget.position == FloatingPosition.top
-            ? FloatingAlignment.center
-            : FloatingAlignment.right);
-    final widgetWidth = _widgetSize?.width ?? (_isExpanded ? 250.0 : 150.0);
-    double targetX;
-    switch (effectiveAlignment) {
-      case FloatingAlignment.left:
-        targetX = widgetWidth / 2 + widget.padding.left + safeArea.left;
-        break;
-      case FloatingAlignment.right:
-        // No padding for right alignment - position at edge
-        targetX = screenSize.width - widgetWidth / 2 - safeArea.right;
-        break;
-      case FloatingAlignment.center:
-        targetX = screenSize.width / 2;
-        break;
+    // If widget hasn't been measured yet, trigger measurement
+    if (_widgetSize == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _measureWidgetSize());
     }
-    double targetY;
+    final effectiveHeight = _getEffectiveHeight(screenSize);
 
+    // Determine which edge to snap to (top or bottom)
     final currentY = _position!.dy;
     final distanceToTop = currentY - safeArea.top - effectiveHeight / 2;
     final distanceToBottom =
         screenSize.height - safeArea.bottom - currentY - effectiveHeight / 2;
+    final snappingToTop = distanceToTop < distanceToBottom;
 
-    if (distanceToTop < distanceToBottom) {
-      targetY = safeArea.top + effectiveHeight / 2;
+    double targetX;
+    // When snapping to top, always center horizontally
+    // When snapping to bottom, use the configured alignment
+    if (snappingToTop) {
+      targetX = screenSize.width / 2;
     } else {
-      targetY = screenSize.height - safeArea.bottom - effectiveHeight / 2;
+      final effectiveAlignment = widget.alignment ??
+          (widget.position == FloatingPosition.top
+              ? FloatingAlignment.center
+              : FloatingAlignment.right);
+
+      switch (effectiveAlignment) {
+        case FloatingAlignment.left:
+          targetX = widgetWidth / 2 +
+              widget.padding.left +
+              safeArea.left +
+              widget.edgePadding;
+          break;
+        case FloatingAlignment.right:
+          // Position at right edge - account for SafeArea and edge padding
+          // targetX is the center X coordinate, so we need widgetWidth/2 from the right edge
+          targetX = screenSize.width -
+              safeArea.right -
+              widget.edgePadding -
+              widgetWidth / 2;
+          break;
+        case FloatingAlignment.center:
+          targetX = screenSize.width / 2;
+          break;
+      }
     }
+
+    // Ensure targetX keeps widget on screen
+    final minX = widgetWidth / 2 + safeArea.left + widget.edgePadding;
+    final maxX = screenSize.width -
+        widgetWidth / 2 -
+        safeArea.right -
+        widget.edgePadding;
+
+    if (maxX < minX) {
+      // Widget is too wide, center it
+      targetX = screenSize.width / 2;
+    } else {
+      targetX = targetX.clamp(minX, maxX);
+    }
+
+    double targetY;
+
+    if (snappingToTop) {
+      targetY = safeArea.top + widget.edgePadding + effectiveHeight / 2;
+    } else {
+      // Calculate bottom position more carefully to prevent clipping
+      // Use viewPadding.bottom to account for navigation bar and other system UI
+      // Position from bottom edge: viewPadding.bottom + edgePadding + half widget height
+      final bottomEdge = screenSize.height - viewPadding.bottom;
+      targetY = bottomEdge - widget.edgePadding - effectiveHeight / 2;
+    }
+
+    // Ensure targetY keeps widget on screen
+    final minY = safeArea.top + widget.edgePadding + effectiveHeight / 2;
+    final maxY = screenSize.height -
+        viewPadding.bottom -
+        widget.edgePadding -
+        effectiveHeight / 2;
+    targetY = targetY.clamp(minY, maxY);
 
     final startPosition = _position!;
     final targetPosition = Offset(targetX, targetY);
@@ -477,73 +551,139 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     });
   }
 
+  /// Calculate effective height (handles expanded state mismatch)
+  double _getEffectiveHeight(Size screenSize) {
+    if (_widgetSize == null) {
+      return _isExpanded ? 300.0 : 100.0;
+    }
+    final measuredHeight = _widgetSize!.height;
+    if (!_isExpanded && measuredHeight > 200) {
+      return 100.0; // Widget was measured while expanded, but is now collapsed
+    }
+    return measuredHeight;
+  }
+
+  /// Calculate positioning for dragged state
+  ({double? left, double? top, double? right, double? bottom})
+      _calculateDraggedPosition(
+    Size screenSize,
+    EdgeInsets safeArea,
+    EdgeInsets viewPadding,
+  ) {
+    // Use actual measured width if available, otherwise estimate conservatively
+    // Use a larger estimate to prevent clipping
+    final estimatedWidth = _isExpanded ? screenSize.width * 0.9 : 200.0;
+    final widgetWidth = _widgetSize?.width ?? estimatedWidth;
+    final effectiveHeight = _getEffectiveHeight(screenSize);
+
+    // If widget hasn't been measured yet, trigger measurement
+    if (_widgetSize == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _measureWidgetSize());
+    }
+
+    // Calculate left position from center point
+    var left = _position!.dx - widgetWidth / 2;
+
+    // Clamp to ensure widget stays on screen with edge padding
+    // Account for SafeArea on both sides
+    final minLeft = safeArea.left + widget.edgePadding;
+    final maxLeft =
+        screenSize.width - safeArea.right - widgetWidth - widget.edgePadding;
+
+    // Ensure maxLeft is valid (widget might be wider than screen)
+    if (maxLeft < minLeft) {
+      // Widget is too wide, center it
+      left = (screenSize.width - widgetWidth) / 2;
+    } else {
+      left = left.clamp(minLeft, maxLeft);
+    }
+
+    // Calculate top position from center point
+    final calculatedTop = _position!.dy - effectiveHeight / 2;
+    final minTop = safeArea.top + widget.edgePadding;
+    final maxTop = screenSize.height -
+        viewPadding.bottom -
+        effectiveHeight -
+        widget.edgePadding;
+    final top = calculatedTop.clamp(minTop, maxTop);
+
+    return (left: left, top: top, right: null, bottom: null);
+  }
+
+  /// Calculate positioning for default (non-dragged) state
+  ({double? left, double? top, double? right, double? bottom})
+      _calculateDefaultPosition(
+    Size screenSize,
+    EdgeInsets safeArea,
+    EdgeInsets viewPadding,
+  ) {
+    // Determine effective alignment based on position and widget alignment
+    final effectiveAlignment = widget.alignment ??
+        (widget.position == FloatingPosition.top
+            ? FloatingAlignment.center
+            : FloatingAlignment.right);
+
+    double? left, right;
+
+    // Calculate horizontal position
+    switch (effectiveAlignment) {
+      case FloatingAlignment.left:
+        left = widget.padding.left + safeArea.left + widget.edgePadding;
+        break;
+      case FloatingAlignment.right:
+        right = safeArea.right + widget.edgePadding;
+        break;
+      case FloatingAlignment.center:
+        // Don't set left/right - let Align widget handle centering
+        break;
+    }
+
+    // Calculate vertical position
+    double? top, bottom;
+    switch (widget.position) {
+      case FloatingPosition.top:
+        top = widget.padding.top + safeArea.top + widget.edgePadding;
+        break;
+      case FloatingPosition.bottom:
+        bottom = viewPadding.bottom + widget.edgePadding;
+        break;
+    }
+
+    return (left: left, top: top, right: right, bottom: bottom);
+  }
+
   @override
   Widget build(BuildContext context) {
     final safeArea = MediaQuery.of(context).padding;
+    final viewPadding = MediaQuery.of(context).viewPadding;
     final screenSize = MediaQuery.of(context).size;
 
-    double? left, top, right, bottom;
+    // Calculate positioning
+    final position = _position != null
+        ? _calculateDraggedPosition(screenSize, safeArea, viewPadding)
+        : _calculateDefaultPosition(screenSize, safeArea, viewPadding);
 
-    if (_position != null) {
-      // Use actual measured width if available, otherwise estimate
-      final widgetWidth =
-          _widgetSize?.width ?? (_isExpanded ? screenSize.width * 0.9 : 150.0);
-      final measuredHeight =
-          _widgetSize?.height ?? (_isExpanded ? 300.0 : 100.0);
-      final effectiveHeight =
-          (_widgetSize != null && _isExpanded == false && measuredHeight > 200)
-              ? 100.0
-              : (_isExpanded ? 300.0 : 100.0);
+    final left = position.left;
+    final top = position.top;
+    final right = position.right;
+    final bottom = position.bottom;
 
-      // Calculate left position from center point
-      left = _position!.dx - widgetWidth / 2;
-
-      // Clamp to ensure widget stays on screen
-      final maxLeft = screenSize.width - widgetWidth;
-      if (left < 0) {
-        left = 0;
-      } else if (left > maxLeft) {
-        left = maxLeft;
-      }
-
-      final calculatedTop = _position!.dy - effectiveHeight / 2;
-      top = calculatedTop.clamp(
-          safeArea.top, screenSize.height - safeArea.bottom - effectiveHeight);
-    } else {
-      final effectiveAlignment = widget.alignment ??
-          (widget.position == FloatingPosition.top
-              ? FloatingAlignment.center
-              : FloatingAlignment.right);
-
-      switch (effectiveAlignment) {
-        case FloatingAlignment.left:
-          left = widget.padding.left + safeArea.left;
-          break;
-        case FloatingAlignment.right:
-          // No padding for right alignment - position at edge
-          right = safeArea.right;
-          break;
-        case FloatingAlignment.center:
-          // Don't set left/right - let Align widget handle centering
-          break;
-      }
-
-      switch (widget.position) {
-        case FloatingPosition.top:
-          top = widget.padding.top + safeArea.top;
-          break;
-        case FloatingPosition.bottom:
-          // No padding for bottom position - position at edge
-          bottom = safeArea.bottom;
-          break;
-      }
-    }
+    // Calculate which position the widget is near based on actual position
+    final nearPosition = _position == null
+        ? widget.position
+        : ((_expandedFromTop ??
+                (_position!.dy <
+                    (screenSize.height - safeArea.top - safeArea.bottom) / 2 +
+                        safeArea.top))
+            ? FloatingPosition.top
+            : FloatingPosition.bottom);
 
     final callbacks = ExpandableCallbacks(
       expand: _expand,
       collapse: _collapse,
       toggle: _toggleExpand,
       isExpanded: _isExpanded,
+      nearPosition: nearPosition,
     );
 
     final isCenterAlignment = _position == null &&
@@ -567,10 +707,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
             child: Padding(
               padding: EdgeInsets.only(
                 top: widget.position == FloatingPosition.top
-                    ? widget.padding.top + safeArea.top
+                    ? widget.padding.top + safeArea.top + widget.edgePadding
                     : 0,
                 bottom: widget.position == FloatingPosition.bottom
-                    ? safeArea.bottom
+                    ? viewPadding.bottom + widget.edgePadding
                     : 0,
               ),
               child: _buildContent(context, callbacks),
@@ -580,11 +720,39 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       );
     }
 
+    // When using left/top positioning, verify widget fits on screen
+    double? finalLeft = left;
+    double? finalTop = top;
+    double? finalRight = right;
+    double? finalBottom = bottom;
+
+    if (finalLeft != null && _widgetSize != null) {
+      // Verify left positioning doesn't go off-screen
+      final widgetWidth = _widgetSize!.width;
+      final maxLeft =
+          screenSize.width - safeArea.right - widgetWidth - widget.edgePadding;
+      if (finalLeft > maxLeft) {
+        finalLeft = maxLeft;
+      }
+    }
+
+    if (finalTop != null && _widgetSize != null) {
+      // Verify top positioning doesn't go off-screen
+      final effectiveHeight = _getEffectiveHeight(screenSize);
+      final maxTop = screenSize.height -
+          viewPadding.bottom -
+          effectiveHeight -
+          widget.edgePadding;
+      if (finalTop > maxTop) {
+        finalTop = maxTop;
+      }
+    }
+
     return Positioned(
-      left: left,
-      top: top,
-      right: right,
-      bottom: bottom,
+      left: finalLeft,
+      top: finalTop,
+      right: finalRight,
+      bottom: finalBottom,
       child: GestureDetector(
         onPanStart: _onPanStart,
         onPanUpdate: _onPanUpdate,
@@ -595,18 +763,9 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
   }
 
   Widget _buildContent(BuildContext context, ExpandableCallbacks callbacks) {
-    // Only apply padding when position is null and alignment is not right/bottom
-    final effectiveAlignment = widget.alignment ??
-        (widget.position == FloatingPosition.top
-            ? FloatingAlignment.center
-            : FloatingAlignment.right);
-
-    final shouldApplyPadding = _position == null &&
-        effectiveAlignment != FloatingAlignment.right &&
-        widget.position != FloatingPosition.bottom;
-
-    return Padding(
-      padding: shouldApplyPadding ? widget.padding : EdgeInsets.zero,
+    // Wrap content with key for size measurement
+    return KeyedSubtree(
+      key: _widgetKey,
       child: widget.contentBuilder(context, callbacks),
     );
   }
