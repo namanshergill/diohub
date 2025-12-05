@@ -354,17 +354,22 @@ class FloatingWidgetPositionCalculator {
     final distanceToTop = currentY - topEdgeY;
     final distanceToBottom = bottomEdgeY - currentY;
 
-    // Snap only if within thresholds from edges
+    // Snap only if widget center is within thresholds from edges
+    // Thresholds are based on screen height percentage
     final topThreshold = mediaQuery.size.height * topSnapThresholdPercent;
     final bottomThreshold = mediaQuery.size.height * bottomSnapThresholdPercent;
     final withinTop = distanceToTop <= topThreshold;
     final withinBottom = distanceToBottom <= bottomThreshold;
 
+    // If not within either threshold, don't snap
     if (!withinTop && !withinBottom) {
       return currentCenterPosition;
     }
 
-    final snappingToTop = distanceToTop < distanceToBottom;
+    // Determine which edge to snap to based on which threshold we're within
+    // If within both, choose the closer one
+    final snappingToTop =
+        withinTop && (!withinBottom || distanceToTop < distanceToBottom);
 
     double targetX;
     // When snapping to top, always center horizontally
@@ -458,12 +463,15 @@ class FloatingWidgetPositionCalculator {
     // Center Y should position the expanded widget's center at the screen center
     // Calculate the screen center Y coordinate
     final screenCenterY = getTopInset(mediaQuery) + availableHeight / 2;
-    
+
     // Clamp to ensure the expanded widget stays fully on screen
     // The center Y must be at least (topInset + edgePadding + widgetHeight/2) from top
     // and at most (bottomEdge - edgePadding - widgetHeight/2) from bottom
-    final minCenterY = getTopInset(mediaQuery) + edgePadding + expandedWidgetSize.height / 2;
-    final maxCenterY = getEffectiveBottomEdge(mediaQuery) - edgePadding - expandedWidgetSize.height / 2;
+    final minCenterY =
+        getTopInset(mediaQuery) + edgePadding + expandedWidgetSize.height / 2;
+    final maxCenterY = getEffectiveBottomEdge(mediaQuery) -
+        edgePadding -
+        expandedWidgetSize.height / 2;
     final centerY = screenCenterY.clamp(minCenterY, maxCenterY);
 
     return Offset(centerX, centerY);

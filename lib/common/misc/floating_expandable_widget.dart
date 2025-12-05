@@ -212,7 +212,6 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
   }
 
   void _toggleExpand() {
-    final wasExpanded = _isExpanded;
     final mediaQuery = MediaQuery.of(context);
 
     setState(() {
