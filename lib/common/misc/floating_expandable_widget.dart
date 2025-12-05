@@ -149,15 +149,43 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
   final GlobalKey _widgetKey = GlobalKey();
 
   /// Gets the position calculator, creating a default one if needed.
+  /// Always ensures bottomPadding matches widget.bottomPadding to handle dynamic changes.
   FloatingWidgetPositionCalculator get _calculator {
-    return widget.calculator ??
-        FloatingWidgetPositionCalculator(
+    print(
+        '[FloatingExpandableWidget] _calculator getter: widget.bottomPadding=${widget.bottomPadding}, widget.calculator=${widget.calculator != null ? "provided" : "null"}');
+    // If custom calculator is provided, check if bottomPadding matches
+    if (widget.calculator != null) {
+      print(
+          '[FloatingExpandableWidget] _calculator: custom calculator.bottomPadding=${widget.calculator!.bottomPadding}');
+      if (widget.calculator!.bottomPadding != widget.bottomPadding) {
+        // Create new calculator with current bottomPadding
+        print(
+            '[FloatingExpandableWidget] _calculator: creating new calculator with bottomPadding=${widget.bottomPadding}');
+        return FloatingWidgetPositionCalculator(
           position: widget.position,
           alignment: widget.alignment,
           padding: widget.padding,
           edgePadding: widget.edgePadding,
           bottomPadding: widget.bottomPadding,
+          behavior: widget.calculator!.behavior,
+          initialPosition: widget.calculator!.initialPosition,
+          topSnapThresholdPercent: widget.calculator!.topSnapThresholdPercent,
+          bottomSnapThresholdPercent:
+              widget.calculator!.bottomSnapThresholdPercent,
         );
+      }
+      return widget.calculator!;
+    }
+    // Create default calculator with current bottomPadding
+    print(
+        '[FloatingExpandableWidget] _calculator: creating default calculator with bottomPadding=${widget.bottomPadding}');
+    return FloatingWidgetPositionCalculator(
+      position: widget.position,
+      alignment: widget.alignment,
+      padding: widget.padding,
+      edgePadding: widget.edgePadding,
+      bottomPadding: widget.bottomPadding,
+    );
   }
 
   @override
@@ -201,9 +229,18 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       if (_widgetSize != newSize) {
         print(
             '[FloatingExpandableWidget] _measureWidgetSize: old=$_widgetSize, new=$newSize');
+        final wasExpanded = _isExpanded;
         setState(() {
           _widgetSize = newSize;
         });
+        // If we just expanded and now have the actual size, recalculate center position
+        if (wasExpanded && _isExpanded && _position != null) {
+          final mediaQuery = MediaQuery.of(context);
+          _position = _calculator.calculateExpandedCenterPosition(
+            mediaQuery: mediaQuery,
+            expandedWidgetSize: newSize,
+          );
+        }
       }
     } else {
       print(
@@ -230,9 +267,12 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           mediaQuery: mediaQuery,
         );
         _expandedFromTop = isNearTop;
+        // Calculate expanded center position - use a reasonable estimate for size
+        // The actual size will be measured after expansion and position will adjust
         final expandedSize = Size(
-          _widgetSize?.width ?? 250.0,
-          _widgetSize?.height ?? 300.0,
+          _widgetSize?.width ?? 320.0,
+          _widgetSize?.height ??
+              400.0, // Use larger estimate for expanded state
         );
         _position = _calculator.calculateExpandedCenterPosition(
           mediaQuery: mediaQuery,
@@ -247,16 +287,22 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           }
         });
         _expandedFromTop = null;
-        // On collapse, snap back to default bottom position
-        final mediaQuery = MediaQuery.of(context);
-        final collapsedSize = Size(
-          _widgetSize?.width ?? 150.0,
-          _widgetSize?.height ?? 100.0,
+        // On collapse, explicitly set position to default bottom position
+        // Don't rely on _snapToNearestEdge() which only works if widget is near an edge
+        // Use effective collapsed size - widget might still be measured at expanded size
+        final rawSize = _widgetSize ?? Size(150.0, 100.0);
+        final collapsedHeight = _calculator.calculateEffectiveHeight(
+          widgetSize: rawSize,
+          isExpanded: false,
         );
-        _position = _calculator.calculateInitialDragPosition(
+        final collapsedSize = Size(rawSize.width, collapsedHeight);
+        final newPosition = _calculator.calculateInitialDragPosition(
           mediaQuery: mediaQuery,
           widgetSize: collapsedSize,
         );
+        print(
+            '[FloatingExpandableWidget] Collapsing: collapsedSize=$collapsedSize, newPosition=$newPosition');
+        _position = newPosition;
       }
     });
     widget.onExpandChanged?.call(_isExpanded);
@@ -454,16 +500,23 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
 
     // Get actual widget dimensions - use conservative estimate if not measured
     // Use larger estimate to prevent clipping
+    // Ensure we use effective size based on current expanded state
     final estimatedWidth = _isExpanded ? mediaQuery.size.width * 0.9 : 200.0;
     final widgetWidth = _widgetSize?.width ?? estimatedWidth;
-    final widgetHeight = _widgetSize?.height ?? (_isExpanded ? 300.0 : 100.0);
-    final widgetSize = Size(widgetWidth, widgetHeight);
+    final rawHeight = _widgetSize?.height ?? (_isExpanded ? 300.0 : 100.0);
+    // Use effective height to handle case where widget was measured while expanded but is now collapsed
+    final effectiveHeight = _calculator.calculateEffectiveHeight(
+      widgetSize: Size(widgetWidth, rawHeight),
+      isExpanded: _isExpanded,
+    );
+    final widgetSize = Size(widgetWidth, effectiveHeight);
 
     // If widget hasn't been measured yet, trigger measurement
     if (_widgetSize == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _measureWidgetSize());
     }
 
+    // Use calculator getter which ensures bottomPadding is current
     final targetPosition = _calculator.calculateSnapPosition(
       currentCenterPosition: _position!,
       mediaQuery: mediaQuery,
@@ -507,25 +560,39 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
+    print(
+        '[FloatingExpandableWidget] build: screenHeight=${mediaQuery.size.height}, padding.bottom=${mediaQuery.padding.bottom}, viewPadding.bottom=${mediaQuery.viewPadding.bottom}');
 
     // Calculate positioning
+    // Use actual measured size if available and matches current state, otherwise use estimates
+    // If expanded but _widgetSize is still collapsed (height < 200), use expanded estimate
+    final shouldUseMeasuredSize = _widgetSize != null &&
+        ((_isExpanded && _widgetSize!.height > 200) ||
+            (!_isExpanded && _widgetSize!.height <= 200));
+    final currentWidgetSize = shouldUseMeasuredSize
+        ? _widgetSize!
+        : Size(
+            _isExpanded ? 320.0 : 150.0,
+            _isExpanded ? 400.0 : 100.0,
+          );
+
+    print(
+        '[FloatingExpandableWidget] build: _position=${_position != null ? "set" : "null"}, _isExpanded=$_isExpanded, currentWidgetSize=$currentWidgetSize');
+
     final position = _position != null
         ? _calculator.calculateDraggedPosition(
             currentCenterPosition: _position!,
             mediaQuery: mediaQuery,
-            widgetSize: Size(
-              _widgetSize?.width ?? (_isExpanded ? 250.0 : 150.0),
-              _widgetSize?.height ?? (_isExpanded ? 300.0 : 100.0),
-            ),
+            widgetSize: currentWidgetSize,
             isExpanded: _isExpanded,
           )
         : _calculator.calculateDefaultPosition(
             mediaQuery: mediaQuery,
-            widgetSize: Size(
-              _widgetSize?.width ?? (_isExpanded ? 250.0 : 150.0),
-              _widgetSize?.height ?? (_isExpanded ? 300.0 : 100.0),
-            ),
+            widgetSize: currentWidgetSize,
           );
+
+    print(
+        '[FloatingExpandableWidget] build: calculated position: left=${position.left}, top=${position.top}, right=${position.right}, bottom=${position.bottom}');
 
     // Validate and adjust position
     final validatedPosition = _calculator.validatePosition(
@@ -535,10 +602,16 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       isExpanded: _isExpanded,
     );
 
+    print(
+        '[FloatingExpandableWidget] build: validated position: left=${validatedPosition.left}, top=${validatedPosition.top}, right=${validatedPosition.right}, bottom=${validatedPosition.bottom}');
+
     final left = validatedPosition.left;
     final top = validatedPosition.top;
     final right = validatedPosition.right;
     final bottom = validatedPosition.bottom;
+
+    print(
+        '[FloatingExpandableWidget] build: final Positioned values: left=$left, top=$top, right=$right, bottom=$bottom, screenHeight=${mediaQuery.size.height}');
 
     // Calculate which position the widget is near based on actual position
     final nearPosition = _calculator.determineNearPosition(

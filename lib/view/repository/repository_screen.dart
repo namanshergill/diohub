@@ -913,6 +913,9 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                                     : FloatingAlignment.center,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 12),
+                            // bottomPadding should only account for OS navigation bar, not tab bar
+                            // since FloatingActionToolbar is above tab bar in widget tree
+                            bottomPadding: 0.0,
                             onExpandChanged: (isExpanded) {
                               if (isExpanded) {
                                 _expandAnimationController.forward();
