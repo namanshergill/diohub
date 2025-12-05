@@ -339,11 +339,12 @@ class FloatingWidgetPositionCalculator {
     );
 
     // Determine which edge to snap to (top or bottom)
+    // Calculate distances from widget's CENTER to screen edges (not from widget's top/bottom)
     final currentY = currentCenterPosition.dy;
-    final distanceToTop =
-        currentY - getTopInset(mediaQuery) - effectiveHeight / 2;
-    final distanceToBottom =
-        getEffectiveBottomEdge(mediaQuery) - currentY - effectiveHeight / 2;
+    final topEdgeY = getTopInset(mediaQuery) + edgePadding;
+    final bottomEdgeY = getEffectiveBottomEdge(mediaQuery) - edgePadding;
+    final distanceToTop = currentY - topEdgeY;
+    final distanceToBottom = bottomEdgeY - currentY;
     final snappingToTop = distanceToTop < distanceToBottom;
 
     double targetX;
@@ -428,17 +429,17 @@ class FloatingWidgetPositionCalculator {
   }) {
     final screenSize = mediaQuery.size;
     final centerX = screenSize.width / 2;
-    
+
     // Calculate available height for centering
     final availableHeight = screenSize.height -
         getTopInset(mediaQuery) -
         getBottomInset(mediaQuery) -
         bottomPadding;
-    
+
     // Center Y should position the expanded widget's center at the screen center
     // This ensures the expanded widget is visually centered, not positioned from its top
     final centerY = getTopInset(mediaQuery) + availableHeight / 2;
-    
+
     return Offset(centerX, centerY);
   }
 
