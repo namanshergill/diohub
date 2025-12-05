@@ -48,6 +48,8 @@ class FloatingWidgetPositionCalculator {
     this.bottomPadding = 0.0,
     this.initialPosition,
     this.behavior = FloatingWidgetBehavior.snapToEdges,
+    this.topSnapThresholdPercent = 0.15,
+    this.bottomSnapThresholdPercent = 0.15,
   });
 
   /// Position of the widget
@@ -71,6 +73,12 @@ class FloatingWidgetPositionCalculator {
 
   /// Behavior type for this calculator
   final FloatingWidgetBehavior behavior;
+
+  /// Distance from top edge (as % of screen height) to trigger snap
+  final double topSnapThresholdPercent;
+
+  /// Distance from bottom edge (as % of screen height) to trigger snap
+  final double bottomSnapThresholdPercent;
 
   /// Gets the effective alignment (uses defaults if not specified)
   FloatingAlignment getEffectiveAlignment() {
@@ -173,7 +181,7 @@ class FloatingWidgetPositionCalculator {
         break;
       case FloatingPosition.bottom:
         final bottomInset = getBottomInset(mediaQuery);
-        bottom = bottomInset + edgePadding;
+        bottom = bottomInset + bottomPadding + edgePadding;
         break;
     }
 
@@ -345,6 +353,18 @@ class FloatingWidgetPositionCalculator {
     final bottomEdgeY = getEffectiveBottomEdge(mediaQuery) - edgePadding;
     final distanceToTop = currentY - topEdgeY;
     final distanceToBottom = bottomEdgeY - currentY;
+
+    // Snap only if within thresholds from edges
+    final topThreshold = mediaQuery.size.height * topSnapThresholdPercent;
+    final bottomThreshold =
+        mediaQuery.size.height * bottomSnapThresholdPercent;
+    final withinTop = distanceToTop <= topThreshold;
+    final withinBottom = distanceToBottom <= bottomThreshold;
+
+    if (!withinTop && !withinBottom) {
+      return currentCenterPosition;
+    }
+
     final snappingToTop = distanceToTop < distanceToBottom;
 
     double targetX;
@@ -457,17 +477,11 @@ class FloatingWidgetPositionCalculator {
     required Size widgetSize,
     required bool isExpanded,
   }) {
-    final effectiveHeight = calculateEffectiveHeight(
-      widgetSize: widgetSize,
-      isExpanded: isExpanded,
-    );
-
-    final distanceToTopEdge = currentCenterPosition.dy -
-        getTopInset(mediaQuery) -
-        effectiveHeight / 2;
-    final distanceToBottomEdge = getEffectiveBottomEdge(mediaQuery) -
-        currentCenterPosition.dy -
-        effectiveHeight / 2;
+    // Calculate distances from widget's CENTER to screen edges (not from widget's top/bottom)
+    final topEdgeY = getTopInset(mediaQuery) + edgePadding;
+    final bottomEdgeY = getEffectiveBottomEdge(mediaQuery) - edgePadding;
+    final distanceToTopEdge = currentCenterPosition.dy - topEdgeY;
+    final distanceToBottomEdge = bottomEdgeY - currentCenterPosition.dy;
     final distanceToNearestEdge = distanceToTopEdge < distanceToBottomEdge
         ? distanceToTopEdge
         : distanceToBottomEdge;
