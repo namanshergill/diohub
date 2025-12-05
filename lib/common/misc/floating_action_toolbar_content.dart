@@ -16,7 +16,7 @@ Widget buildToolbarContent({
   required double spacing,
   required double? maxHeight,
   required dynamic
-      position, // FloatingToolbarPosition from floating_action_toolbar.dart
+      position, // FloatingPosition from floating_expandable_widget.dart
   required VoidCallback? onCollapseRequested,
   required Widget Function(BuildContext, ActionButtonData)?
       prominentActionBuilder,
@@ -26,26 +26,68 @@ Widget buildToolbarContent({
   final regularActions =
       actions.where((a) => !(prominentActions ?? []).contains(a)).toList();
 
-  final enabledActions =
-      regularActions.where((a) => a.enabled == true).toList();
-  final disabledActions =
-      regularActions.where((a) => a.enabled != true).toList();
+  // Split actions by visibility state
+  final alwaysVisibleActions = regularActions
+      .where(
+          (a) => a.visibilityState == ActionButtonVisibilityState.alwaysVisible)
+      .toList();
+  final maybeVisibleActions = regularActions
+      .where(
+          (a) => a.visibilityState == ActionButtonVisibilityState.maybeVisible)
+      .toList();
 
-  final visibleCount = callbacks.isExpanded
-      ? (expandedVisibleCount ?? regularActions.length)
-      : defaultVisibleCount;
+  // Determine visible actions based on expanded state
+  final List<ActionButtonData> visibleCollapsedActions;
+  final List<ActionButtonData> visibleExpandedActions;
 
-  final visibleEnabledActions = enabledActions.take(visibleCount).toList();
+  if (callbacks.isExpanded) {
+    // When expanded, show all actions except alwaysHidden
+    visibleExpandedActions = [
+      ...alwaysVisibleActions,
+      ...maybeVisibleActions,
+    ];
+    visibleCollapsedActions = [];
+  } else {
+    // When collapsed:
+    // 1. Always show alwaysVisible actions
+    // 2. Show maybeVisible actions up to defaultVisibleCount (after alwaysVisible)
+    final remainingSlots = (defaultVisibleCount - alwaysVisibleActions.length)
+        .clamp(0, maybeVisibleActions.length);
+    visibleCollapsedActions = [
+      ...alwaysVisibleActions,
+      ...maybeVisibleActions.take(remainingSlots),
+    ];
+    visibleExpandedActions = [
+      ...alwaysVisibleActions,
+      ...maybeVisibleActions,
+    ]; // For expanded view when calculating grid
+  }
 
-  return LiquidGlassLayer(
-    settings: LiquidGlassSettings(
-      blur: 20,
-      glassColor: Theme.of(context)
-          .colorScheme
-          .surfaceContainerHighest
-          .withOpacity(0.2),
-      thickness: 2,
-    ),
+  // Split by enabled state for display
+  final visibleCollapsedEnabled =
+      visibleCollapsedActions.where((a) => a.enabled == true).toList();
+  final visibleCollapsedDisabled =
+      visibleCollapsedActions.where((a) => a.enabled != true).toList();
+
+  return AnimatedBuilder(
+    animation: expandAnimation,
+    builder: (context, child) {
+      // Animate blur from weak (collapsed) to strong (expanded)
+      final double blurAmount =
+          8 + (expandAnimation.value * 12.0); // 8-20 range
+
+      return LiquidGlassLayer(
+        settings: LiquidGlassSettings(
+          blur: blurAmount,
+          glassColor: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest
+              .withOpacity(0.2),
+          thickness: 2,
+        ),
+        child: child!,
+      );
+    },
     child: LiquidGlass(
       shape: LiquidRoundedRectangle(
         borderRadius: 28,
@@ -109,128 +151,24 @@ Widget buildToolbarContent({
                                   const SizedBox(height: 4),
                                 ],
                                 if (!callbacks.isExpanded)
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      SingleChildScrollView(
-                                        scrollDirection: Axis.horizontal,
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            ...visibleEnabledActions
-                                                .asMap()
-                                                .entries
-                                                .map((entry) {
-                                              final index = entry.key;
-                                              final action = entry.value;
-                                              return Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Padding(
-                                                    padding: EdgeInsets.only(
-                                                        right: spacing),
-                                                    child:
-                                                        buildCompactIconButton(
-                                                      context,
-                                                      action,
-                                                      callbacks,
-                                                      onCollapseRequested,
-                                                    ),
-                                                  ),
-                                                  if (index <
-                                                          visibleEnabledActions
-                                                                  .length -
-                                                              1 ||
-                                                      disabledActions
-                                                          .isNotEmpty ||
-                                                      (prominentActions !=
-                                                              null &&
-                                                          prominentActions
-                                                              .isNotEmpty))
-                                                    Container(
-                                                      margin: EdgeInsets.only(
-                                                          right: spacing),
-                                                      width: 1,
-                                                      height: 20,
-                                                      decoration: BoxDecoration(
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .outline
-                                                            .withOpacity(0.15),
-                                                      ),
-                                                    ),
-                                                ],
-                                              );
-                                            }),
-                                            ...disabledActions
-                                                .asMap()
-                                                .entries
-                                                .map((entry) {
-                                              final index = entry.key;
-                                              final action = entry.value;
-                                              return Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Padding(
-                                                    padding: EdgeInsets.only(
-                                                        right: spacing),
-                                                    child:
-                                                        buildCompactIconButton(
-                                                      context,
-                                                      action,
-                                                      callbacks,
-                                                      onCollapseRequested,
-                                                    ),
-                                                  ),
-                                                  if (index <
-                                                          disabledActions
-                                                                  .length -
-                                                              1 ||
-                                                      (prominentActions !=
-                                                              null &&
-                                                          prominentActions
-                                                              .isNotEmpty))
-                                                    Container(
-                                                      margin: EdgeInsets.only(
-                                                          right: spacing),
-                                                      width: 1,
-                                                      height: 20,
-                                                      decoration: BoxDecoration(
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .outline
-                                                            .withOpacity(0.15),
-                                                      ),
-                                                    ),
-                                                ],
-                                              );
-                                            }),
-                                            // Prominent actions in collapsed state (horizontal with text) - on the right
-                                            if (prominentActions != null &&
-                                                prominentActions.isNotEmpty)
-                                              ...prominentActions.map((action) {
-                                                return Padding(
-                                                  padding: EdgeInsets.only(
-                                                      right: spacing),
-                                                  child:
-                                                      buildCompactProminentButton(
-                                                    context,
-                                                    action,
-                                                    callbacks,
-                                                    onCollapseRequested,
-                                                  ),
-                                                );
-                                              }),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
+                                  _AnimatedCollapsedActionsRow(
+                                    enabledActions: visibleCollapsedEnabled,
+                                    disabledActions: visibleCollapsedDisabled,
+                                    prominentActions: prominentActions,
+                                    spacing: spacing,
+                                    buildCompactIconButton:
+                                        buildCompactIconButton,
+                                    buildCompactProminentButton:
+                                        buildCompactProminentButton,
+                                    callbacks: callbacks,
+                                    onCollapseRequested: onCollapseRequested,
+                                    context: context,
+                                    expandAnimation: expandAnimation,
                                   ),
                                 SizeTransition(
                                   sizeFactor: expandAnimation,
                                   axisAlignment: -1.0,
-                                  child: (callbacks.isExpanded &&
-                                          expandAnimation.value > 0.01)
+                                  child: callbacks.isExpanded
                                       ? Padding(
                                           padding:
                                               const EdgeInsets.only(top: 0),
@@ -249,10 +187,8 @@ Widget buildToolbarContent({
                                                       constraints.maxWidth
                                                           .isInfinite ||
                                                       constraints.maxWidth <=
-                                                          0 ||
-                                                      expandAnimation.value <=
-                                                          0.01) {
-                                                    // Return empty container if constraints are invalid or animation is too small
+                                                          0) {
+                                                    // Return empty container if constraints are invalid
                                                     return const SizedBox
                                                         .shrink();
                                                   }
@@ -275,8 +211,7 @@ Widget buildToolbarContent({
                                                           .clamp(2, 4);
 
                                                   final allActions = [
-                                                    ...enabledActions,
-                                                    ...disabledActions,
+                                                    ...visibleExpandedActions,
                                                   ];
 
                                                   if (allActions.isEmpty) {
@@ -327,15 +262,7 @@ Widget buildToolbarContent({
                                                       final index = entry.key;
                                                       final action =
                                                           entry.value;
-                                                      final actionIndex = index <
-                                                              enabledActions
-                                                                  .length
-                                                          ? index
-                                                          : enabledActions
-                                                                  .length +
-                                                              (index -
-                                                                  enabledActions
-                                                                      .length);
+                                                      final actionIndex = index;
 
                                                       // Calculate width - make last row items fill if incomplete
                                                       final int itemsInLastRow =
@@ -446,8 +373,10 @@ Widget buildDraggableIndicator(BuildContext context) {
           width: 32,
           height: 4,
           decoration: BoxDecoration(
-            color:
-                Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4),
+            color: Theme.of(context)
+                .colorScheme
+                .onSurfaceVariant
+                .withOpacity(0.15), // More subtle - reduced from 0.4
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -494,7 +423,7 @@ Widget buildExpandCollapseButton(
               color: Theme.of(context)
                   .colorScheme
                   .onSurfaceVariant
-                  .withOpacity(0.7),
+                  .withOpacity(0.3), // More subtle - reduced from 0.7
             ),
           ],
         ),
@@ -691,33 +620,8 @@ Widget buildExpandedActionWithLabel(
     }
   }
 
-  final staggerDelay = index != null ? (index * 0.12).clamp(0.0, 0.6) : 0.0;
-  final staggerDuration = 0.25;
-
-  return AnimatedBuilder(
+  return base.ExpandedContentItem(
     animation: expandAnimation,
-    builder: (context, child) {
-      final tileProgress = expandAnimation.value < staggerDelay
-          ? 0.0
-          : ((expandAnimation.value - staggerDelay) / staggerDuration)
-              .clamp(0.0, 1.0);
-
-      final easedProgress = Curves.easeOutCubic.transform(tileProgress);
-
-      final isExpandingFromTop = isNearTop;
-
-      final slideOffset = isExpandingFromTop
-          ? Offset(0, (1 - easedProgress) * 25)
-          : Offset(0, -(1 - easedProgress) * 25);
-
-      return Opacity(
-        opacity: easedProgress,
-        child: Transform.translate(
-          offset: slideOffset,
-          child: child,
-        ),
-      );
-    },
     child: Card(
       elevation: 0,
       margin: EdgeInsets.zero,
@@ -806,4 +710,244 @@ Widget buildExpandedActionWithLabel(
   );
 }
 
-// FloatingToolbarPosition enum imported from floating_action_toolbar.dart
+/// Animated row widget for collapsed actions with fade/slide animations
+class _AnimatedCollapsedActionsRow extends StatefulWidget {
+  const _AnimatedCollapsedActionsRow({
+    required this.enabledActions,
+    required this.disabledActions,
+    required this.prominentActions,
+    required this.spacing,
+    required this.buildCompactIconButton,
+    required this.buildCompactProminentButton,
+    required this.callbacks,
+    required this.onCollapseRequested,
+    required this.context,
+    required this.expandAnimation,
+  });
+
+  final List<ActionButtonData> enabledActions;
+  final List<ActionButtonData> disabledActions;
+  final List<ActionButtonData>? prominentActions;
+  final double spacing;
+  final Widget Function(
+    BuildContext context,
+    ActionButtonData action,
+    base.ExpandableCallbacks callbacks,
+    VoidCallback? onCollapseRequested,
+  ) buildCompactIconButton;
+  final Widget Function(
+    BuildContext context,
+    ActionButtonData action,
+    base.ExpandableCallbacks callbacks,
+    VoidCallback? onCollapseRequested,
+  ) buildCompactProminentButton;
+  final base.ExpandableCallbacks callbacks;
+  final VoidCallback? onCollapseRequested;
+  final BuildContext context;
+  final Animation<double> expandAnimation;
+
+  @override
+  State<_AnimatedCollapsedActionsRow> createState() =>
+      _AnimatedCollapsedActionsRowState();
+}
+
+class _AnimatedCollapsedActionsRowState
+    extends State<_AnimatedCollapsedActionsRow> {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ...widget.enabledActions.asMap().entries.map((entry) {
+                final index = entry.key;
+                final action = entry.value;
+                return _AnimatedActionButton(
+                  key: ValueKey('enabled_${action.label}_${action.icon}'),
+                  action: action,
+                  spacing: widget.spacing,
+                  buildCompactIconButton: widget.buildCompactIconButton,
+                  callbacks: widget.callbacks,
+                  onCollapseRequested: widget.onCollapseRequested,
+                  context: widget.context,
+                  showDivider: index < widget.enabledActions.length - 1 ||
+                      widget.disabledActions.isNotEmpty ||
+                      (widget.prominentActions != null &&
+                          widget.prominentActions!.isNotEmpty),
+                  expandAnimation: widget.expandAnimation,
+                );
+              }),
+              ...widget.disabledActions.asMap().entries.map((entry) {
+                final index = entry.key;
+                final action = entry.value;
+                return _AnimatedActionButton(
+                  key: ValueKey('disabled_${action.label}_${action.icon}'),
+                  action: action,
+                  spacing: widget.spacing,
+                  buildCompactIconButton: widget.buildCompactIconButton,
+                  callbacks: widget.callbacks,
+                  onCollapseRequested: widget.onCollapseRequested,
+                  context: widget.context,
+                  showDivider: index < widget.disabledActions.length - 1 ||
+                      (widget.prominentActions != null &&
+                          widget.prominentActions!.isNotEmpty),
+                  expandAnimation: widget.expandAnimation,
+                );
+              }),
+              // Prominent actions in collapsed state (horizontal with text) - on the right
+              if (widget.prominentActions != null &&
+                  widget.prominentActions!.isNotEmpty)
+                ...widget.prominentActions!.map((action) {
+                  return _AnimatedActionButton(
+                    key: ValueKey('prominent_${action.label}_${action.icon}'),
+                    action: action,
+                    spacing: widget.spacing,
+                    buildCompactIconButton:
+                        (context, action, callbacks, onCollapse) =>
+                            widget.buildCompactProminentButton(
+                      context,
+                      action,
+                      callbacks,
+                      onCollapse,
+                    ),
+                    callbacks: widget.callbacks,
+                    onCollapseRequested: widget.onCollapseRequested,
+                    context: widget.context,
+                    showDivider: false,
+                    expandAnimation: widget.expandAnimation,
+                  );
+                }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Animated wrapper for individual action buttons in collapsed state
+/// Each button animates independently when it appears/disappears
+class _AnimatedActionButton extends StatefulWidget {
+  const _AnimatedActionButton({
+    required this.action,
+    required this.spacing,
+    required this.buildCompactIconButton,
+    required this.callbacks,
+    required this.onCollapseRequested,
+    required this.context,
+    required this.showDivider,
+    required this.expandAnimation,
+    super.key,
+  });
+
+  final ActionButtonData action;
+  final double spacing;
+  final Widget Function(
+    BuildContext context,
+    ActionButtonData action,
+    base.ExpandableCallbacks callbacks,
+    VoidCallback? onCollapseRequested,
+  ) buildCompactIconButton;
+  final base.ExpandableCallbacks callbacks;
+  final VoidCallback? onCollapseRequested;
+  final BuildContext context;
+  final bool showDivider;
+  final Animation<double> expandAnimation;
+
+  @override
+  State<_AnimatedActionButton> createState() => _AnimatedActionButtonState();
+}
+
+class _AnimatedActionButtonState extends State<_AnimatedActionButton> {
+  // Track if this button was previously visible to detect when it appears/disappears
+  bool _wasVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _wasVisible = !widget.callbacks.isExpanded;
+    // Listen to expand animation to sync button animation with collapse
+    widget.expandAnimation.addListener(_onExpandAnimationChanged);
+    print(
+        '[_AnimatedActionButton] initState: action=${widget.action.label}, isExpanded=${widget.callbacks.isExpanded}, expandAnimation.value=${widget.expandAnimation.value}');
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedActionButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.expandAnimation != widget.expandAnimation) {
+      oldWidget.expandAnimation.removeListener(_onExpandAnimationChanged);
+      widget.expandAnimation.addListener(_onExpandAnimationChanged);
+    }
+    // Detect when button visibility changes (for tab swipes)
+    final isNowVisible = !widget.callbacks.isExpanded;
+    if (_wasVisible != isNowVisible) {
+      _wasVisible = isNowVisible;
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.expandAnimation.removeListener(_onExpandAnimationChanged);
+    super.dispose();
+  }
+
+  void _onExpandAnimationChanged() {
+    if (mounted) {
+      setState(() {
+        // Trigger rebuild when expand animation changes
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // When collapsing (expanding -> collapsed), expandAnimation goes from 1 to 0
+    // We want buttons to animate in (from 0 to 1) as the toolbar collapses
+    // So we use the inverse: 1 - expandAnimation.value
+    final collapseProgress = 1.0 - widget.expandAnimation.value;
+
+    // Apply easing curve
+    final easedProgress = Curves.easeOut.transform(collapseProgress);
+
+    // Calculate slide offset (vertical)
+    final slideOffset = Offset(0, (1 - easedProgress) * 0.1);
+
+    return Opacity(
+      opacity: easedProgress,
+      child: Transform.translate(
+        offset: slideOffset,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(right: widget.spacing),
+              child: widget.buildCompactIconButton(
+                widget.context,
+                widget.action,
+                widget.callbacks,
+                widget.onCollapseRequested,
+              ),
+            ),
+            if (widget.showDivider)
+              Container(
+                margin: EdgeInsets.only(right: widget.spacing),
+                width: 1,
+                height: 20,
+                decoration: BoxDecoration(
+                  color:
+                      Theme.of(context).colorScheme.outline.withOpacity(0.15),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// FloatingPosition enum imported from floating_expandable_widget.dart

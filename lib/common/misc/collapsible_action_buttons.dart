@@ -56,6 +56,21 @@ enum ActionButtonActionType {
   action,
 }
 
+/// Visibility state for action buttons in collapsed toolbar state
+enum ActionButtonVisibilityState {
+  /// Always visible in collapsed state, regardless of min count
+  /// These buttons are shown first, before any maybeVisible buttons
+  alwaysVisible,
+
+  /// Never visible in collapsed state, regardless of min count
+  /// These buttons are only shown when expanded
+  alwaysHidden,
+
+  /// Visible in collapsed state if there's room (based on minCount/maxCount)
+  /// Shown after alwaysVisible buttons, up to the specified count limit
+  maybeVisible,
+}
+
 /// Data class for action button configuration
 class ActionButtonData {
   const ActionButtonData({
@@ -69,6 +84,7 @@ class ActionButtonData {
     this.isDestructive = false,
     this.isPositive = false,
     this.actionType,
+    this.visibilityState = ActionButtonVisibilityState.maybeVisible,
   });
 
   final IconData icon;
@@ -87,6 +103,10 @@ class ActionButtonData {
 
   /// Type of action this button performs (determines trailing icon if trailing is not provided)
   final ActionButtonActionType? actionType;
+
+  /// Visibility state for collapsed toolbar state
+  /// Determines when this button appears in the collapsed horizontal bar
+  final ActionButtonVisibilityState visibilityState;
 }
 
 /// A reusable widget that displays action buttons with expand/collapse functionality.

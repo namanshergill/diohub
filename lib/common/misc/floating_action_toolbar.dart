@@ -1,7 +1,11 @@
 import 'package:diohub/common/misc/collapsible_action_buttons.dart';
 import 'package:diohub/common/misc/floating_action_toolbar_content.dart';
-import 'package:diohub/common/misc/floating_expandable_widget.dart' as base;
+import 'package:diohub/common/misc/floating_expandable_widget.dart';
 import 'package:flutter/material.dart';
+
+// Export enums for convenience
+export 'package:diohub/common/misc/floating_expandable_widget.dart'
+    show FloatingPosition, FloatingAlignment;
 
 /// A floating toolbar widget with liquid glass effect and expand/collapse functionality.
 ///
@@ -24,7 +28,7 @@ import 'package:flutter/material.dart';
 ///       ],
 ///       actionCardBuilder: buildStandardActionCard,
 ///       defaultVisibleCount: 3,
-///       position: FloatingToolbarPosition.bottom,
+///       position: FloatingPosition.bottom,
 ///     ),
 ///   ],
 /// )
@@ -37,7 +41,7 @@ class FloatingActionToolbar extends StatefulWidget {
     this.expandedVisibleCount,
     this.onExpandChanged,
     this.onCollapseRequested,
-    this.position = FloatingToolbarPosition.bottom,
+    this.position = FloatingPosition.bottom,
     this.alignment,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     this.spacing = 8,
@@ -75,11 +79,11 @@ class FloatingActionToolbar extends StatefulWidget {
   final VoidCallback? onCollapseRequested;
 
   /// Position of the toolbar
-  final FloatingToolbarPosition position;
+  final FloatingPosition position;
 
   /// Horizontal alignment of the toolbar
   /// If null, defaults to center for top position, right for bottom position
-  final FloatingToolbarAlignment? alignment;
+  final FloatingAlignment? alignment;
 
   /// Padding around the toolbar content
   final EdgeInsets padding;
@@ -92,17 +96,6 @@ class FloatingActionToolbar extends StatefulWidget {
 
   @override
   State<FloatingActionToolbar> createState() => _FloatingActionToolbarState();
-}
-
-enum FloatingToolbarPosition {
-  top,
-  bottom,
-}
-
-enum FloatingToolbarAlignment {
-  left,
-  center,
-  right,
 }
 
 class _FloatingActionToolbarState extends State<FloatingActionToolbar>
@@ -143,35 +136,17 @@ class _FloatingActionToolbarState extends State<FloatingActionToolbar>
     widget.onExpandChanged?.call(isExpanded);
   }
 
-  base.FloatingPosition _convertPosition(FloatingToolbarPosition position) {
-    return position == FloatingToolbarPosition.top
-        ? base.FloatingPosition.top
-        : base.FloatingPosition.bottom;
-  }
-
-  base.FloatingAlignment _convertAlignment(FloatingToolbarAlignment alignment) {
-    switch (alignment) {
-      case FloatingToolbarAlignment.left:
-        return base.FloatingAlignment.left;
-      case FloatingToolbarAlignment.center:
-        return base.FloatingAlignment.center;
-      case FloatingToolbarAlignment.right:
-        return base.FloatingAlignment.right;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final effectiveAlignment = widget.alignment != null
-        ? _convertAlignment(widget.alignment!)
-        : (widget.position == FloatingToolbarPosition.bottom
-            ? base.FloatingAlignment.right
+    final effectiveAlignment = widget.alignment ??
+        (widget.position == FloatingPosition.bottom
+            ? FloatingAlignment.right
             : null);
 
     print(
         '[FloatingActionToolbar] build: position=${widget.position}, alignment=${widget.alignment}, effectiveAlignment=$effectiveAlignment');
 
-    return base.FloatingExpandableWidget(
+    return FloatingExpandableWidget(
       contentBuilder: (context, callbacks) {
         // Sync local state with callbacks
         if (_isExpanded != callbacks.isExpanded) {
@@ -197,7 +172,7 @@ class _FloatingActionToolbarState extends State<FloatingActionToolbar>
           toolbarKey: _toolbarKey,
         );
       },
-      position: _convertPosition(widget.position),
+      position: widget.position,
       alignment: effectiveAlignment,
       padding: widget.padding,
       onExpandChanged: _onExpandChanged,

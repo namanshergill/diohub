@@ -611,7 +611,6 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
             : null,
         onTap: () => tabController.openTab('Code'),
       ),
-    
       ActionButtonData(
         icon: Octicons.issue_opened,
         label: 'Issues',
@@ -619,7 +618,7 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
             ? buildActionButtonTrailingCount(context, repo.openIssuesCount!)
             : null,
         onTap: () => tabController.openTab('Issues'),
-      ),  
+      ),
       ActionButtonData(
         icon: Octicons.git_pull_request,
         label: 'Pull Requests',
@@ -627,7 +626,8 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
             ? buildActionButtonTrailingCount(context, repo.openIssuesCount!)
             : null,
         onTap: () => tabController.openTab('Pull Requests'),
-      ),ActionButtonData(
+      ),
+      ActionButtonData(
         icon: Octicons.book,
         label: 'Readme',
         onTap: () => tabController.openTab('Readme'),
@@ -905,11 +905,11 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                                   _buildProminentActions(context, repo),
                               actionCardBuilder: buildStandardActionCard,
                               // defaultVisibleCount: 2,
-                              position: FloatingToolbarPosition.bottom,
+                              position: FloatingPosition.bottom,
                               alignment:
                                   MediaQuery.of(context).size.width >= 600.0
-                                      ? FloatingToolbarAlignment.right
-                                      : FloatingToolbarAlignment.center,
+                                      ? FloatingAlignment.right
+                                      : FloatingAlignment.center,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 12),
                               onExpandChanged: (isExpanded) {
