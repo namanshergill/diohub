@@ -863,88 +863,77 @@ class _AnimatedActionButton extends StatefulWidget {
 }
 
 class _AnimatedActionButtonState extends State<_AnimatedActionButton> {
-  // Track if this button was previously visible to detect when it appears/disappears
-  bool _wasVisible = false;
+  double? _lastLoggedValue;
 
   @override
   void initState() {
     super.initState();
-    _wasVisible = !widget.callbacks.isExpanded;
-    // Listen to expand animation to sync button animation with collapse
-    widget.expandAnimation.addListener(_onExpandAnimationChanged);
+    _lastLoggedValue = widget.expandAnimation.value;
     print(
         '[_AnimatedActionButton] initState: action=${widget.action.label}, isExpanded=${widget.callbacks.isExpanded}, expandAnimation.value=${widget.expandAnimation.value}');
   }
 
   @override
-  void didUpdateWidget(_AnimatedActionButton oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.expandAnimation != widget.expandAnimation) {
-      oldWidget.expandAnimation.removeListener(_onExpandAnimationChanged);
-      widget.expandAnimation.addListener(_onExpandAnimationChanged);
-    }
-    // Detect when button visibility changes (for tab swipes)
-    final isNowVisible = !widget.callbacks.isExpanded;
-    if (_wasVisible != isNowVisible) {
-      _wasVisible = isNowVisible;
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.expandAnimation.removeListener(_onExpandAnimationChanged);
-    super.dispose();
-  }
-
-  void _onExpandAnimationChanged() {
-    if (mounted) {
-      setState(() {
-        // Trigger rebuild when expand animation changes
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // When collapsing (expanding -> collapsed), expandAnimation goes from 1 to 0
-    // We want buttons to animate in (from 0 to 1) as the toolbar collapses
-    // So we use the inverse: 1 - expandAnimation.value
-    final collapseProgress = 1.0 - widget.expandAnimation.value;
+    // Use AnimatedBuilder to listen to animation without causing rebuild loops
+    return AnimatedBuilder(
+      animation: widget.expandAnimation,
+      builder: (context, child) {
+        // When collapsing (expanding -> collapsed), expandAnimation goes from 1 to 0
+        // We want buttons to animate in (from 0 to 1) as the toolbar collapses
+        // So we use the inverse: 1 - expandAnimation.value
+        final collapseProgress = 1.0 - widget.expandAnimation.value;
 
-    // Apply easing curve
-    final easedProgress = Curves.easeOut.transform(collapseProgress);
+        // Apply easing curve
+        final easedProgress = Curves.easeOut.transform(collapseProgress);
 
-    // Calculate slide offset (vertical)
-    final slideOffset = Offset(0, (1 - easedProgress) * 0.1);
+        // Calculate slide offset (vertical)
+        final slideOffset = Offset(0, (1 - easedProgress) * 0.1);
 
-    return Opacity(
-      opacity: easedProgress,
-      child: Transform.translate(
-        offset: slideOffset,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(right: widget.spacing),
-              child: widget.buildCompactIconButton(
-                widget.context,
-                widget.action,
-                widget.callbacks,
-                widget.onCollapseRequested,
+        // Only log when value changes significantly (every 0.1 or at endpoints)
+        final animValue = widget.expandAnimation.value;
+        final shouldLog = _lastLoggedValue == null ||
+            (animValue == 0.0 || animValue == 1.0) ||
+            ((animValue - _lastLoggedValue!).abs() >= 0.1);
+        if (shouldLog) {
+          _lastLoggedValue = animValue;
+          print(
+              '[_AnimatedActionButton] build: action=${widget.action.label}, expandAnimation.value=$animValue, collapseProgress=$collapseProgress, easedProgress=$easedProgress');
+        }
+
+        return Opacity(
+          opacity: easedProgress,
+          child: Transform.translate(
+            offset: slideOffset,
+            child: child,
+          ),
+        );
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(right: widget.spacing),
+            child: widget.buildCompactIconButton(
+              widget.context,
+              widget.action,
+              widget.callbacks,
+              widget.onCollapseRequested,
+            ),
+          ),
+          if (widget.showDivider)
+            Container(
+              margin: EdgeInsets.only(right: widget.spacing),
+              width: 1,
+              height: 20,
+              decoration: BoxDecoration(
+                color: Theme.of(widget.context)
+                    .colorScheme
+                    .outline
+                    .withOpacity(0.15),
               ),
             ),
-            if (widget.showDivider)
-              Container(
-                margin: EdgeInsets.only(right: widget.spacing),
-                width: 1,
-                height: 20,
-                decoration: BoxDecoration(
-                  color:
-                      Theme.of(context).colorScheme.outline.withOpacity(0.15),
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
