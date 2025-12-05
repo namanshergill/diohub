@@ -823,47 +823,47 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                 codeProvider..updateProvider(branch),
           ),
         ],
-        builder: (final BuildContext context, final _) => SafeArea(
-          child: Scaffold(
-            // backgroundColor:
-            // Provider.of<PaletteSettings>(context).currentSetting.primary,
-            // Show a temporary app bar until the provider loads.
-            appBar:
-                Provider.of<RepositoryProvider>(context).status != Status.loaded
-                    ? AppBar(
-                        elevation: 0,
-                      )
-                    : PreferredSize(
-                        preferredSize: Size.zero,
-                        child: Container(),
-                      ),
-            body: WillPopScope(
-              onWillPop: () async {
-                // Don't pop screen if code browsing is open and not the root tree.
-                if (Provider.of<CodeProvider>(context, listen: false)
-                            .tree
-                            .length >
-                        1 &&
-                    tabController.activeIdentifier == 'Code') {
-                  Provider.of<CodeProvider>(context, listen: false).popTree();
-                  return false;
-                } else {
-                  return true;
-                }
-              },
-              child: ScaffoldBody(
-                child: ProviderLoadingProgressWrapper<RepositoryProvider>(
-                  childBuilder: (
-                    final BuildContext context,
-                    final RepositoryProvider value,
-                  ) {
-                    final RepositoryModel repo = value.data;
-                    return ThemeFromImage(
-                      // imageUri: repo.owner?.avatarUrl,
-                      builder: (context) => SizedBox.expand(
-                        child: Stack(
-                          children: [
-                            DynamicTabsParent(
+        builder: (final BuildContext context, final _) => Scaffold(
+          // backgroundColor:
+          // Provider.of<PaletteSettings>(context).currentSetting.primary,
+          // Show a temporary app bar until the provider loads.
+          appBar:
+              Provider.of<RepositoryProvider>(context).status != Status.loaded
+                  ? AppBar(
+                      elevation: 0,
+                    )
+                  : PreferredSize(
+                      preferredSize: Size.zero,
+                      child: Container(),
+                    ),
+          body: WillPopScope(
+            onWillPop: () async {
+              // Don't pop screen if code browsing is open and not the root tree.
+              if (Provider.of<CodeProvider>(context, listen: false)
+                          .tree
+                          .length >
+                      1 &&
+                  tabController.activeIdentifier == 'Code') {
+                Provider.of<CodeProvider>(context, listen: false).popTree();
+                return false;
+              } else {
+                return true;
+              }
+            },
+            child: ScaffoldBody(
+              child: ProviderLoadingProgressWrapper<RepositoryProvider>(
+                childBuilder: (
+                  final BuildContext context,
+                  final RepositoryProvider value,
+                ) {
+                  final RepositoryModel repo = value.data;
+                  return ThemeFromImage(
+                    // imageUri: repo.owner?.avatarUrl,
+                    builder: (context) => SizedBox.expand(
+                      child: Stack(
+                        children: [
+                          SafeArea(
+                            child: DynamicTabsParent(
                               controller: tabController,
                               builder: (
                                 final BuildContext context,
@@ -898,39 +898,34 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                                     : tabView,
                               ),
                             ),
-                            FloatingActionToolbar(
-                              key: ValueKey(tabController.activeIdentifier),
-                              actions: _buildToolbarActions(context, repo),
-                              prominentActions:
-                                  _buildProminentActions(context, repo),
-                              actionCardBuilder: buildStandardActionCard,
-                              // defaultVisibleCount: 2,
-                              position: FloatingPosition.bottom,
-                              alignment:
-                                  MediaQuery.of(context).size.width >= 600.0
-                                      ? FloatingAlignment.right
-                                      : FloatingAlignment.center,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                              // Account for tab bar height when visible:
-                              // Tab bar height (~46px) + topSpacing (4px) + defaultPadding.bottom (8px) = ~58px
-                              bottomPadding: tabController.activeLength > 1
-                                  ? 58.0
-                                  : 0.0,
-                              onExpandChanged: (isExpanded) {
-                                if (isExpanded) {
-                                  _expandAnimationController.forward();
-                                } else {
-                                  _expandAnimationController.reverse();
-                                }
-                              },
-                            ),
-                          ],
-                        ),
+                          ),
+                          FloatingActionToolbar(
+                            key: ValueKey(tabController.activeIdentifier),
+                            actions: _buildToolbarActions(context, repo),
+                            prominentActions:
+                                _buildProminentActions(context, repo),
+                            actionCardBuilder: buildStandardActionCard,
+                            // defaultVisibleCount: 2,
+                            position: FloatingPosition.bottom,
+                            alignment:
+                                MediaQuery.of(context).size.width >= 600.0
+                                    ? FloatingAlignment.right
+                                    : FloatingAlignment.center,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            onExpandChanged: (isExpanded) {
+                              if (isExpanded) {
+                                _expandAnimationController.forward();
+                              } else {
+                                _expandAnimationController.reverse();
+                              }
+                            },
+                          ),
+                        ],
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
             ),
           ),

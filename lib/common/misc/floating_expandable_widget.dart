@@ -231,8 +231,13 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           mediaQuery: mediaQuery,
         );
         _expandedFromTop = isNearTop;
+        final expandedSize = Size(
+          _widgetSize?.width ?? 250.0,
+          _widgetSize?.height ?? 300.0,
+        );
         _position = _calculator.calculateExpandedCenterPosition(
           mediaQuery: mediaQuery,
+          expandedWidgetSize: expandedSize,
         );
       } else {
         _animationController.reverse().then((_) {
@@ -324,8 +329,13 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
             });
           }
         });
+        final expandedSize = Size(
+          _widgetSize?.width ?? 250.0,
+          _widgetSize?.height ?? 300.0,
+        );
         _position = _calculator.calculateExpandedCenterPosition(
           mediaQuery: mediaQuery,
+          expandedWidgetSize: expandedSize,
         );
         widget.onExpandChanged?.call(true);
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -390,8 +400,13 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
             });
           }
         });
+        final expandedSize = Size(
+          _widgetSize?.width ?? 250.0,
+          _widgetSize?.height ?? 300.0,
+        );
         _position = _calculator.calculateExpandedCenterPosition(
           mediaQuery: mediaQuery,
+          expandedWidgetSize: expandedSize,
         );
       });
       widget.onExpandChanged?.call(true);
@@ -449,6 +464,9 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       widgetSize: widgetSize,
       isExpanded: _isExpanded,
     );
+
+    // If behavior is freeDrag, don't snap
+    if (targetPosition == null) return;
 
     final startPosition = _position!;
 

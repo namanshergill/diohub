@@ -1,6 +1,18 @@
 import 'package:diohub/common/misc/floating_expandable_widget.dart';
 import 'package:flutter/material.dart';
 
+/// Behavior type for floating widget positioning.
+enum FloatingWidgetBehavior {
+  /// Widget snaps to edges when drag ends
+  snapToEdges,
+
+  /// Widget can be freely dragged without snapping
+  freeDrag,
+
+  /// Custom behavior (uses provided calculator methods)
+  custom,
+}
+
 /// Calculates positioning and layout for floating widgets.
 ///
 /// This class encapsulates all positioning logic, making it modular, testable,
@@ -8,17 +20,22 @@ import 'package:flutter/material.dart';
 ///
 /// **Usage:**
 /// ```dart
+/// // Default behavior (snaps to edges)
 /// final calculator = FloatingWidgetPositionCalculator(
 ///   position: FloatingPosition.bottom,
 ///   alignment: FloatingAlignment.right,
-///   padding: EdgeInsets.all(16),
-///   edgePadding: 8.0,
 /// );
 ///
-/// final defaultPos = calculator.calculateDefaultPosition(
-///   screenSize: Size(400, 800),
-///   safeArea: EdgeInsets.zero,
-///   viewPadding: EdgeInsets.zero,
+/// // Free drag behavior
+/// final calculator = FloatingWidgetPositionCalculator(
+///   position: FloatingPosition.bottom,
+///   behavior: FloatingWidgetBehavior.freeDrag,
+/// );
+///
+/// // Custom initial position
+/// final calculator = FloatingWidgetPositionCalculator(
+///   position: FloatingPosition.bottom,
+///   initialPosition: Offset(100, 200),
 /// );
 /// ```
 class FloatingWidgetPositionCalculator {
@@ -26,9 +43,11 @@ class FloatingWidgetPositionCalculator {
   const FloatingWidgetPositionCalculator({
     required this.position,
     this.alignment,
-    required this.padding,
+    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     this.edgePadding = 8.0,
     this.bottomPadding = 0.0,
+    this.initialPosition,
+    this.behavior = FloatingWidgetBehavior.snapToEdges,
   });
 
   /// Position of the widget
@@ -47,12 +66,65 @@ class FloatingWidgetPositionCalculator {
   /// This is added on top of system UI padding (viewPadding.bottom)
   final double bottomPadding;
 
+  /// Custom initial position (center point). If null, uses default position calculation.
+  final Offset? initialPosition;
+
+  /// Behavior type for this calculator
+  final FloatingWidgetBehavior behavior;
+
   /// Gets the effective alignment (uses defaults if not specified)
   FloatingAlignment getEffectiveAlignment() {
     return alignment ??
         (position == FloatingPosition.top
             ? FloatingAlignment.center
             : FloatingAlignment.right);
+  }
+
+  /// Gets the bottom inset value (max of safeArea.bottom and viewPadding.bottom).
+  ///
+  /// This is a shared helper method used consistently across all calculations.
+  double getBottomInset(MediaQueryData mediaQuery) {
+    final safeArea = mediaQuery.padding;
+    final viewPadding = mediaQuery.viewPadding;
+    return safeArea.bottom > 0 ? safeArea.bottom : viewPadding.bottom;
+  }
+
+  /// Gets the top inset value (safeArea.top).
+  ///
+  /// This is a shared helper method used consistently across all calculations.
+  double getTopInset(MediaQueryData mediaQuery) {
+    return mediaQuery.padding.top;
+  }
+
+  /// Gets the left inset value (safeArea.left).
+  double getLeftInset(MediaQueryData mediaQuery) {
+    return mediaQuery.padding.left;
+  }
+
+  /// Gets the right inset value (safeArea.right).
+  double getRightInset(MediaQueryData mediaQuery) {
+    return mediaQuery.padding.right;
+  }
+
+  /// Calculates the effective bottom edge position.
+  ///
+  /// Returns the Y coordinate of the effective bottom edge, accounting for:
+  /// - System UI (bottom inset)
+  /// - App-level UI (bottomPadding)
+  /// - Edge padding
+  double getEffectiveBottomEdge(MediaQueryData mediaQuery) {
+    final screenSize = mediaQuery.size;
+    final bottomInset = getBottomInset(mediaQuery);
+    return screenSize.height - bottomInset - bottomPadding;
+  }
+
+  /// Calculates the effective top edge position.
+  ///
+  /// Returns the Y coordinate of the effective top edge, accounting for:
+  /// - System UI (top inset)
+  /// - Edge padding
+  double getEffectiveTopEdge(MediaQueryData mediaQuery) {
+    return getTopInset(mediaQuery);
   }
 
   /// Calculates the default position when widget is not being dragged.
@@ -67,8 +139,15 @@ class FloatingWidgetPositionCalculator {
     required MediaQueryData mediaQuery,
     required Size widgetSize,
   }) {
-    final safeArea = mediaQuery.padding;
-    final viewPadding = mediaQuery.viewPadding;
+    // If custom initial position is provided, convert it to position record
+    if (initialPosition != null) {
+      return _offsetToPositionRecord(
+        offset: initialPosition!,
+        mediaQuery: mediaQuery,
+        widgetSize: widgetSize,
+      );
+    }
+
     final effectiveAlignment = getEffectiveAlignment();
 
     double? left, right;
@@ -76,10 +155,10 @@ class FloatingWidgetPositionCalculator {
     // Calculate horizontal position
     switch (effectiveAlignment) {
       case FloatingAlignment.left:
-        left = padding.left + safeArea.left + edgePadding;
+        left = padding.left + getLeftInset(mediaQuery) + edgePadding;
         break;
       case FloatingAlignment.right:
-        right = safeArea.right + edgePadding;
+        right = getRightInset(mediaQuery) + edgePadding;
         break;
       case FloatingAlignment.center:
         // Don't set left/right - let Align widget handle centering
@@ -90,13 +169,49 @@ class FloatingWidgetPositionCalculator {
     double? top, bottom;
     switch (position) {
       case FloatingPosition.top:
-        top = padding.top + safeArea.top + edgePadding;
+        top = padding.top + getTopInset(mediaQuery) + edgePadding;
         break;
       case FloatingPosition.bottom:
-        // Use max of safeArea.bottom and viewPadding.bottom to account for system UI
-        final bottomInset =
-            safeArea.bottom > 0 ? safeArea.bottom : viewPadding.bottom;
+        final bottomInset = getBottomInset(mediaQuery);
         bottom = bottomInset + edgePadding;
+        break;
+    }
+
+    return (left: left, top: top, right: right, bottom: bottom);
+  }
+
+  /// Converts an Offset (center point) to a position record.
+  ({
+    double? left,
+    double? top,
+    double? right,
+    double? bottom,
+  }) _offsetToPositionRecord({
+    required Offset offset,
+    required MediaQueryData mediaQuery,
+    required Size widgetSize,
+  }) {
+    final effectiveAlignment = getEffectiveAlignment();
+    double? left, right, top, bottom;
+
+    switch (effectiveAlignment) {
+      case FloatingAlignment.left:
+        left = offset.dx - widgetSize.width / 2;
+        break;
+      case FloatingAlignment.right:
+        right = mediaQuery.size.width - offset.dx - widgetSize.width / 2;
+        break;
+      case FloatingAlignment.center:
+        // Center alignment - don't set left/right
+        break;
+    }
+
+    switch (position) {
+      case FloatingPosition.top:
+        top = offset.dy - widgetSize.height / 2;
+        break;
+      case FloatingPosition.bottom:
+        bottom = mediaQuery.size.height - offset.dy - widgetSize.height / 2;
         break;
     }
 
@@ -110,9 +225,12 @@ class FloatingWidgetPositionCalculator {
     required MediaQueryData mediaQuery,
     required Size widgetSize,
   }) {
+    // If custom initial position is provided, use it
+    if (initialPosition != null) {
+      return initialPosition!;
+    }
+
     final screenSize = mediaQuery.size;
-    final safeArea = mediaQuery.padding;
-    final viewPadding = mediaQuery.viewPadding;
     double initialX;
     double initialY;
 
@@ -123,12 +241,13 @@ class FloatingWidgetPositionCalculator {
 
     switch (effectiveAlignment) {
       case FloatingAlignment.left:
-        initialX = padding.left + safeArea.left + widgetWidth / 2;
+        initialX = padding.left + getLeftInset(mediaQuery) + widgetWidth / 2;
         break;
       case FloatingAlignment.right:
-        // Position at right edge - account for SafeArea and edge padding
-        initialX =
-            screenSize.width - safeArea.right - edgePadding - widgetWidth / 2;
+        initialX = screenSize.width -
+            getRightInset(mediaQuery) -
+            edgePadding -
+            widgetWidth / 2;
         break;
       case FloatingAlignment.center:
         initialX = screenSize.width / 2;
@@ -137,18 +256,11 @@ class FloatingWidgetPositionCalculator {
 
     switch (position) {
       case FloatingPosition.top:
-        initialY = padding.top + safeArea.top + widgetHeight / 2;
+        initialY = padding.top + getTopInset(mediaQuery) + widgetHeight / 2;
         break;
       case FloatingPosition.bottom:
-        // Position at bottom edge - use max of safeArea.bottom and viewPadding.bottom
-        // Also account for app-level UI (e.g., tab bars) via bottomPadding
-        final bottomInset =
-            safeArea.bottom > 0 ? safeArea.bottom : viewPadding.bottom;
-        initialY = screenSize.height -
-            bottomInset -
-            bottomPadding -
-            edgePadding -
-            widgetHeight / 2;
+        initialY =
+            getEffectiveBottomEdge(mediaQuery) - edgePadding - widgetHeight / 2;
         break;
     }
 
@@ -170,8 +282,6 @@ class FloatingWidgetPositionCalculator {
     required bool isExpanded,
   }) {
     final screenSize = mediaQuery.size;
-    final safeArea = mediaQuery.padding;
-    final viewPadding = mediaQuery.viewPadding;
     final widgetWidth = widgetSize.width;
     final effectiveHeight = calculateEffectiveHeight(
       widgetSize: widgetSize,
@@ -182,10 +292,11 @@ class FloatingWidgetPositionCalculator {
     var left = currentCenterPosition.dx - widgetWidth / 2;
 
     // Clamp to ensure widget stays on screen with edge padding
-    // Account for SafeArea on both sides
-    final minLeft = safeArea.left + edgePadding;
-    final maxLeft =
-        screenSize.width - safeArea.right - widgetWidth - edgePadding;
+    final minLeft = getLeftInset(mediaQuery) + edgePadding;
+    final maxLeft = screenSize.width -
+        getRightInset(mediaQuery) -
+        widgetWidth -
+        edgePadding;
 
     // Ensure maxLeft is valid (widget might be wider than screen)
     if (maxLeft < minLeft) {
@@ -197,14 +308,9 @@ class FloatingWidgetPositionCalculator {
 
     // Calculate top position from center point
     final calculatedTop = currentCenterPosition.dy - effectiveHeight / 2;
-    final minTop = safeArea.top + edgePadding;
-    final bottomInset =
-        safeArea.bottom > 0 ? safeArea.bottom : viewPadding.bottom;
-    final maxTop = screenSize.height -
-        bottomInset -
-        bottomPadding -
-        effectiveHeight -
-        edgePadding;
+    final minTop = getTopInset(mediaQuery) + edgePadding;
+    final maxTop =
+        getEffectiveBottomEdge(mediaQuery) - effectiveHeight - edgePadding;
     final top = calculatedTop.clamp(minTop, maxTop);
 
     return (left: left, top: top, right: null, bottom: null);
@@ -213,15 +319,19 @@ class FloatingWidgetPositionCalculator {
   /// Calculates the snap position to the nearest edge.
   ///
   /// Returns the center point (Offset) where the widget should snap to.
-  Offset calculateSnapPosition({
+  /// Returns null if behavior is freeDrag (no snapping).
+  Offset? calculateSnapPosition({
     required Offset currentCenterPosition,
     required MediaQueryData mediaQuery,
     required Size widgetSize,
     required bool isExpanded,
   }) {
+    // Don't snap if behavior is freeDrag
+    if (behavior == FloatingWidgetBehavior.freeDrag) {
+      return null;
+    }
+
     final screenSize = mediaQuery.size;
-    final safeArea = mediaQuery.padding;
-    final viewPadding = mediaQuery.viewPadding;
     final widgetWidth = widgetSize.width;
     final effectiveHeight = calculateEffectiveHeight(
       widgetSize: widgetSize,
@@ -230,9 +340,10 @@ class FloatingWidgetPositionCalculator {
 
     // Determine which edge to snap to (top or bottom)
     final currentY = currentCenterPosition.dy;
-    final distanceToTop = currentY - safeArea.top - effectiveHeight / 2;
+    final distanceToTop =
+        currentY - getTopInset(mediaQuery) - effectiveHeight / 2;
     final distanceToBottom =
-        screenSize.height - safeArea.bottom - currentY - effectiveHeight / 2;
+        getEffectiveBottomEdge(mediaQuery) - currentY - effectiveHeight / 2;
     final snappingToTop = distanceToTop < distanceToBottom;
 
     double targetX;
@@ -245,14 +356,16 @@ class FloatingWidgetPositionCalculator {
 
       switch (effectiveAlignment) {
         case FloatingAlignment.left:
-          targetX =
-              widgetWidth / 2 + padding.left + safeArea.left + edgePadding;
+          targetX = widgetWidth / 2 +
+              padding.left +
+              getLeftInset(mediaQuery) +
+              edgePadding;
           break;
         case FloatingAlignment.right:
-          // Position at right edge - account for SafeArea and edge padding
-          // targetX is the center X coordinate, so we need widgetWidth/2 from the right edge
-          targetX =
-              screenSize.width - safeArea.right - edgePadding - widgetWidth / 2;
+          targetX = screenSize.width -
+              getRightInset(mediaQuery) -
+              edgePadding -
+              widgetWidth / 2;
           break;
         case FloatingAlignment.center:
           targetX = screenSize.width / 2;
@@ -261,9 +374,11 @@ class FloatingWidgetPositionCalculator {
     }
 
     // Ensure targetX keeps widget on screen
-    final minX = widgetWidth / 2 + safeArea.left + edgePadding;
-    final maxX =
-        screenSize.width - widgetWidth / 2 - safeArea.right - edgePadding;
+    final minX = widgetWidth / 2 + getLeftInset(mediaQuery) + edgePadding;
+    final maxX = screenSize.width -
+        widgetWidth / 2 -
+        getRightInset(mediaQuery) -
+        edgePadding;
 
     if (maxX < minX) {
       // Widget is too wide, center it
@@ -275,26 +390,16 @@ class FloatingWidgetPositionCalculator {
     double targetY;
 
     if (snappingToTop) {
-      targetY = safeArea.top + edgePadding + effectiveHeight / 2;
+      targetY = getTopInset(mediaQuery) + edgePadding + effectiveHeight / 2;
     } else {
-      // Calculate bottom position more carefully to prevent clipping
-      // Use max of safeArea.bottom and viewPadding.bottom to account for system UI
-      // Also account for app-level UI (e.g., tab bars) via bottomPadding
-      final bottomInset =
-          safeArea.bottom > 0 ? safeArea.bottom : viewPadding.bottom;
-      final bottomEdge = screenSize.height - bottomInset - bottomPadding;
+      final bottomEdge = getEffectiveBottomEdge(mediaQuery);
       targetY = bottomEdge - edgePadding - effectiveHeight / 2;
     }
 
     // Ensure targetY keeps widget on screen
-    final minY = safeArea.top + edgePadding + effectiveHeight / 2;
-    final bottomInset =
-        safeArea.bottom > 0 ? safeArea.bottom : viewPadding.bottom;
-    final maxY = screenSize.height -
-        bottomInset -
-        bottomPadding -
-        edgePadding -
-        effectiveHeight / 2;
+    final minY = getTopInset(mediaQuery) + edgePadding + effectiveHeight / 2;
+    final maxY =
+        getEffectiveBottomEdge(mediaQuery) - edgePadding - effectiveHeight / 2;
     targetY = targetY.clamp(minY, maxY);
 
     return Offset(targetX, targetY);
@@ -316,20 +421,24 @@ class FloatingWidgetPositionCalculator {
   /// Calculates the center position when widget expands.
   ///
   /// Returns the center point (Offset) where the widget should be positioned.
+  /// The center is calculated from the expanded widget's center, not from its top.
   Offset calculateExpandedCenterPosition({
     required MediaQueryData mediaQuery,
+    required Size expandedWidgetSize,
   }) {
     final screenSize = mediaQuery.size;
-    final safeArea = mediaQuery.padding;
-    final viewPadding = mediaQuery.viewPadding;
     final centerX = screenSize.width / 2;
-    // Use safeArea for top, but for bottom use max of safeArea.bottom and viewPadding.bottom
-    // Also account for app-level UI (e.g., tab bars) via bottomPadding
-    final bottomInset =
-        safeArea.bottom > 0 ? safeArea.bottom : viewPadding.bottom;
-    final availableHeight =
-        screenSize.height - safeArea.top - bottomInset - bottomPadding;
-    final centerY = safeArea.top + availableHeight / 2;
+    
+    // Calculate available height for centering
+    final availableHeight = screenSize.height -
+        getTopInset(mediaQuery) -
+        getBottomInset(mediaQuery) -
+        bottomPadding;
+    
+    // Center Y should position the expanded widget's center at the screen center
+    // This ensures the expanded widget is visually centered, not positioned from its top
+    final centerY = getTopInset(mediaQuery) + availableHeight / 2;
+    
     return Offset(centerX, centerY);
   }
 
@@ -347,21 +456,15 @@ class FloatingWidgetPositionCalculator {
     required Size widgetSize,
     required bool isExpanded,
   }) {
-    final screenSize = mediaQuery.size;
-    final safeArea = mediaQuery.padding;
-    final viewPadding = mediaQuery.viewPadding;
     final effectiveHeight = calculateEffectiveHeight(
       widgetSize: widgetSize,
       isExpanded: isExpanded,
     );
 
-    final distanceToTopEdge =
-        currentCenterPosition.dy - safeArea.top - effectiveHeight / 2;
-    final bottomInset =
-        safeArea.bottom > 0 ? safeArea.bottom : viewPadding.bottom;
-    final distanceToBottomEdge = screenSize.height -
-        bottomInset -
-        bottomPadding -
+    final distanceToTopEdge = currentCenterPosition.dy -
+        getTopInset(mediaQuery) -
+        effectiveHeight / 2;
+    final distanceToBottomEdge = getEffectiveBottomEdge(mediaQuery) -
         currentCenterPosition.dy -
         effectiveHeight / 2;
     final distanceToNearestEdge = distanceToTopEdge < distanceToBottomEdge
@@ -385,8 +488,9 @@ class FloatingWidgetPositionCalculator {
     double thresholdPercent = 0.15,
   }) {
     final screenSize = mediaQuery.size;
-    final safeArea = mediaQuery.padding;
-    final availableHeight = screenSize.height - safeArea.top - safeArea.bottom;
+    final topInset = getTopInset(mediaQuery);
+    final bottomInset = getBottomInset(mediaQuery);
+    final availableHeight = screenSize.height - topInset - bottomInset;
     return availableHeight * thresholdPercent;
   }
 
@@ -454,8 +558,6 @@ class FloatingWidgetPositionCalculator {
     required bool isExpanded,
   }) {
     final screenSize = mediaQuery.size;
-    final safeArea = mediaQuery.padding;
-    final viewPadding = mediaQuery.viewPadding;
     final effectiveHeight = calculateEffectiveHeight(
       widgetSize: widgetSize,
       isExpanded: isExpanded,
@@ -466,14 +568,9 @@ class FloatingWidgetPositionCalculator {
     final maxX = screenSize.width - widgetWidth / 2 - edgePadding;
     final clampedX = position.dx.clamp(minX, maxX);
 
-    final minY = safeArea.top + effectiveHeight / 2 + edgePadding;
-    final bottomInset =
-        safeArea.bottom > 0 ? safeArea.bottom : viewPadding.bottom;
-    final maxY = screenSize.height -
-        bottomInset -
-        bottomPadding -
-        effectiveHeight / 2 -
-        edgePadding;
+    final minY = getTopInset(mediaQuery) + effectiveHeight / 2 + edgePadding;
+    final maxY =
+        getEffectiveBottomEdge(mediaQuery) - effectiveHeight / 2 - edgePadding;
     final clampedY = position.dy.clamp(minY, maxY);
 
     return Offset(clampedX, clampedY);
@@ -490,9 +587,10 @@ class FloatingWidgetPositionCalculator {
     required MediaQueryData mediaQuery,
   }) {
     final screenSize = mediaQuery.size;
-    final safeArea = mediaQuery.padding;
-    final availableHeight = screenSize.height - safeArea.top - safeArea.bottom;
-    return safeArea.top + availableHeight / 2;
+    final topInset = getTopInset(mediaQuery);
+    final bottomInset = getBottomInset(mediaQuery);
+    final availableHeight = screenSize.height - topInset - bottomInset;
+    return topInset + availableHeight / 2;
   }
 
   /// Determines if a position is near the top of the screen.
@@ -548,12 +646,11 @@ class FloatingWidgetPositionCalculator {
   double calculateTopPaddingForCenterAlignment({
     required MediaQueryData mediaQuery,
   }) {
-    final safeArea = mediaQuery.padding;
     if (position != FloatingPosition.top) {
       return 0.0;
     }
     // Content padding + safe area + edge padding
-    return padding.top + safeArea.top + edgePadding;
+    return padding.top + getTopInset(mediaQuery) + edgePadding;
   }
 
   /// Calculates the bottom padding for center-aligned widgets positioned at the bottom.
@@ -566,15 +663,10 @@ class FloatingWidgetPositionCalculator {
   double calculateBottomPaddingForCenterAlignment({
     required MediaQueryData mediaQuery,
   }) {
-    final safeArea = mediaQuery.padding;
-    final viewPadding = mediaQuery.viewPadding;
     if (position != FloatingPosition.bottom) {
       return 0.0;
     }
-    // Use max of safeArea.bottom and viewPadding.bottom to account for system UI
-    // Also account for app-level UI (e.g., tab bars) via bottomPadding
-    final bottomInset =
-        safeArea.bottom > 0 ? safeArea.bottom : viewPadding.bottom;
+    final bottomInset = getBottomInset(mediaQuery);
     return bottomInset + bottomPadding + edgePadding;
   }
 
@@ -598,8 +690,6 @@ class FloatingWidgetPositionCalculator {
     required bool isExpanded,
   }) {
     final screenSize = mediaQuery.size;
-    final safeArea = mediaQuery.padding;
-    final viewPadding = mediaQuery.viewPadding;
     double? finalLeft = position.left;
     double? finalTop = position.top;
     double? finalRight = position.right;
@@ -609,8 +699,10 @@ class FloatingWidgetPositionCalculator {
       if (finalLeft != null) {
         // Verify left positioning doesn't go off-screen
         final widgetWidth = widgetSize.width;
-        final maxLeft =
-            screenSize.width - safeArea.right - widgetWidth - edgePadding;
+        final maxLeft = screenSize.width -
+            getRightInset(mediaQuery) -
+            widgetWidth -
+            edgePadding;
         if (finalLeft > maxLeft) {
           finalLeft = maxLeft;
         }
@@ -622,13 +714,8 @@ class FloatingWidgetPositionCalculator {
           widgetSize: widgetSize,
           isExpanded: isExpanded,
         );
-        final bottomInset =
-            safeArea.bottom > 0 ? safeArea.bottom : viewPadding.bottom;
-        final maxTop = screenSize.height -
-            bottomInset -
-            bottomPadding -
-            effectiveHeight -
-            edgePadding;
+        final maxTop =
+            getEffectiveBottomEdge(mediaQuery) - effectiveHeight - edgePadding;
         if (finalTop > maxTop) {
           finalTop = maxTop;
         }
