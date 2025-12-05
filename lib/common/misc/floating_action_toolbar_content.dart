@@ -23,6 +23,7 @@ Widget buildToolbarContent({
       prominentActionBuilder,
   required Animation<double> expandAnimation,
   required GlobalKey toolbarKey,
+  String? title,
 }) {
   final regularActions =
       actions.where((a) => !(prominentActions ?? []).contains(a)).toList();
@@ -116,8 +117,8 @@ Widget buildToolbarContent({
                 children: [
                   Padding(
                     padding: EdgeInsets.symmetric(
-                      horizontal: callbacks.isExpanded ? 12 : 6,
-                      vertical: callbacks.isExpanded ? 8 : 6,
+                      horizontal: callbacks.isExpanded ? 20 : 8,
+                      vertical: callbacks.isExpanded ? 12 : 8,
                     ),
                     child: Builder(
                       builder: (context) {
@@ -127,7 +128,7 @@ Widget buildToolbarContent({
                         return Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const SizedBox(height: 4),
+                            SizedBox(height: callbacks.isExpanded ? 4 : 4),
                             if (!callbacks.isExpanded)
                               IntrinsicWidth(
                                 child: _AnimatedCollapsedActionsRow(
@@ -174,6 +175,35 @@ Widget buildToolbarContent({
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.stretch,
                                               children: [
+                                                // Title in expanded view
+                                                if (title != null &&
+                                                    title.isNotEmpty)
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                      bottom: 12,
+                                                    ),
+                                                    child: Text(
+                                                      title!,
+                                                      style: Theme.of(context)
+                                                          .textTheme
+                                                          .titleLarge
+                                                          ?.copyWith(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 20,
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .colorScheme
+                                                                .onSurface
+                                                                .withOpacity(
+                                                                    0.8),
+                                                          ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
                                                 // Compact FlexList layout for actions
                                                 LayoutBuilder(
                                                   builder:
@@ -200,8 +230,8 @@ Widget buildToolbarContent({
 
                                                     // Use FlexList to show all items
                                                     return FlexList(
-                                                      horizontalSpacing: 6.0,
-                                                      verticalSpacing: 6.0,
+                                                      horizontalSpacing: 8.0,
+                                                      verticalSpacing: 8.0,
                                                       children: allActions
                                                           .asMap()
                                                           .entries
@@ -239,7 +269,7 @@ Widget buildToolbarContent({
                                 prominentActions != null &&
                                 prominentActions.isNotEmpty)
                               Padding(
-                                padding: const EdgeInsets.only(top: 8),
+                                padding: const EdgeInsets.only(top: 12),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment:
@@ -251,7 +281,7 @@ Widget buildToolbarContent({
                                           bottom:
                                               action == prominentActions.last
                                                   ? 0
-                                                  : 6,
+                                                  : 8,
                                         ),
                                         child: (prominentActionBuilder ??
                                             buildProminentActionCard)(
@@ -263,7 +293,7 @@ Widget buildToolbarContent({
                                   ],
                                 ),
                               ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: callbacks.isExpanded ? 4 : 4),
                           ],
                         );
                       },

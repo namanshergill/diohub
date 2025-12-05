@@ -233,6 +233,7 @@ class HomeScreenState extends State<HomeScreen>
             alignment: MediaQuery.of(context).size.width >= 600.0
                 ? FloatingAlignment.right
                 : FloatingAlignment.center,
+            title: context.provider<CurrentUserProvider>().data.login,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             onExpandChanged: (isExpanded) {
               if (isExpanded) {

@@ -49,6 +49,7 @@ class FloatingActionToolbar extends StatefulWidget {
     this.prominentActions,
     this.prominentActionBuilder,
     this.bottomPadding = 0.0,
+    this.title,
     super.key,
   });
 
@@ -98,6 +99,9 @@ class FloatingActionToolbar extends StatefulWidget {
   /// Additional bottom padding to account for app-level UI elements (e.g., tab bars)
   /// This is added on top of system UI padding (viewPadding.bottom)
   final double bottomPadding;
+
+  /// Title to display in expanded view (e.g., username on home, repo name on repo screen)
+  final String? title;
 
   @override
   State<FloatingActionToolbar> createState() => _FloatingActionToolbarState();
@@ -175,6 +179,7 @@ class _FloatingActionToolbarState extends State<FloatingActionToolbar>
           prominentActionBuilder: widget.prominentActionBuilder,
           expandAnimation: _expandAnimation,
           toolbarKey: _toolbarKey,
+          title: widget.title,
         );
       },
       position: widget.position,

@@ -916,6 +916,7 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                             // bottomPadding should only account for OS navigation bar, not tab bar
                             // since FloatingActionToolbar is above tab bar in widget tree
                             bottomPadding: 0.0,
+                            title: repo.name,
                             onExpandChanged: (isExpanded) {
                               if (isExpanded) {
                                 _expandAnimationController.forward();
