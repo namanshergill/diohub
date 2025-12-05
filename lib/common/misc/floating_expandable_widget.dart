@@ -121,7 +121,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     super.initState();
     _expandController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 400),
     );
     _snapController = AnimationController(
       vsync: this,
@@ -179,16 +179,22 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     if (_isExpanded) return;
     setState(() {
       _isExpanded = true;
-      _expandController.forward();
     });
-    final mediaQuery = MediaQuery.of(context);
-    final widgetSize = _widgetSize ?? Size(150.0, 100.0);
-    _centerPosition = _calculator.calculateExpandedCenterPosition(
-      mediaQuery: mediaQuery,
-      expandedWidgetSize: widgetSize,
-    );
     widget.onExpandChanged?.call(true);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _measureSize());
+    // Wait for expand animation to complete, then snap to nearest edge
+    // This preserves the current position and snaps to the appropriate edge
+    _expandController.forward().then((_) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _measureSize();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _snapToEdge();
+            }
+          });
+        });
+      }
+    });
   }
 
   void _collapse() {
@@ -226,10 +232,23 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     _wasExpandedBeforeDrag = _isExpanded;
 
     // If expanded, collapse immediately when drag starts
+    Size? collapsedSize;
     if (_isExpanded) {
       _expandController.stop();
       _expandController.value = 0.0;
       widget.onExpandChanged?.call(false);
+
+      // Estimate collapsed size if we have expanded size
+      final currentSize = _widgetSize ?? Size(150.0, 100.0);
+      if (currentSize.height > 200) {
+        // Likely expanded size, estimate collapsed size
+        final estimatedHeight = (currentSize.height / 3).clamp(60.0, 200.0);
+        collapsedSize = Size(
+          currentSize.width.clamp(60.0, 200.0),
+          estimatedHeight,
+        );
+      }
+
       setState(() {
         _isExpanded = false;
       });
@@ -246,11 +265,14 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     }
 
     // Lock widget size at drag start to prevent position jumps
+    // Use collapsed size if we collapsed, otherwise use current size
     final currentSize = _widgetSize ?? Size(150.0, 100.0);
+    final sizeToLock = collapsedSize ?? currentSize;
 
     setState(() {
       _isDragging = true;
-      _lockedSizeDuringDrag = currentSize; // Lock size
+      _lockedSizeDuringDrag =
+          sizeToLock; // Lock size (collapsed if we just collapsed)
       _dragStartCenterOffset = centerOffset;
     });
 

@@ -123,21 +123,11 @@ Widget buildToolbarContent({
                       builder: (context) {
                         final isNearTop =
                             callbacks.nearPosition == base.FloatingPosition.top;
-                        final expandCollapseButton = buildExpandCollapseButton(
-                          context,
-                          callbacks,
-                          isNearTop,
-                        );
 
                         return Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (isNearTop) ...[
-                              const SizedBox(height: 4),
-                            ],
-                            if (!isNearTop) ...[
-                              expandCollapseButton,
-                            ],
+                            const SizedBox(height: 4),
                             if (!callbacks.isExpanded)
                               IntrinsicWidth(
                                 child: _AnimatedCollapsedActionsRow(
@@ -155,63 +145,94 @@ Widget buildToolbarContent({
                                   expandAnimation: expandAnimation,
                                 ),
                               ),
-                            SizeTransition(
-                              sizeFactor: expandAnimation,
-                              axisAlignment: isNearTop ? -1.0 : 1.0,
-                              child: callbacks.isExpanded
-                                  ? Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        // Compact FlexList layout for actions
-                                        LayoutBuilder(
-                                          builder: (context, constraints) {
-                                            // Ensure we have bounded constraints
-                                            if (!constraints.hasBoundedWidth ||
-                                                constraints
-                                                    .maxWidth.isInfinite ||
-                                                constraints.maxWidth <= 0) {
-                                              // Return empty container if constraints are invalid
-                                              return const SizedBox.shrink();
-                                            }
+                            AnimatedBuilder(
+                              animation: expandAnimation,
+                              builder: (context, child) {
+                                // Apply easing curve for smoother animation
+                                final curvedValue = Curves.easeInOutCubic
+                                    .transform(expandAnimation.value);
 
-                                            final allActions = [
-                                              ...visibleExpandedActions,
-                                            ];
+                                // Add opacity animation for smoother collapse
+                                final opacity = curvedValue.clamp(0.0, 1.0);
 
-                                            if (allActions.isEmpty) {
-                                              return const SizedBox.shrink();
-                                            }
+                                // Add subtle scale animation
+                                final scale = 0.95 + (curvedValue * 0.05);
 
-                                            // Use FlexList to show all items
-                                            return FlexList(
-                                              horizontalSpacing: 6.0,
-                                              verticalSpacing: 6.0,
-                                              children: allActions
-                                                  .asMap()
-                                                  .entries
-                                                  .map((entry) {
-                                                final index = entry.key;
-                                                final action = entry.value;
+                                return Opacity(
+                                  opacity: opacity,
+                                  child: Transform.scale(
+                                    scale: scale,
+                                    alignment: isNearTop
+                                        ? Alignment.topCenter
+                                        : Alignment.bottomCenter,
+                                    child: SizeTransition(
+                                      sizeFactor: expandAnimation,
+                                      axisAlignment: isNearTop ? -1.0 : 1.0,
+                                      child: callbacks.isExpanded
+                                          ? Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children: [
+                                                // Compact FlexList layout for actions
+                                                LayoutBuilder(
+                                                  builder:
+                                                      (context, constraints) {
+                                                    // Ensure we have bounded constraints
+                                                    if (!constraints.hasBoundedWidth ||
+                                                        constraints.maxWidth
+                                                            .isInfinite ||
+                                                        constraints.maxWidth <=
+                                                            0) {
+                                                      // Return empty container if constraints are invalid
+                                                      return const SizedBox
+                                                          .shrink();
+                                                    }
 
-                                                return buildExpandedActionWithLabel(
-                                                  context,
-                                                  action,
-                                                  index,
-                                                  callbacks,
-                                                  onCollapseRequested,
-                                                  expandAnimation,
-                                                  callbacks.nearPosition ==
-                                                      base.FloatingPosition.top,
-                                                );
-                                              }).toList(),
-                                            );
-                                          },
-                                        ),
-                                      ],
-                                    )
-                                  : const SizedBox.shrink(),
+                                                    final allActions = [
+                                                      ...visibleExpandedActions,
+                                                    ];
+
+                                                    if (allActions.isEmpty) {
+                                                      return const SizedBox
+                                                          .shrink();
+                                                    }
+
+                                                    // Use FlexList to show all items
+                                                    return FlexList(
+                                                      horizontalSpacing: 6.0,
+                                                      verticalSpacing: 6.0,
+                                                      children: allActions
+                                                          .asMap()
+                                                          .entries
+                                                          .map((entry) {
+                                                        final index = entry.key;
+                                                        final action =
+                                                            entry.value;
+
+                                                        return buildExpandedActionWithLabel(
+                                                          context,
+                                                          action,
+                                                          index,
+                                                          callbacks,
+                                                          onCollapseRequested,
+                                                          expandAnimation,
+                                                          callbacks
+                                                                  .nearPosition ==
+                                                              base.FloatingPosition
+                                                                  .top,
+                                                        );
+                                                      }).toList(),
+                                                    );
+                                                  },
+                                                ),
+                                              ],
+                                            )
+                                          : const SizedBox.shrink(),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                             // Prominent actions as compact tiles (only when expanded)
                             if (callbacks.isExpanded &&
@@ -242,12 +263,7 @@ Widget buildToolbarContent({
                                   ],
                                 ),
                               ),
-                            if (isNearTop) ...[
-                              expandCollapseButton,
-                            ],
-                            if (!isNearTop) ...[
-                              const SizedBox(height: 4),
-                            ],
+                            const SizedBox(height: 4),
                           ],
                         );
                       },
