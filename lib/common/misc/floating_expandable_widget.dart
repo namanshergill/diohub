@@ -1,4 +1,5 @@
 import 'package:diohub/common/misc/floating_widget_position_calculator.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
 /// Position of the floating widget
@@ -70,6 +71,7 @@ class FloatingExpandableWidget extends StatefulWidget {
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     this.edgePadding = 8.0,
     this.bottomPadding = 0.0,
+    this.debugLogging = false,
     this.onExpandChanged,
     super.key,
   }) : calculator = null;
@@ -89,6 +91,7 @@ class FloatingExpandableWidget extends StatefulWidget {
   const FloatingExpandableWidget.customFloat({
     required this.calculator,
     required this.contentBuilder,
+    this.debugLogging = false,
     this.onExpandChanged,
     super.key,
   })  : position = FloatingPosition.top,
@@ -125,6 +128,9 @@ class FloatingExpandableWidget extends StatefulWidget {
   /// If null, a default calculator is created from position, alignment, padding, and edgePadding.
   final FloatingWidgetPositionCalculator? calculator;
 
+  /// Enable debug logging for positioning calculations
+  final bool debugLogging;
+
   /// Callback when expand state changes
   final void Function(bool isExpanded)? onExpandChanged;
 
@@ -148,19 +154,27 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
   Size? _widgetSize; // Actual measured size of the widget
   final GlobalKey _widgetKey = GlobalKey();
 
+  /// Helper function to log debug messages if logging is enabled
+  void _debugLog(String message) {
+    if (widget.debugLogging && kDebugMode) {
+      print(message);
+    }
+  }
+
   /// Gets the position calculator, creating a default one if needed.
   /// Always ensures bottomPadding matches widget.bottomPadding to handle dynamic changes.
   FloatingWidgetPositionCalculator get _calculator {
-    print(
+    _debugLog(
         '[FloatingExpandableWidget] _calculator getter: widget.bottomPadding=${widget.bottomPadding}, widget.calculator=${widget.calculator != null ? "provided" : "null"}');
     // If custom calculator is provided, check if bottomPadding matches
     if (widget.calculator != null) {
-      print(
+      _debugLog(
           '[FloatingExpandableWidget] _calculator: custom calculator.bottomPadding=${widget.calculator!.bottomPadding}');
-      if (widget.calculator!.bottomPadding != widget.bottomPadding) {
-        // Create new calculator with current bottomPadding
-        print(
-            '[FloatingExpandableWidget] _calculator: creating new calculator with bottomPadding=${widget.bottomPadding}');
+      if (widget.calculator!.bottomPadding != widget.bottomPadding ||
+          widget.calculator!.debugLogging != widget.debugLogging) {
+        // Create new calculator with current bottomPadding and debugLogging
+        _debugLog(
+            '[FloatingExpandableWidget] _calculator: creating new calculator with bottomPadding=${widget.bottomPadding}, debugLogging=${widget.debugLogging}');
         return FloatingWidgetPositionCalculator(
           position: widget.position,
           alignment: widget.alignment,
@@ -172,19 +186,21 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           topSnapThresholdPercent: widget.calculator!.topSnapThresholdPercent,
           bottomSnapThresholdPercent:
               widget.calculator!.bottomSnapThresholdPercent,
+          debugLogging: widget.debugLogging,
         );
       }
       return widget.calculator!;
     }
     // Create default calculator with current bottomPadding
-    print(
-        '[FloatingExpandableWidget] _calculator: creating default calculator with bottomPadding=${widget.bottomPadding}');
+    _debugLog(
+        '[FloatingExpandableWidget] _calculator: creating default calculator with bottomPadding=${widget.bottomPadding}, debugLogging=${widget.debugLogging}');
     return FloatingWidgetPositionCalculator(
       position: widget.position,
       alignment: widget.alignment,
       padding: widget.padding,
       edgePadding: widget.edgePadding,
       bottomPadding: widget.bottomPadding,
+      debugLogging: widget.debugLogging,
     );
   }
 
@@ -227,7 +243,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     if (renderBox != null && renderBox.hasSize) {
       final newSize = renderBox.size;
       if (_widgetSize != newSize) {
-        print(
+        _debugLog(
             '[FloatingExpandableWidget] _measureWidgetSize: old=$_widgetSize, new=$newSize');
         final wasExpanded = _isExpanded;
         setState(() {
@@ -243,7 +259,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
         }
       }
     } else {
-      print(
+      _debugLog(
           '[FloatingExpandableWidget] _measureWidgetSize: renderBox is null or has no size');
     }
   }
@@ -300,7 +316,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           mediaQuery: mediaQuery,
           widgetSize: collapsedSize,
         );
-        print(
+        _debugLog(
             '[FloatingExpandableWidget] Collapsing: collapsedSize=$collapsedSize, newPosition=$newPosition');
         _position = newPosition;
       }
@@ -560,7 +576,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    print(
+    _debugLog(
         '[FloatingExpandableWidget] build: screenHeight=${mediaQuery.size.height}, padding.bottom=${mediaQuery.padding.bottom}, viewPadding.bottom=${mediaQuery.viewPadding.bottom}');
 
     // Calculate positioning
@@ -576,7 +592,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
             _isExpanded ? 400.0 : 100.0,
           );
 
-    print(
+    _debugLog(
         '[FloatingExpandableWidget] build: _position=${_position != null ? "set" : "null"}, _isExpanded=$_isExpanded, currentWidgetSize=$currentWidgetSize');
 
     final position = _position != null
@@ -591,7 +607,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
             widgetSize: currentWidgetSize,
           );
 
-    print(
+    _debugLog(
         '[FloatingExpandableWidget] build: calculated position: left=${position.left}, top=${position.top}, right=${position.right}, bottom=${position.bottom}');
 
     // Validate and adjust position
@@ -602,7 +618,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       isExpanded: _isExpanded,
     );
 
-    print(
+    _debugLog(
         '[FloatingExpandableWidget] build: validated position: left=${validatedPosition.left}, top=${validatedPosition.top}, right=${validatedPosition.right}, bottom=${validatedPosition.bottom}');
 
     final left = validatedPosition.left;
@@ -610,7 +626,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     final right = validatedPosition.right;
     final bottom = validatedPosition.bottom;
 
-    print(
+    _debugLog(
         '[FloatingExpandableWidget] build: final Positioned values: left=$left, top=$top, right=$right, bottom=$bottom, screenHeight=${mediaQuery.size.height}');
 
     // Calculate which position the widget is near based on actual position

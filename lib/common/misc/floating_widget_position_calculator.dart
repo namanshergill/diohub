@@ -1,4 +1,5 @@
 import 'package:diohub/common/misc/floating_expandable_widget.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
 /// Behavior type for floating widget positioning.
@@ -40,7 +41,7 @@ enum FloatingWidgetBehavior {
 /// ```
 class FloatingWidgetPositionCalculator {
   /// Creates a position calculator with the given configuration.
-  const FloatingWidgetPositionCalculator({
+  const   FloatingWidgetPositionCalculator({
     required this.position,
     this.alignment,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -50,6 +51,7 @@ class FloatingWidgetPositionCalculator {
     this.behavior = FloatingWidgetBehavior.snapToEdges,
     this.topSnapThresholdPercent = 0.25,
     this.bottomSnapThresholdPercent = 0.25,
+    this.debugLogging = false,
   });
 
   /// Position of the widget
@@ -79,6 +81,16 @@ class FloatingWidgetPositionCalculator {
 
   /// Distance from bottom edge (as % of screen height) to trigger snap
   final double bottomSnapThresholdPercent;
+
+  /// Enable debug logging for positioning calculations
+  final bool debugLogging;
+
+  /// Helper function to log debug messages if logging is enabled
+  void _debugLog(String message) {
+    if (debugLogging && kDebugMode) {
+      print(message);
+    }
+  }
 
   /// Gets the effective alignment (uses defaults if not specified)
   FloatingAlignment getEffectiveAlignment() {
@@ -186,7 +198,7 @@ class FloatingWidgetPositionCalculator {
       case FloatingPosition.bottom:
         final bottomInset = getBottomInset(mediaQuery);
         bottom = bottomInset + bottomPadding + edgePadding;
-        print(
+        _debugLog(
             '[FloatingWidgetPositionCalculator] calculateDefaultPosition (bottom): bottomInset=$bottomInset, bottomPadding=$bottomPadding, edgePadding=$edgePadding, calculatedBottom=$bottom, screenHeight=${mediaQuery.size.height}, viewPadding.bottom=${mediaQuery.viewPadding.bottom}, padding.bottom=${mediaQuery.padding.bottom}');
         break;
     }
@@ -276,7 +288,7 @@ class FloatingWidgetPositionCalculator {
         final bottomEdge = getEffectiveBottomEdge(mediaQuery);
         initialY = bottomEdge - edgePadding - widgetHeight / 2;
         final widgetBottom = initialY + widgetHeight / 2;
-        print(
+        _debugLog(
             '[FloatingWidgetPositionCalculator] calculateInitialDragPosition (bottom): bottomEdge=$bottomEdge, edgePadding=$edgePadding, widgetHeight=$widgetHeight, initialY=$initialY, widgetBottom=$widgetBottom, screenHeight=${mediaQuery.size.height}, spacingFromBottom=${mediaQuery.size.height - widgetBottom}');
         break;
     }
@@ -336,7 +348,7 @@ class FloatingWidgetPositionCalculator {
     final useBottomPositioning = calculatedTop > topEdgeThreshold &&
         currentCenterPosition.dy > screenCenterY;
 
-    print(
+    _debugLog(
         '[FloatingWidgetPositionCalculator] calculateDraggedPosition: currentCenterPosition.dy=${currentCenterPosition.dy}, calculatedTop=$calculatedTop, topEdgeThreshold=$topEdgeThreshold, screenCenterY=$screenCenterY, useBottomPositioning=$useBottomPositioning');
 
     double? top;
@@ -354,7 +366,7 @@ class FloatingWidgetPositionCalculator {
       final widgetBottom = clampedTop + effectiveHeight;
       bottom = screenHeight - widgetBottom;
 
-      print(
+      _debugLog(
           '[FloatingWidgetPositionCalculator] calculateDraggedPosition (bottom): currentCenterPosition=$currentCenterPosition, effectiveHeight=$effectiveHeight, calculatedTop=$calculatedTop, clampedTop=$clampedTop, widgetBottom=$widgetBottom, calculatedBottom=$bottom, screenHeight=$screenHeight, screenCenterY=$screenCenterY');
     } else {
       // Use top positioning
@@ -364,7 +376,7 @@ class FloatingWidgetPositionCalculator {
       final maxTop = bottomEdge - effectiveHeight - edgePadding;
       top = calculatedTop.clamp(minTop, maxTop);
 
-      print(
+      _debugLog(
           '[FloatingWidgetPositionCalculator] calculateDraggedPosition (top): currentCenterPosition=$currentCenterPosition, effectiveHeight=$effectiveHeight, calculatedTop=$calculatedTop, minTop=$minTop, bottomEdge=$bottomEdge, maxTop=$maxTop, finalTop=$top, screenCenterY=$screenCenterY');
     }
 
@@ -468,7 +480,7 @@ class FloatingWidgetPositionCalculator {
       final bottomInset = getBottomInset(mediaQuery);
       targetY = bottomEdge - edgePadding - effectiveHeight / 2;
       final widgetBottom = targetY + effectiveHeight / 2;
-      print(
+      _debugLog(
           '[FloatingWidgetPositionCalculator] Snapping to bottom: screenHeight=${mediaQuery.size.height}, bottomInset=$bottomInset, bottomPadding=$bottomPadding, bottomEdge=$bottomEdge, edgePadding=$edgePadding, effectiveHeight=$effectiveHeight, targetY=$targetY, widgetBottom=$widgetBottom, expectedSpacing=${mediaQuery.size.height - widgetBottom}');
     }
 
@@ -761,7 +773,7 @@ class FloatingWidgetPositionCalculator {
     Size? widgetSize,
     required bool isExpanded,
   }) {
-    print(
+    _debugLog(
         '[FloatingWidgetPositionCalculator] validatePosition: input position: left=${position.left}, top=${position.top}, right=${position.right}, bottom=${position.bottom}, widgetSize=$widgetSize, isExpanded=$isExpanded');
     final screenSize = mediaQuery.size;
     double? finalLeft = position.left;
@@ -769,7 +781,7 @@ class FloatingWidgetPositionCalculator {
     double? finalRight = position.right;
     double? finalBottom = position.bottom;
 
-    print(
+    _debugLog(
         '[FloatingWidgetPositionCalculator] validatePosition: bottom value: inputBottom=$finalBottom, bottomInset=${getBottomInset(mediaQuery)}, bottomPadding=$bottomPadding, edgePadding=$edgePadding, expectedMinBottom=${getBottomInset(mediaQuery) + bottomPadding + edgePadding}');
 
     if (widgetSize != null) {
@@ -799,7 +811,7 @@ class FloatingWidgetPositionCalculator {
       }
     }
 
-    print(
+    _debugLog(
         '[FloatingWidgetPositionCalculator] validatePosition: output position: left=$finalLeft, top=$finalTop, right=$finalRight, bottom=$finalBottom');
 
     return (
