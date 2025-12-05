@@ -1,19 +1,11 @@
 import 'package:diohub/common/misc/floating_widget_position_calculator.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
 /// Position of the floating widget
-enum FloatingPosition {
-  top,
-  bottom,
-}
+enum FloatingPosition { top, bottom }
 
 /// Horizontal alignment of the floating widget
-enum FloatingAlignment {
-  left,
-  center,
-  right,
-}
+enum FloatingAlignment { left, center, right }
 
 /// Callbacks provided to child widgets for controlling expand/collapse state
 class ExpandableCallbacks {
@@ -25,44 +17,20 @@ class ExpandableCallbacks {
     required this.nearPosition,
   });
 
-  /// Callback to expand the widget
   final VoidCallback expand;
-
-  /// Callback to collapse the widget
   final VoidCallback collapse;
-
-  /// Callback to toggle expand/collapse state
   final VoidCallback toggle;
-
-  /// Whether the widget is currently expanded
   final bool isExpanded;
-
-  /// The position the widget is near (top or bottom)
   final FloatingPosition nearPosition;
 }
 
-/// A floating expandable widget that handles drag, snap, and expand/collapse logic.
+/// A floating expandable widget with drag-to-expand behavior.
 ///
-/// This widget handles positioning, dragging, snapping, and animation logic.
-/// The content builder receives constraints via LayoutBuilder to properly handle
-/// width constraints from Positioned widget.
-///
-/// **Usage:**
-/// ```dart
-/// FloatingExpandableWidget(
-///   contentBuilder: (context, callbacks) => LayoutBuilder(
-///     builder: (context, constraints) {
-///       // Use constraints here for proper width handling
-///       // Use callbacks.isExpanded to check expanded state
-///       return YourContent(callbacks: callbacks);
-///     },
-///   ),
-///   position: FloatingPosition.bottom,
-///   alignment: FloatingAlignment.right,
-///   padding: EdgeInsets.all(16),
-///   onExpandChanged: (isExpanded) {},
-/// )
-/// ```
+/// Behavior:
+/// - Starts collapsed at default position
+/// - Dragging collapses immediately and stays collapsed during drag
+/// - Drag ends near center: expands and centers
+/// - Drag ends near edge: collapses and snaps to edge
 class FloatingExpandableWidget extends StatefulWidget {
   const FloatingExpandableWidget({
     required this.contentBuilder,
@@ -76,18 +44,6 @@ class FloatingExpandableWidget extends StatefulWidget {
     super.key,
   }) : calculator = null;
 
-  /// Custom float constructor that accepts a custom position calculator.
-  ///
-  /// Allows for custom positioning behavior by providing a custom calculator.
-  /// The calculator can be extended to override specific calculation methods.
-  ///
-  /// **Usage:**
-  /// ```dart
-  /// FloatingExpandableWidget.customFloat(
-  ///   calculator: CustomPositionCalculator(...),
-  ///   contentBuilder: (context, callbacks) => YourContent(),
-  /// )
-  /// ```
   const FloatingExpandableWidget.customFloat({
     required this.calculator,
     required this.contentBuilder,
@@ -100,38 +56,15 @@ class FloatingExpandableWidget extends StatefulWidget {
         edgePadding = 8.0,
         bottomPadding = 0.0;
 
-  /// Builder for the content widget.
-  /// Receives callbacks to control expand/collapse state.
-  /// Should use LayoutBuilder to receive constraints from Positioned widget.
-  /// The expanded state is available via callbacks.isExpanded.
   final Widget Function(BuildContext context, ExpandableCallbacks callbacks)
       contentBuilder;
-
-  /// Position of the widget (used when calculator is null)
   final FloatingPosition position;
-
-  /// Horizontal alignment of the widget (used when calculator is null)
-  /// If null, defaults to center for top position, right for bottom position
   final FloatingAlignment? alignment;
-
-  /// Padding around the widget content (used when calculator is null)
   final EdgeInsets padding;
-
-  /// Minimum padding from screen edges (used when calculator is null)
   final double edgePadding;
-
-  /// Additional bottom padding to account for app-level UI elements (e.g., tab bars)
-  /// This is added on top of system UI padding (viewPadding.bottom)
   final double bottomPadding;
-
-  /// Custom position calculator for advanced positioning behavior.
-  /// If null, a default calculator is created from position, alignment, padding, and edgePadding.
   final FloatingWidgetPositionCalculator? calculator;
-
-  /// Enable debug logging for positioning calculations
   final bool debugLogging;
-
-  /// Callback when expand state changes
   final void Function(bool isExpanded)? onExpandChanged;
 
   @override
@@ -141,59 +74,38 @@ class FloatingExpandableWidget extends StatefulWidget {
 
 class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     with TickerProviderStateMixin {
+  // State
   bool _isExpanded = false;
-  bool? _expandedFromTop;
-  bool _isAnimating = false;
-  late AnimationController _animationController;
-  late AnimationController _snapAnimationController;
-  Animation<Offset>? _snapAnimation;
-
-  // Draggable state - using absolute screen coordinates
+  bool _isDragging = false;
+  bool _wasExpandedBeforeDrag =
+      false; // Track if tile was expanded before drag started
   Offset?
-      _position; // null means use default alignment, otherwise absolute position (center point)
-  Size? _widgetSize; // Actual measured size of the widget
+      _centerPosition; // null = use default, otherwise absolute center point
+  Size? _widgetSize;
+  Size? _lockedSizeDuringDrag; // Lock size during drag to prevent jumps
+  Offset? _dragStartCenterOffset; // Offset from drag start to widget center
   final GlobalKey _widgetKey = GlobalKey();
 
-  /// Helper function to log debug messages if logging is enabled
-  void _debugLog(String message) {
-    if (widget.debugLogging && kDebugMode) {
-      print(message);
-    }
-  }
+  // Animations
+  late AnimationController _expandController;
+  late AnimationController _snapController;
+  Animation<Offset>? _snapAnimation;
 
-  /// Gets the position calculator, creating a default one if needed.
-  /// Always ensures bottomPadding matches widget.bottomPadding to handle dynamic changes.
   FloatingWidgetPositionCalculator get _calculator {
-    _debugLog(
-        '[FloatingExpandableWidget] _calculator getter: widget.bottomPadding=${widget.bottomPadding}, widget.calculator=${widget.calculator != null ? "provided" : "null"}');
-    // If custom calculator is provided, check if bottomPadding matches
     if (widget.calculator != null) {
-      _debugLog(
-          '[FloatingExpandableWidget] _calculator: custom calculator.bottomPadding=${widget.calculator!.bottomPadding}');
       if (widget.calculator!.bottomPadding != widget.bottomPadding ||
           widget.calculator!.debugLogging != widget.debugLogging) {
-        // Create new calculator with current bottomPadding and debugLogging
-        _debugLog(
-            '[FloatingExpandableWidget] _calculator: creating new calculator with bottomPadding=${widget.bottomPadding}, debugLogging=${widget.debugLogging}');
         return FloatingWidgetPositionCalculator(
           position: widget.position,
           alignment: widget.alignment,
           padding: widget.padding,
           edgePadding: widget.edgePadding,
           bottomPadding: widget.bottomPadding,
-          behavior: widget.calculator!.behavior,
-          initialPosition: widget.calculator!.initialPosition,
-          topSnapThresholdPercent: widget.calculator!.topSnapThresholdPercent,
-          bottomSnapThresholdPercent:
-              widget.calculator!.bottomSnapThresholdPercent,
           debugLogging: widget.debugLogging,
         );
       }
       return widget.calculator!;
     }
-    // Create default calculator with current bottomPadding
-    _debugLog(
-        '[FloatingExpandableWidget] _calculator: creating default calculator with bottomPadding=${widget.bottomPadding}, debugLogging=${widget.debugLogging}');
     return FloatingWidgetPositionCalculator(
       position: widget.position,
       alignment: widget.alignment,
@@ -207,367 +119,486 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
+    _expandController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _snapAnimationController = AnimationController(
+    _snapController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _snapAnimationController.addListener(_onSnapAnimationUpdate);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _measureWidgetSize());
-  }
-
-  void _onSnapAnimationUpdate() {
-    if (_snapAnimation != null && mounted) {
-      final newValue = _snapAnimation!.value;
-      setState(() {
-        _position = newValue;
-      });
-    }
+    _snapController.addListener(_onSnapUpdate);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureSize());
   }
 
   @override
   void dispose() {
-    _snapAnimationController.removeListener(_onSnapAnimationUpdate);
-    _animationController.dispose();
-    _snapAnimationController.dispose();
+    _snapController.removeListener(_onSnapUpdate);
+    _expandController.dispose();
+    _snapController.dispose();
     super.dispose();
   }
 
-  void _measureWidgetSize() {
-    if (!mounted) return;
-    final RenderBox? renderBox =
-        _widgetKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox != null && renderBox.hasSize) {
-      final newSize = renderBox.size;
-      if (_widgetSize != newSize) {
-        _debugLog(
-            '[FloatingExpandableWidget] _measureWidgetSize: old=$_widgetSize, new=$newSize');
-        final wasExpanded = _isExpanded;
-        setState(() {
-          _widgetSize = newSize;
-        });
-        // If we just expanded and now have the actual size, recalculate center position
-        if (wasExpanded && _isExpanded && _position != null) {
-          final mediaQuery = MediaQuery.of(context);
-          _position = _calculator.calculateExpandedCenterPosition(
-            mediaQuery: mediaQuery,
-            expandedWidgetSize: newSize,
-          );
-        }
-      }
-    } else {
-      _debugLog(
-          '[FloatingExpandableWidget] _measureWidgetSize: renderBox is null or has no size');
+  void _onSnapUpdate() {
+    if (_snapAnimation != null && mounted) {
+      setState(() {
+        _centerPosition = _snapAnimation!.value;
+      });
     }
   }
 
-  void _toggleExpand() {
-    final mediaQuery = MediaQuery.of(context);
-
-    setState(() {
-      _isExpanded = !_isExpanded;
-      _isAnimating = true;
-      if (_isExpanded) {
-        _animationController.forward().then((_) {
+  void _snapAfterAnimationListener(AnimationStatus status) {
+    if (status == AnimationStatus.completed ||
+        status == AnimationStatus.dismissed) {
+      _expandController.removeStatusListener(_snapAfterAnimationListener);
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            setState(() {
-              _isAnimating = false;
-            });
+            _snapToEdge();
           }
         });
-        final isNearTop = _calculator.isPositionNearTop(
-          currentCenterPosition: _position,
-          mediaQuery: mediaQuery,
-        );
-        _expandedFromTop = isNearTop;
-        // Calculate expanded center position - use a reasonable estimate for size
-        // The actual size will be measured after expansion and position will adjust
-        final expandedSize = Size(
-          _widgetSize?.width ?? 320.0,
-          _widgetSize?.height ??
-              400.0, // Use larger estimate for expanded state
-        );
-        _position = _calculator.calculateExpandedCenterPosition(
-          mediaQuery: mediaQuery,
-          expandedWidgetSize: expandedSize,
-        );
-      } else {
-        _animationController.reverse().then((_) {
-          if (mounted) {
-            setState(() {
-              _isAnimating = false;
-            });
-          }
-        });
-        _expandedFromTop = null;
-        // On collapse, explicitly set position to default bottom position
-        // Don't rely on _snapToNearestEdge() which only works if widget is near an edge
-        // Use effective collapsed size - widget might still be measured at expanded size
-        final rawSize = _widgetSize ?? Size(150.0, 100.0);
-        final collapsedHeight = _calculator.calculateEffectiveHeight(
-          widgetSize: rawSize,
-          isExpanded: false,
-        );
-        final collapsedSize = Size(rawSize.width, collapsedHeight);
-        final newPosition = _calculator.calculateInitialDragPosition(
-          mediaQuery: mediaQuery,
-          widgetSize: collapsedSize,
-        );
-        _debugLog(
-            '[FloatingExpandableWidget] Collapsing: collapsedSize=$collapsedSize, newPosition=$newPosition');
-        _position = newPosition;
       }
-    });
-    widget.onExpandChanged?.call(_isExpanded);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _measureWidgetSize();
-    });
+    }
   }
 
-  void _collapse() {
-    if (_isExpanded) {
-      _toggleExpand();
+  void _measureSize() {
+    if (!mounted) return;
+    final RenderBox? box =
+        _widgetKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize) {
+      final newSize = box.size;
+      if (_widgetSize != newSize) {
+        setState(() {
+          _widgetSize = newSize;
+        });
+      }
     }
   }
 
   void _expand() {
-    if (!_isExpanded) {
-      _toggleExpand();
-    }
-  }
-
-  void _onPanStart(DragStartDetails details) {
-    if (_position == null) {
-      final mediaQuery = MediaQuery.of(context);
-
-      final widgetWidth = _widgetSize?.width ?? 150.0;
-      final widgetHeight = _widgetSize?.height ?? 100.0;
-
-      _position = _calculator.calculateInitialDragPosition(
-        mediaQuery: mediaQuery,
-        widgetSize: Size(widgetWidth, widgetHeight),
-      );
-    }
-  }
-
-  void _onPanUpdate(DragUpdateDetails details) {
-    if (_isAnimating) return;
+    if (_isExpanded) return;
     setState(() {
-      if (_position == null) return;
+      _isExpanded = true;
+      _expandController.forward();
+    });
+    final mediaQuery = MediaQuery.of(context);
+    final widgetSize = _widgetSize ?? Size(150.0, 100.0);
+    _centerPosition = _calculator.calculateExpandedCenterPosition(
+      mediaQuery: mediaQuery,
+      expandedWidgetSize: widgetSize,
+    );
+    widget.onExpandChanged?.call(true);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measureSize());
+  }
 
-      final newPosition = _position! + details.delta;
-      final mediaQuery = MediaQuery.of(context);
-
-      final currentWidgetWidth =
-          _widgetSize?.width ?? (_isExpanded ? 250.0 : 150.0);
-      final currentWidgetHeight =
-          _widgetSize?.height ?? (_isExpanded ? 300.0 : 100.0);
-      final widgetSize = Size(currentWidgetWidth, currentWidgetHeight);
-
-      _position = _calculator.clampPosition(
-        position: newPosition,
-        mediaQuery: mediaQuery,
-        widgetSize: widgetSize,
-        isExpanded: _isExpanded,
-      );
-
-      // Auto-expand/collapse logic
-      if (_calculator.shouldAutoExpand(
-        currentCenterPosition: _position!,
-        mediaQuery: mediaQuery,
-        widgetSize: widgetSize,
-        isExpanded: _isExpanded,
-      )) {
-        final edgeDistances = _calculator.calculateEdgeDistances(
-          currentCenterPosition: _position!,
-          mediaQuery: mediaQuery,
-          widgetSize: widgetSize,
-          isExpanded: _isExpanded,
-        );
-        _expandedFromTop = edgeDistances.isNearTop;
-        _isExpanded = true;
-        _isAnimating = true;
-        _animationController.forward().then((_) {
-          if (mounted) {
-            setState(() {
-              _isAnimating = false;
-            });
-          }
-        });
-        final expandedSize = Size(
-          _widgetSize?.width ?? 250.0,
-          _widgetSize?.height ?? 300.0,
-        );
-        _position = _calculator.calculateExpandedCenterPosition(
-          mediaQuery: mediaQuery,
-          expandedWidgetSize: expandedSize,
-        );
-        widget.onExpandChanged?.call(true);
+  void _collapse() {
+    if (!_isExpanded) return;
+    setState(() {
+      _isExpanded = false;
+    });
+    widget.onExpandChanged?.call(false);
+    // Wait for collapse animation to complete, then snap to nearest edge
+    // This preserves the current position and snaps to the appropriate edge
+    _expandController.reverse().then((_) {
+      if (mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _measureWidgetSize();
-        });
-      } else if (_calculator.shouldAutoCollapse(
-        currentCenterPosition: _position!,
-        mediaQuery: mediaQuery,
-        widgetSize: widgetSize,
-        isExpanded: _isExpanded,
-      )) {
-        _isExpanded = false;
-        _isAnimating = true;
-        _animationController.reverse().then((_) {
-          if (mounted) {
-            setState(() {
-              _isAnimating = false;
-            });
-          }
-        });
-        _expandedFromTop = null;
-        widget.onExpandChanged?.call(false);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _measureWidgetSize();
+          _measureSize();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _snapToEdge();
+            }
+          });
         });
       }
     });
   }
 
-  void _onPanEnd(DragEndDetails details) {
-    if (_position == null) return;
-
-    final mediaQuery = MediaQuery.of(context);
-
-    final currentWidgetWidth =
-        _widgetSize?.width ?? (_isExpanded ? 250.0 : 150.0);
-    final currentWidgetHeight =
-        _widgetSize?.height ?? (_isExpanded ? 300.0 : 100.0);
-    final widgetSize = Size(currentWidgetWidth, currentWidgetHeight);
-
-    if (_calculator.shouldAutoExpand(
-      currentCenterPosition: _position!,
-      mediaQuery: mediaQuery,
-      widgetSize: widgetSize,
-      isExpanded: _isExpanded,
-    )) {
-      final edgeDistances = _calculator.calculateEdgeDistances(
-        currentCenterPosition: _position!,
-        mediaQuery: mediaQuery,
-        widgetSize: widgetSize,
-        isExpanded: _isExpanded,
-      );
-      setState(() {
-        _expandedFromTop = edgeDistances.isNearTop;
-        _isExpanded = true;
-        _isAnimating = true;
-        _animationController.forward().then((_) {
-          if (mounted) {
-            setState(() {
-              _isAnimating = false;
-            });
-          }
-        });
-        final expandedSize = Size(
-          _widgetSize?.width ?? 250.0,
-          _widgetSize?.height ?? 300.0,
-        );
-        _position = _calculator.calculateExpandedCenterPosition(
-          mediaQuery: mediaQuery,
-          expandedWidgetSize: expandedSize,
-        );
-      });
-      widget.onExpandChanged?.call(true);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _measureWidgetSize();
-      });
-    } else if (_calculator.shouldAutoCollapse(
-      currentCenterPosition: _position!,
-      mediaQuery: mediaQuery,
-      widgetSize: widgetSize,
-      isExpanded: _isExpanded,
-    )) {
-      setState(() {
-        _isExpanded = false;
-        _isAnimating = true;
-        _animationController.reverse().then((_) {
-          if (mounted) {
-            setState(() {
-              _isAnimating = false;
-            });
-          }
-        });
-        _expandedFromTop = null;
-      });
-      widget.onExpandChanged?.call(false);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _measureWidgetSize();
-        _snapToNearestEdge();
-      });
-    } else if (!_isExpanded) {
-      _snapToNearestEdge();
+  void _toggle() {
+    if (_isExpanded) {
+      _collapse();
+    } else {
+      _expand();
     }
   }
 
-  void _snapToNearestEdge() {
-    if (_position == null || !mounted) return;
+  void _onPanStart(DragStartDetails details) {
+    // Track if tile was expanded before drag starts
+    _wasExpandedBeforeDrag = _isExpanded;
 
-    final mediaQuery = MediaQuery.of(context);
-
-    // Get actual widget dimensions - use conservative estimate if not measured
-    // Use larger estimate to prevent clipping
-    // Ensure we use effective size based on current expanded state
-    final estimatedWidth = _isExpanded ? mediaQuery.size.width * 0.9 : 200.0;
-    final widgetWidth = _widgetSize?.width ?? estimatedWidth;
-    final rawHeight = _widgetSize?.height ?? (_isExpanded ? 300.0 : 100.0);
-    // Use effective height to handle case where widget was measured while expanded but is now collapsed
-    final effectiveHeight = _calculator.calculateEffectiveHeight(
-      widgetSize: Size(widgetWidth, rawHeight),
-      isExpanded: _isExpanded,
-    );
-    final widgetSize = Size(widgetWidth, effectiveHeight);
-
-    // If widget hasn't been measured yet, trigger measurement
-    if (_widgetSize == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _measureWidgetSize());
+    // If expanded, collapse immediately when drag starts
+    if (_isExpanded) {
+      _expandController.stop();
+      _expandController.value = 0.0;
+      widget.onExpandChanged?.call(false);
+      setState(() {
+        _isExpanded = false;
+      });
     }
 
-    // Use calculator getter which ensures bottomPadding is current
-    final targetPosition = _calculator.calculateSnapPosition(
-      currentCenterPosition: _position!,
+    // Calculate offset from touch point to widget center
+    // This ensures smooth dragging regardless of where you touch the widget
+    Offset? centerOffset;
+    if (_centerPosition != null) {
+      // _centerPosition is in screen coordinates (center of widget)
+      // details.globalPosition is where user touched (also screen coordinates)
+      // Calculate offset: where is the center relative to the touch point
+      centerOffset = _centerPosition! - details.globalPosition;
+    }
+
+    // Lock widget size at drag start to prevent position jumps
+    final currentSize = _widgetSize ?? Size(150.0, 100.0);
+
+    setState(() {
+      _isDragging = true;
+      _lockedSizeDuringDrag = currentSize; // Lock size
+      _dragStartCenterOffset = centerOffset;
+    });
+
+    // Initialize center position if needed
+    if (_centerPosition == null) {
+      final mediaQuery = MediaQuery.of(context);
+      setState(() {
+        _centerPosition = _calculator.calculateInitialDragPosition(
+          mediaQuery: mediaQuery,
+          widgetSize: _lockedSizeDuringDrag ?? currentSize,
+        );
+        // Recalculate offset with new center
+        _dragStartCenterOffset = _centerPosition! - details.globalPosition;
+      });
+    }
+  }
+
+  void _onPanUpdate(DragUpdateDetails details) {
+    if (_centerPosition == null || _dragStartCenterOffset == null) return;
+
+    // Use LOCKED size during drag to prevent position jumps
+    final mediaQuery = MediaQuery.of(context);
+    final widgetSize =
+        _lockedSizeDuringDrag ?? _widgetSize ?? Size(150.0, 100.0);
+
+    // Calculate new center position using absolute position tracking
+    // This prevents jumps that can occur with delta accumulation
+    // New center = current touch position + offset from touch to center
+    final newCenter = details.globalPosition + _dragStartCenterOffset!;
+
+    // Clamp to screen bounds
+    final clampedCenter = _calculator.clampPosition(
+      position: newCenter,
       mediaQuery: mediaQuery,
       widgetSize: widgetSize,
       isExpanded: _isExpanded,
     );
 
-    // If behavior is freeDrag, don't snap
-    if (targetPosition == null) return;
+    // Check if collapsed widget should expand when near center
+    if (!_isExpanded) {
+      final shouldExpand = _calculator.shouldAutoExpand(
+        currentCenterPosition: clampedCenter,
+        mediaQuery: mediaQuery,
+        widgetSize: widgetSize,
+        isExpanded: false,
+      );
 
-    final startPosition = _position!;
-
-    _snapAnimationController.removeListener(_onSnapAnimationUpdate);
-    _snapAnimationController.stop();
-    _snapAnimationController.reset();
-
-    _snapAnimation = Tween<Offset>(
-      begin: startPosition,
-      end: targetPosition,
-    ).animate(CurvedAnimation(
-      parent: _snapAnimationController,
-      curve: Curves.easeOutCubic,
-    ));
-
-    _snapAnimationController.addListener(_onSnapAnimationUpdate);
-
-    _isAnimating = true;
-    _snapAnimationController.forward(from: 0.0).then((_) {
-      if (mounted) {
-        _snapAnimationController.removeListener(_onSnapAnimationUpdate);
-        _snapAnimationController.reset();
+      if (shouldExpand) {
+        // Expand but keep current position - don't force center
+        // This allows user to continue dragging while expanded
         setState(() {
-          _position = targetPosition;
-          _isAnimating = false;
+          _isExpanded = true;
+          _expandController.forward();
+          // Keep current position, don't jump to center
+          _centerPosition = clampedCenter;
+          // Recalculate drag offset to maintain relative position
+          _dragStartCenterOffset = clampedCenter - details.globalPosition;
         });
-        _snapAnimationController.addListener(_onSnapAnimationUpdate);
+
+        // Update locked size to actual expanded size after measurement
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _isExpanded) {
+            _measureSize();
+            if (_widgetSize != null) {
+              setState(() {
+                _lockedSizeDuringDrag = _widgetSize;
+              });
+            }
+          }
+        });
+        widget.onExpandChanged?.call(true);
+        return; // Early return after expanding
+      }
+    }
+
+    // Update position
+    setState(() {
+      _centerPosition = clampedCenter;
+    });
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    if (_centerPosition == null) return;
+
+    // Unlock size and stop dragging
+    setState(() {
+      _isDragging = false;
+      _lockedSizeDuringDrag = null; // Unlock size
+      _dragStartCenterOffset = null;
+    });
+
+    final mediaQuery = MediaQuery.of(context);
+
+    final widgetSize = _widgetSize ?? Size(150.0, 100.0);
+
+    // If tile is currently expanded OR was expanded before drag, always snap to edge
+    // (don't collapse or expand/center)
+    // Note: Tile collapses on drag start if it was expanded, so check both states
+    if (_isExpanded || _wasExpandedBeforeDrag) {
+      // If it was expanded before drag, it collapsed on drag start, so measure collapsed size
+      // If it's currently expanded, measure expanded size
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _measureSize();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _snapToEdge();
+          }
+        });
+      });
+      _wasExpandedBeforeDrag = false; // Reset flag
+      return;
+    }
+
+    // Check position - use shouldAutoExpand to determine if near center
+    final shouldExpand = _calculator.shouldAutoExpand(
+      currentCenterPosition: _centerPosition!,
+      mediaQuery: mediaQuery,
+      widgetSize: widgetSize,
+      isExpanded: _isExpanded,
+    );
+    final shouldCollapse = _calculator.shouldAutoCollapse(
+      currentCenterPosition: _centerPosition!,
+      mediaQuery: mediaQuery,
+      widgetSize: widgetSize,
+      isExpanded: _isExpanded,
+    );
+
+    if (shouldExpand) {
+      // Expand and center
+      setState(() {
+        _isExpanded = true;
+        _expandController.forward();
+        _centerPosition = _calculator.calculateExpandedCenterPosition(
+          mediaQuery: mediaQuery,
+          expandedWidgetSize: widgetSize,
+        );
+      });
+      widget.onExpandChanged?.call(true);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _measureSize());
+    } else if (shouldCollapse) {
+      // Collapse and snap to edge - wait for animation to complete
+      // Note: This should only happen if tile was expanded before drag started
+      // If tile was expanded and dragged, it collapsed on drag start, so this won't execute
+      setState(() {
+        _isExpanded = false;
+      });
+      widget.onExpandChanged?.call(false);
+
+      // Start collapse animation and wait for it to complete before snapping
+      // If already at 0.0, skip animation and snap directly
+      if (_expandController.value == 0.0) {
+        // Already collapsed, skip animation and snap directly
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _measureSize();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _snapToEdge();
+            }
+          });
+        });
+      } else {
+        // Animate collapse and wait for completion
+        _expandController.reverse().then((_) {
+          if (mounted) {
+            // Wait for widget to rebuild and measure collapsed size before snapping
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _measureSize();
+              // Wait another frame to ensure size is updated
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  _snapToEdge();
+                }
+              });
+            });
+          }
+        });
+      }
+    } else {
+      // Not near center or edge, OR expanded tile near edge - keep current state and snap
+      // If expanded, stay expanded; if collapsed, stay collapsed
+      // If expand animation is running, wait for it to complete first
+      if (_expandController.isAnimating ||
+          _expandController.status == AnimationStatus.forward) {
+        _expandController.addStatusListener((status) {
+          if (status == AnimationStatus.completed) {
+            _expandController.removeStatusListener((_) {});
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _measureSize();
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  _snapToEdge();
+                }
+              });
+            });
+          }
+        });
+      } else {
+        // Ensure size is measured before snapping
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _measureSize();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _snapToEdge();
+            }
+          });
+        });
+      }
+    }
+  }
+
+  void _snapToEdge() {
+    if (_centerPosition == null || !mounted) return;
+
+    // Don't snap if expand/collapse animation is running
+    // Wait for animation to complete first
+    if (_expandController.isAnimating) {
+      // Remove listener first to avoid duplicates, then add it
+      _expandController.removeStatusListener(_snapAfterAnimationListener);
+      _expandController.addStatusListener(_snapAfterAnimationListener);
+      return;
+    }
+
+    // Also check if animation is at a transition state (not completed/dismissed)
+    // If it's in the middle, wait for it to complete
+    final status = _expandController.status;
+    if (status == AnimationStatus.forward ||
+        status == AnimationStatus.reverse) {
+      _expandController.removeStatusListener(_snapAfterAnimationListener);
+      _expandController.addStatusListener(_snapAfterAnimationListener);
+      return;
+    }
+
+    final mediaQuery = MediaQuery.of(context);
+    // Use measured size - should be correct after _measureSize() is called
+    // If collapsed and size seems wrong (still expanded), estimate collapsed size
+    Size widgetSize;
+    if (!_isExpanded && _widgetSize != null && _widgetSize!.height > 200) {
+      // Likely using expanded size, estimate collapsed size
+      // Collapsed is typically much smaller (roughly 1/3 the height)
+      // Ensure minimum reasonable size
+      final estimatedHeight = (_widgetSize!.height / 3).clamp(60.0, 200.0);
+      widgetSize = Size(_widgetSize!.width.clamp(60.0, 200.0), estimatedHeight);
+    } else {
+      widgetSize = _widgetSize ?? Size(150.0, 100.0);
+    }
+
+    var targetCenter = _calculator.calculateSnapPosition(
+      currentCenterPosition: _centerPosition!,
+      mediaQuery: mediaQuery,
+      widgetSize: widgetSize,
+      isExpanded: _isExpanded,
+    );
+
+    if (targetCenter == null) return; // freeDrag behavior
+
+    // If tile was expanded before drag or is currently expanded, force snap to nearest edge
+    // even if not within thresholds (calculateSnapPosition returns currentPosition if not within thresholds)
+    if ((_wasExpandedBeforeDrag || _isExpanded) &&
+        targetCenter == _centerPosition) {
+      // Force snap to nearest edge by calculating edge position directly
+      final screenSize = mediaQuery.size;
+      final effectiveHeight = _calculator.calculateEffectiveHeight(
+        widgetSize: widgetSize,
+        isExpanded: _isExpanded,
+      );
+      final widgetWidth = widgetSize.width;
+
+      // Determine which edge is closer (top or bottom)
+      final topEdgeY =
+          _calculator.getTopInset(mediaQuery) + _calculator.edgePadding;
+      final bottomEdgeY = _calculator.getEffectiveBottomEdge(mediaQuery) -
+          _calculator.edgePadding;
+      final distanceToTop = _centerPosition!.dy - topEdgeY;
+      final distanceToBottom = bottomEdgeY - _centerPosition!.dy;
+      final snappingToTop = distanceToTop < distanceToBottom;
+
+      // Calculate target X based on alignment
+      double targetX;
+      final effectiveAlignment = _calculator.getEffectiveAlignment();
+      if (snappingToTop) {
+        targetX = screenSize.width / 2; // Top always centers horizontally
+      } else {
+        switch (effectiveAlignment) {
+          case FloatingAlignment.left:
+            targetX = widgetWidth / 2 +
+                _calculator.padding.left +
+                _calculator.getLeftInset(mediaQuery) +
+                _calculator.edgePadding;
+            break;
+          case FloatingAlignment.right:
+            targetX = screenSize.width -
+                _calculator.getRightInset(mediaQuery) -
+                _calculator.edgePadding -
+                widgetWidth / 2;
+            break;
+          case FloatingAlignment.center:
+            targetX = screenSize.width / 2;
+            break;
+        }
+      }
+
+      // Calculate target Y
+      double targetY;
+      if (snappingToTop) {
+        targetY = topEdgeY + effectiveHeight / 2;
+      } else {
+        targetY = bottomEdgeY - effectiveHeight / 2;
+      }
+
+      // Clamp to ensure widget stays on screen
+      final minX = widgetWidth / 2 +
+          _calculator.getLeftInset(mediaQuery) +
+          _calculator.edgePadding;
+      final maxX = screenSize.width -
+          widgetWidth / 2 -
+          _calculator.getRightInset(mediaQuery) -
+          _calculator.edgePadding;
+      targetX = targetX.clamp(minX, maxX);
+
+      final minY = topEdgeY + effectiveHeight / 2;
+      final maxY = bottomEdgeY - effectiveHeight / 2;
+      targetY = targetY.clamp(minY, maxY);
+
+      targetCenter = Offset(targetX, targetY);
+      // Reset flag after using it
+      _wasExpandedBeforeDrag = false;
+    }
+
+    final startCenter = _centerPosition!;
+
+    _snapController.removeListener(_onSnapUpdate);
+    _snapController.stop();
+    _snapController.reset();
+
+    _snapAnimation =
+        Tween<Offset>(begin: startCenter, end: targetCenter).animate(
+      CurvedAnimation(parent: _snapController, curve: Curves.easeOutCubic),
+    );
+
+    _snapController.addListener(_onSnapUpdate);
+    _snapController.forward(from: 0.0).then((_) {
+      if (mounted) {
+        _snapController.removeListener(_onSnapUpdate);
+        _snapController.reset();
+        setState(() {
+          _centerPosition = targetCenter;
+        });
+        _snapController.addListener(_onSnapUpdate);
       }
     });
   }
@@ -575,79 +606,45 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
-    _debugLog(
-        '[FloatingExpandableWidget] build: screenHeight=${mediaQuery.size.height}, padding.bottom=${mediaQuery.padding.bottom}, viewPadding.bottom=${mediaQuery.viewPadding.bottom}');
+    // Use LOCKED size during drag, otherwise actual size or estimate
+    final widgetSize =
+        _lockedSizeDuringDrag ?? _widgetSize ?? Size(150.0, 100.0);
 
-    // Calculate positioning
-    // Use actual measured size if available and matches current state, otherwise use estimates
-    // If expanded but _widgetSize is still collapsed (height < 200), use expanded estimate
-    final shouldUseMeasuredSize = _widgetSize != null &&
-        ((_isExpanded && _widgetSize!.height > 200) ||
-            (!_isExpanded && _widgetSize!.height <= 200));
-    final currentWidgetSize = shouldUseMeasuredSize
-        ? _widgetSize!
-        : Size(
-            _isExpanded ? 320.0 : 150.0,
-            _isExpanded ? 400.0 : 100.0,
-          );
+    // When dragging, still show expanded state if widget is expanded
+    // This prevents the toolbar from collapsing when dragging an expanded widget
+    final effectiveExpanded = _isExpanded;
 
-    _debugLog(
-        '[FloatingExpandableWidget] build: _position=${_position != null ? "set" : "null"}, _isExpanded=$_isExpanded, currentWidgetSize=$currentWidgetSize');
-
-    final position = _position != null
+    // Calculate position using actual size
+    final position = _centerPosition != null
         ? _calculator.calculateDraggedPosition(
-            currentCenterPosition: _position!,
+            currentCenterPosition: _centerPosition!,
             mediaQuery: mediaQuery,
-            widgetSize: currentWidgetSize,
-            isExpanded: _isExpanded,
+            widgetSize: widgetSize,
+            isExpanded: effectiveExpanded,
           )
         : _calculator.calculateDefaultPosition(
             mediaQuery: mediaQuery,
-            widgetSize: currentWidgetSize,
+            widgetSize: widgetSize,
           );
 
-    _debugLog(
-        '[FloatingExpandableWidget] build: calculated position: left=${position.left}, top=${position.top}, right=${position.right}, bottom=${position.bottom}');
-
-    // Validate and adjust position
-    final validatedPosition = _calculator.validatePosition(
-      position: position,
-      mediaQuery: mediaQuery,
-      widgetSize: _widgetSize,
-      isExpanded: _isExpanded,
-    );
-
-    _debugLog(
-        '[FloatingExpandableWidget] build: validated position: left=${validatedPosition.left}, top=${validatedPosition.top}, right=${validatedPosition.right}, bottom=${validatedPosition.bottom}');
-
-    final left = validatedPosition.left;
-    final top = validatedPosition.top;
-    final right = validatedPosition.right;
-    final bottom = validatedPosition.bottom;
-
-    _debugLog(
-        '[FloatingExpandableWidget] build: final Positioned values: left=$left, top=$top, right=$right, bottom=$bottom, screenHeight=${mediaQuery.size.height}');
-
-    // Calculate which position the widget is near based on actual position
+    // Determine near position
     final nearPosition = _calculator.determineNearPosition(
-      currentCenterPosition: _position,
+      currentCenterPosition: _centerPosition,
       mediaQuery: mediaQuery,
-      expandedFromTop: _expandedFromTop,
     );
 
     final callbacks = ExpandableCallbacks(
       expand: _expand,
       collapse: _collapse,
-      toggle: _toggleExpand,
-      isExpanded: _isExpanded,
+      toggle: _toggle,
+      isExpanded: effectiveExpanded,
       nearPosition: nearPosition,
     );
 
-    final isCenterAlignment = _position == null &&
+    final isCenterAlignment = _centerPosition == null &&
         _calculator.getEffectiveAlignment() == FloatingAlignment.center;
 
     if (isCenterAlignment) {
-      // For center alignment, use Positioned.fill to give full width, then Align to center
       return Positioned.fill(
         child: GestureDetector(
           onPanStart: _onPanStart,
@@ -666,7 +663,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
                   mediaQuery: mediaQuery,
                 ),
               ),
-              child: _buildContent(context, callbacks),
+              child: KeyedSubtree(
+                key: _widgetKey,
+                child: widget.contentBuilder(context, callbacks),
+              ),
             ),
           ),
         ),
@@ -674,40 +674,24 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     }
 
     return Positioned(
-      left: left,
-      top: top,
-      right: right,
-      bottom: bottom,
+      left: position.left,
+      top: position.top,
+      right: position.right,
+      bottom: position.bottom,
       child: GestureDetector(
         onPanStart: _onPanStart,
         onPanUpdate: _onPanUpdate,
         onPanEnd: _onPanEnd,
-        child: _buildContent(context, callbacks),
+        child: KeyedSubtree(
+          key: _widgetKey,
+          child: widget.contentBuilder(context, callbacks),
+        ),
       ),
-    );
-  }
-
-  Widget _buildContent(BuildContext context, ExpandableCallbacks callbacks) {
-    // Wrap content with key for size measurement
-    return KeyedSubtree(
-      key: _widgetKey,
-      child: widget.contentBuilder(context, callbacks),
     );
   }
 }
 
-/// A reusable widget that animates expanded content items with scale and fade.
-///
-/// Wraps child widgets with a scale animation (0.8 to 1.0) and opacity fade
-/// when used with FloatingExpandableWidget's expandAnimation.
-///
-/// **Usage:**
-/// ```dart
-/// ExpandedContentItem(
-///   animation: expandAnimation,
-///   child: YourWidget(),
-/// )
-/// ```
+/// Animation wrapper for expanded content items
 class ExpandedContentItem extends StatelessWidget {
   const ExpandedContentItem({
     required this.animation,
@@ -718,19 +702,10 @@ class ExpandedContentItem extends StatelessWidget {
     super.key,
   });
 
-  /// The animation that drives the expand/collapse transition
   final Animation<double> animation;
-
-  /// The child widget to animate
   final Widget child;
-
-  /// Starting scale value (default: 0.8)
   final double scaleStart;
-
-  /// Ending scale value (default: 1.0)
   final double scaleEnd;
-
-  /// Animation curve (default: Curves.easeOutCubic)
   final Curve curve;
 
   @override
@@ -738,16 +713,11 @@ class ExpandedContentItem extends StatelessWidget {
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {
-        // Scale animation with easing
         final easedProgress = curve.transform(animation.value);
         final scale = scaleStart + (easedProgress * (scaleEnd - scaleStart));
-
         return Opacity(
           opacity: animation.value,
-          child: Transform.scale(
-            scale: scale,
-            child: child,
-          ),
+          child: Transform.scale(scale: scale, child: child),
         );
       },
       child: this.child,

@@ -121,19 +121,22 @@ Widget buildToolbarContent({
                     ),
                     child: Builder(
                       builder: (context) {
-                        final draggableIndicator =
-                            buildDraggableIndicator(context);
                         final isNearTop =
                             callbacks.nearPosition == base.FloatingPosition.top;
+                        final expandCollapseButton = buildExpandCollapseButton(
+                          context,
+                          callbacks,
+                          isNearTop,
+                        );
 
                         return Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (!isNearTop) ...[
+                            if (isNearTop) ...[
                               const SizedBox(height: 4),
                             ],
-                            if (isNearTop) ...[
-                              draggableIndicator,
+                            if (!isNearTop) ...[
+                              expandCollapseButton,
                             ],
                             if (!callbacks.isExpanded)
                               IntrinsicWidth(
@@ -154,7 +157,7 @@ Widget buildToolbarContent({
                               ),
                             SizeTransition(
                               sizeFactor: expandAnimation,
-                              axisAlignment: -1.0,
+                              axisAlignment: isNearTop ? -1.0 : 1.0,
                               child: callbacks.isExpanded
                                   ? Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -239,10 +242,10 @@ Widget buildToolbarContent({
                                   ],
                                 ),
                               ),
-                            if (!isNearTop) ...[
-                              draggableIndicator,
-                            ],
                             if (isNearTop) ...[
+                              expandCollapseButton,
+                            ],
+                            if (!isNearTop) ...[
                               const SizedBox(height: 4),
                             ],
                           ],
@@ -292,22 +295,31 @@ Widget buildDraggableIndicator(BuildContext context) {
   );
 }
 
-/// Build expand/collapse button
+/// Build expand/collapse button with arrow
 Widget buildExpandCollapseButton(
   BuildContext context,
   base.ExpandableCallbacks callbacks,
   bool isNearTop,
 ) {
   // Arrow direction logic:
-  // - Always collapses down, so arrow always points down when expanded
-  // - When collapsed at top: points down (to expand down)
-  // - When collapsed at bottom: points up (to expand up)
+  // - When expanded: arrow is situation-aware
+  //   - If widget is at bottom: arrow at top pointing down (to collapse down)
+  //   - If widget is at top: arrow at bottom pointing up (to collapse up)
+  // - When collapsed: arrow points to where it would expand
+  //   - At top: points down (to expand down)
+  //   - At bottom: points up (to expand up)
   IconData arrowIcon;
   if (callbacks.isExpanded) {
-    // Expanded: always points down (to collapse down)
-    arrowIcon = Icons.expand_more_rounded;
+    // Expanded: situation-aware based on widget position
+    if (isNearTop) {
+      // Widget is at top: arrow at bottom pointing up (to collapse up)
+      arrowIcon = Icons.expand_less_rounded;
+    } else {
+      // Widget is at bottom: arrow at top pointing down (to collapse down)
+      arrowIcon = Icons.expand_more_rounded;
+    }
   } else {
-    // Collapsed: down at top, up at bottom
+    // Collapsed: arrow points to where it would expand
     arrowIcon = isNearTop
         ? Icons.expand_more_rounded // Down arrow to expand downward
         : Icons.expand_less_rounded; // Up arrow to expand upward
@@ -320,7 +332,9 @@ Widget buildExpandCollapseButton(
       borderRadius: BorderRadius.circular(8),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -330,7 +344,7 @@ Widget buildExpandCollapseButton(
               color: Theme.of(context)
                   .colorScheme
                   .onSurfaceVariant
-                  .withOpacity(0.3), // More subtle - reduced from 0.7
+                  .withOpacity(0.3),
             ),
           ],
         ),
