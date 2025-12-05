@@ -428,7 +428,6 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
         widget.onExpandChanged?.call(false);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _measureWidgetSize();
-          _snapToNearestEdge();
         });
       }
     });
