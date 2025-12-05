@@ -248,14 +248,21 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           }
         });
         _expandedFromTop = null;
+        // On collapse, snap back to default bottom position
+        final mediaQuery = MediaQuery.of(context);
+        final collapsedSize = Size(
+          _widgetSize?.width ?? 150.0,
+          _widgetSize?.height ?? 100.0,
+        );
+        _position = _calculator.calculateInitialDragPosition(
+          mediaQuery: mediaQuery,
+          widgetSize: collapsedSize,
+        );
       }
     });
     widget.onExpandChanged?.call(_isExpanded);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _measureWidgetSize();
-      if (wasExpanded && !_isExpanded && _position != null) {
-        _snapToNearestEdge();
-      }
     });
   }
 
