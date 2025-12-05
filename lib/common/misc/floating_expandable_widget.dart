@@ -69,6 +69,7 @@ class FloatingExpandableWidget extends StatefulWidget {
     this.alignment,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     this.edgePadding = 8.0,
+    this.bottomPadding = 0.0,
     this.onExpandChanged,
     super.key,
   }) : calculator = null;
@@ -93,7 +94,8 @@ class FloatingExpandableWidget extends StatefulWidget {
   })  : position = FloatingPosition.top,
         alignment = null,
         padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        edgePadding = 8.0;
+        edgePadding = 8.0,
+        bottomPadding = 0.0;
 
   /// Builder for the content widget.
   /// Receives callbacks to control expand/collapse state.
@@ -114,6 +116,10 @@ class FloatingExpandableWidget extends StatefulWidget {
 
   /// Minimum padding from screen edges (used when calculator is null)
   final double edgePadding;
+
+  /// Additional bottom padding to account for app-level UI elements (e.g., tab bars)
+  /// This is added on top of system UI padding (viewPadding.bottom)
+  final double bottomPadding;
 
   /// Custom position calculator for advanced positioning behavior.
   /// If null, a default calculator is created from position, alignment, padding, and edgePadding.
@@ -150,6 +156,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           alignment: widget.alignment,
           padding: widget.padding,
           edgePadding: widget.edgePadding,
+          bottomPadding: widget.bottomPadding,
         );
   }
 

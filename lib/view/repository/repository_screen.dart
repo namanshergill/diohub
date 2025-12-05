@@ -912,6 +912,11 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                                       : FloatingAlignment.center,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 12),
+                              // Account for tab bar height when visible:
+                              // Tab bar height (~46px) + topSpacing (4px) + defaultPadding.bottom (8px) = ~58px
+                              bottomPadding: tabController.activeLength > 1
+                                  ? 58.0
+                                  : 0.0,
                               onExpandChanged: (isExpanded) {
                                 if (isExpanded) {
                                   _expandAnimationController.forward();

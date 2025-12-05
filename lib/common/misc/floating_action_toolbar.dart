@@ -48,6 +48,7 @@ class FloatingActionToolbar extends StatefulWidget {
     this.maxHeight,
     this.prominentActions,
     this.prominentActionBuilder,
+    this.bottomPadding = 0.0,
     super.key,
   });
 
@@ -93,6 +94,10 @@ class FloatingActionToolbar extends StatefulWidget {
 
   /// Maximum height of the toolbar when expanded
   final double? maxHeight;
+
+  /// Additional bottom padding to account for app-level UI elements (e.g., tab bars)
+  /// This is added on top of system UI padding (viewPadding.bottom)
+  final double bottomPadding;
 
   @override
   State<FloatingActionToolbar> createState() => _FloatingActionToolbarState();
@@ -175,6 +180,7 @@ class _FloatingActionToolbarState extends State<FloatingActionToolbar>
       position: widget.position,
       alignment: effectiveAlignment,
       padding: widget.padding,
+      bottomPadding: widget.bottomPadding,
       onExpandChanged: _onExpandChanged,
     );
   }
