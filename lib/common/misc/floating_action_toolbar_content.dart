@@ -31,12 +31,21 @@ Widget buildToolbarContent({
   final disabledActions =
       regularActions.where((a) => a.enabled != true).toList();
 
+  // Debug logging for action filtering
+  debugPrint(
+    '[FloatingActionToolbar] Action filtering: '
+    'totalActions=${actions.length}, '
+    'prominentActions=${prominentActions?.length ?? 0}, '
+    'regularActions=${regularActions.length}, '
+    'enabledActions=${enabledActions.length}, '
+    'disabledActions=${disabledActions.length}',
+  );
+
   final visibleCount = callbacks.isExpanded
       ? (expandedVisibleCount ?? regularActions.length)
       : defaultVisibleCount;
 
   final visibleEnabledActions = enabledActions.take(visibleCount).toList();
-  final hiddenActions = enabledActions.skip(visibleCount).toList();
 
   return LiquidGlassLayer(
     settings: LiquidGlassSettings(
@@ -86,17 +95,16 @@ Widget buildToolbarContent({
                         ),
                         child: Builder(
                           builder: (context) {
-                            final isNearTop =
-                                position.toString().contains('top');
-
                             final draggableIndicator =
                                 buildDraggableIndicator(context);
+                            final isNearTop = callbacks.nearPosition ==
+                                base.FloatingPosition.top;
                             final expandCollapseButton = Padding(
                               padding: const EdgeInsets.only(top: 2),
                               child: buildExpandCollapseButton(
                                 context,
                                 callbacks,
-                                position,
+                                isNearTop,
                               ),
                             );
 
@@ -144,7 +152,11 @@ Widget buildToolbarContent({
                                                                   .length -
                                                               1 ||
                                                       disabledActions
-                                                          .isNotEmpty)
+                                                          .isNotEmpty ||
+                                                      (prominentActions !=
+                                                              null &&
+                                                          prominentActions
+                                                              .isNotEmpty))
                                                     Container(
                                                       margin: EdgeInsets.only(
                                                           right: spacing),
@@ -181,8 +193,13 @@ Widget buildToolbarContent({
                                                     ),
                                                   ),
                                                   if (index <
-                                                      disabledActions.length -
-                                                          1)
+                                                          disabledActions
+                                                                  .length -
+                                                              1 ||
+                                                      (prominentActions !=
+                                                              null &&
+                                                          prominentActions
+                                                              .isNotEmpty))
                                                     Container(
                                                       margin: EdgeInsets.only(
                                                           right: spacing),
@@ -198,6 +215,22 @@ Widget buildToolbarContent({
                                                 ],
                                               );
                                             }),
+                                            // Prominent actions in collapsed state (horizontal with text) - on the right
+                                            if (prominentActions != null &&
+                                                prominentActions.isNotEmpty)
+                                              ...prominentActions.map((action) {
+                                                return Padding(
+                                                  padding: EdgeInsets.only(
+                                                      right: spacing),
+                                                  child:
+                                                      buildCompactProminentButton(
+                                                    context,
+                                                    action,
+                                                    callbacks,
+                                                    onCollapseRequested,
+                                                  ),
+                                                );
+                                              }),
                                           ],
                                         ),
                                       ),
@@ -206,68 +239,188 @@ Widget buildToolbarContent({
                                 SizeTransition(
                                   sizeFactor: expandAnimation,
                                   axisAlignment: -1.0,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      ...enabledActions
-                                          .asMap()
-                                          .entries
-                                          .map((entry) {
-                                        final index = entry.key;
-                                        final action = entry.value;
-                                        return Padding(
-                                          padding: EdgeInsets.only(
-                                            bottom: index <
-                                                        enabledActions.length -
-                                                            1 ||
-                                                    (index ==
-                                                            enabledActions
-                                                                    .length -
-                                                                1 &&
-                                                        disabledActions
-                                                            .isNotEmpty)
-                                                ? 8
-                                                : 0,
+                                  child: (callbacks.isExpanded &&
+                                          expandAnimation.value > 0.01)
+                                      ? Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 0),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              // Grid layout for basic buttons
+                                              LayoutBuilder(
+                                                builder:
+                                                    (context, constraints) {
+                                                  // Ensure we have bounded constraints
+                                                  if (!constraints
+                                                          .hasBoundedWidth ||
+                                                      constraints.maxWidth
+                                                          .isInfinite ||
+                                                      constraints.maxWidth <=
+                                                          0 ||
+                                                      expandAnimation.value <=
+                                                          0.01) {
+                                                    // Debug logging for constraint issues
+                                                    if (constraints.maxWidth <=
+                                                            0 ||
+                                                        expandAnimation.value <=
+                                                            0.01) {
+                                                      debugPrint(
+                                                        '[FloatingActionToolbar] Skipping grid build: '
+                                                        'maxWidth=${constraints.maxWidth}, '
+                                                        'animationValue=${expandAnimation.value}, '
+                                                        'hasBoundedWidth=${constraints.hasBoundedWidth}',
+                                                      );
+                                                    }
+                                                    // Return empty container if constraints are invalid or animation is too small
+                                                    return const SizedBox
+                                                        .shrink();
+                                                  }
+
+                                                  // Calculate number of columns based on available width
+                                                  // Each button needs ~120px width, with 8px spacing
+                                                  const double minButtonWidth =
+                                                      120.0;
+                                                  const double spacing = 8.0;
+                                                  final double availableWidth =
+                                                      constraints.maxWidth
+                                                          .clamp(0.0,
+                                                              double.infinity);
+                                                  final int crossAxisCount =
+                                                      ((availableWidth +
+                                                                  spacing) /
+                                                              (minButtonWidth +
+                                                                  spacing))
+                                                          .floor()
+                                                          .clamp(2, 4);
+
+                                                  final allActions = [
+                                                    ...enabledActions,
+                                                    ...disabledActions,
+                                                  ];
+
+                                                  // Debug logging
+                                                  debugPrint(
+                                                    '[FloatingActionToolbar] Grid build: '
+                                                    'enabledActions=${enabledActions.length}, '
+                                                    'disabledActions=${disabledActions.length}, '
+                                                    'allActions=${allActions.length}, '
+                                                    'crossAxisCount=$crossAxisCount',
+                                                  );
+
+                                                  if (allActions.isEmpty) {
+                                                    return const SizedBox
+                                                        .shrink();
+                                                  }
+
+                                                  // Calculate item width for grid layout
+                                                  final double itemWidth =
+                                                      (availableWidth -
+                                                              (spacing *
+                                                                  (crossAxisCount -
+                                                                      1))) /
+                                                          crossAxisCount;
+                                                  final double itemHeight =
+                                                      itemWidth /
+                                                          2.5; // Based on childAspectRatio
+
+                                                  // Calculate number of rows needed for height calculation
+                                                  final int rowCount =
+                                                      (allActions.length /
+                                                              crossAxisCount)
+                                                          .ceil();
+                                                  final double totalHeight =
+                                                      (rowCount * itemHeight) +
+                                                          ((rowCount - 1) *
+                                                              spacing);
+
+                                                  debugPrint(
+                                                    '[FloatingActionToolbar] Grid height calculation: '
+                                                    'rowCount=$rowCount, '
+                                                    'itemWidth=$itemWidth, '
+                                                    'itemHeight=$itemHeight, '
+                                                    'totalHeight=$totalHeight',
+                                                  );
+
+                                                  // Ensure we have a valid height
+                                                  // Add extra padding to prevent cutoff
+                                                  final double safeHeight =
+                                                      totalHeight + spacing;
+
+                                                  if (safeHeight <= 0) {
+                                                    return const SizedBox
+                                                        .shrink();
+                                                  }
+
+                                                  // Use Wrap for simpler layout that handles last row naturally
+
+                                                  return Wrap(
+                                                    spacing: spacing,
+                                                    runSpacing: spacing,
+                                                    children: allActions
+                                                        .asMap()
+                                                        .entries
+                                                        .map((entry) {
+                                                      final index = entry.key;
+                                                      final action =
+                                                          entry.value;
+                                                      final actionIndex = index <
+                                                              enabledActions
+                                                                  .length
+                                                          ? index
+                                                          : enabledActions
+                                                                  .length +
+                                                              (index -
+                                                                  enabledActions
+                                                                      .length);
+
+                                                      // Calculate width - make last row items fill if incomplete
+                                                      final int itemsInLastRow =
+                                                          allActions.length %
+                                                              crossAxisCount;
+                                                      final bool isLastRow =
+                                                          index >=
+                                                              (allActions
+                                                                      .length -
+                                                                  itemsInLastRow);
+                                                      final double width = isLastRow &&
+                                                              itemsInLastRow >
+                                                                  0 &&
+                                                              itemsInLastRow <
+                                                                  crossAxisCount
+                                                          ? (availableWidth -
+                                                                  (spacing *
+                                                                      (itemsInLastRow -
+                                                                          1))) /
+                                                              itemsInLastRow
+                                                          : itemWidth;
+
+                                                      return SizedBox(
+                                                        width: width,
+                                                        child:
+                                                            buildExpandedActionWithLabel(
+                                                          context,
+                                                          action,
+                                                          actionIndex,
+                                                          callbacks,
+                                                          onCollapseRequested,
+                                                          expandAnimation,
+                                                          callbacks
+                                                                  .nearPosition ==
+                                                              base.FloatingPosition
+                                                                  .top,
+                                                        ),
+                                                      );
+                                                    }).toList(),
+                                                  );
+                                                },
+                                              ),
+                                            ],
                                           ),
-                                          child: buildExpandedActionWithLabel(
-                                            context,
-                                            action,
-                                            index,
-                                            callbacks,
-                                            onCollapseRequested,
-                                            expandAnimation,
-                                            position,
-                                          ),
-                                        );
-                                      }),
-                                      ...disabledActions
-                                          .asMap()
-                                          .entries
-                                          .map((entry) {
-                                        final index = entry.key;
-                                        final action = entry.value;
-                                        return Padding(
-                                          padding: EdgeInsets.only(
-                                            bottom: index <
-                                                    disabledActions.length - 1
-                                                ? 8
-                                                : 0,
-                                          ),
-                                          child: buildExpandedActionWithLabel(
-                                            context,
-                                            action,
-                                            enabledActions.length + index,
-                                            callbacks,
-                                            onCollapseRequested,
-                                            expandAnimation,
-                                            position,
-                                          ),
-                                        );
-                                      }),
-                                    ],
-                                  ),
+                                        )
+                                      : const SizedBox.shrink(),
                                 ),
                                 if (isNearTop) ...[
                                   expandCollapseButton,
@@ -280,40 +433,27 @@ Widget buildToolbarContent({
                           },
                         ),
                       ),
-                      if (prominentActions != null &&
+                      // Prominent actions as full-width tiles at bottom (only when expanded)
+                      if (callbacks.isExpanded &&
+                          prominentActions != null &&
                           prominentActions.isNotEmpty)
-                        Padding(
-                          padding: EdgeInsets.only(
-                            top: (callbacks.isExpanded &&
-                                        hiddenActions.isNotEmpty) ||
-                                    visibleEnabledActions.isNotEmpty
-                                ? 8
-                                : 0,
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ...prominentActions.map((action) {
-                                return Padding(
-                                  padding: EdgeInsets.only(
-                                    bottom:
-                                        action == prominentActions.last ? 0 : 6,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: (prominentActionBuilder ??
-                                            buildProminentActionCard)(
-                                          context,
-                                          action,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }),
-                            ],
-                          ),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ...prominentActions.map((action) {
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                  bottom:
+                                      action == prominentActions.last ? 0 : 6,
+                                ),
+                                child: (prominentActionBuilder ??
+                                    buildProminentActionCard)(
+                                  context,
+                                  action,
+                                ),
+                              );
+                            }),
+                          ],
                         ),
                     ],
                   ),
@@ -352,17 +492,22 @@ Widget buildDraggableIndicator(BuildContext context) {
 Widget buildExpandCollapseButton(
   BuildContext context,
   base.ExpandableCallbacks callbacks,
-  dynamic position, // FloatingToolbarPosition from floating_action_toolbar.dart
+  bool isNearTop,
 ) {
-  final isNearTop = position.toString().contains('top');
-
+  // Arrow direction logic:
+  // - When at top: points down when collapsed (to expand down), up when expanded (to collapse up)
+  // - When at bottom: points up when collapsed (to expand up), down when expanded (to collapse down)
   IconData arrowIcon;
-  if (callbacks.isExpanded) {
-    arrowIcon =
-        isNearTop ? Icons.expand_less_rounded : Icons.expand_more_rounded;
+  if (isNearTop) {
+    // At top: collapsed -> down arrow (expand_more), expanded -> up arrow (expand_less)
+    arrowIcon = callbacks.isExpanded
+        ? Icons.expand_less_rounded // Up arrow to collapse upward
+        : Icons.expand_more_rounded; // Down arrow to expand downward
   } else {
-    arrowIcon =
-        isNearTop ? Icons.expand_more_rounded : Icons.expand_less_rounded;
+    // At bottom: collapsed -> up arrow (expand_less), expanded -> down arrow (expand_more)
+    arrowIcon = callbacks.isExpanded
+        ? Icons.expand_more_rounded // Down arrow to collapse downward
+        : Icons.expand_less_rounded; // Up arrow to expand upward
   }
 
   return Material(
@@ -372,7 +517,7 @@ Widget buildExpandCollapseButton(
       borderRadius: BorderRadius.circular(8),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -383,6 +528,86 @@ Widget buildExpandCollapseButton(
                   .colorScheme
                   .onSurfaceVariant
                   .withOpacity(0.7),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Build compact prominent button with icon and text (for collapsed state)
+Widget buildCompactProminentButton(
+  BuildContext context,
+  ActionButtonData action,
+  base.ExpandableCallbacks callbacks,
+  VoidCallback? onCollapseRequested,
+) {
+  Color iconColor;
+  Color textColor;
+  Color backgroundColor;
+
+  if (!action.enabled) {
+    backgroundColor =
+        Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.2);
+    iconColor = Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3);
+    textColor = Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4);
+  } else if (action.isDestructive) {
+    backgroundColor =
+        Theme.of(context).colorScheme.errorContainer.withOpacity(0.2);
+    iconColor = Theme.of(context).colorScheme.error;
+    textColor = Theme.of(context).colorScheme.error;
+  } else if (action.isPositive) {
+    backgroundColor = Colors.green.withOpacity(0.15);
+    iconColor = Colors.green.shade600;
+    textColor = Colors.green.shade700;
+  } else {
+    backgroundColor =
+        Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.25);
+    iconColor = action.iconColor ?? Theme.of(context).colorScheme.primary;
+    textColor = Theme.of(context).colorScheme.onSurface;
+  }
+
+  return Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: action.enabled
+          ? () {
+              action.onTap?.call();
+              if (onCollapseRequested != null) {
+                onCollapseRequested();
+              } else {
+                callbacks.collapse();
+              }
+            }
+          : null,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              action.icon,
+              size: 18,
+              color: iconColor,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              action.label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
             ),
           ],
         ),
@@ -478,7 +703,7 @@ Widget buildExpandedActionWithLabel(
   base.ExpandableCallbacks callbacks,
   VoidCallback? onCollapseRequested,
   Animation<double> expandAnimation,
-  dynamic position, // FloatingToolbarPosition from floating_action_toolbar.dart
+  bool isNearTop,
 ) {
   Color iconColor;
   if (!action.enabled) {
@@ -512,7 +737,7 @@ Widget buildExpandedActionWithLabel(
 
       final easedProgress = Curves.easeOutCubic.transform(tileProgress);
 
-      final isExpandingFromTop = position.toString().contains('top');
+      final isExpandingFromTop = isNearTop;
 
       final slideOffset = isExpandingFromTop
           ? Offset(0, (1 - easedProgress) * 25)
@@ -553,24 +778,43 @@ Widget buildExpandedActionWithLabel(
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    action.icon,
-                    size: 18,
-                    color: iconColor,
-                  ),
+                // Icon and count on same row
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: iconColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        action.icon,
+                        size: 18,
+                        color: iconColor,
+                      ),
+                    ),
+                    if (badgeText != null && badgeText.isNotEmpty) ...[
+                      const SizedBox(width: 12),
+                      Text(
+                        badgeText,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              fontSize: 12,
+                              color: iconColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ],
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
+                // Title on separate row below
+                if (action.label.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
                     action.label,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontSize: 15,
@@ -582,25 +826,8 @@ Widget buildExpandedActionWithLabel(
                                   .withOpacity(0.5),
                           fontWeight: FontWeight.w500,
                         ),
-                  ),
-                ),
-                if (badgeText != null && badgeText.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: iconColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      badgeText,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: iconColor,
-                      ),
-                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ],
@@ -613,4 +840,3 @@ Widget buildExpandedActionWithLabel(
 }
 
 // FloatingToolbarPosition enum imported from floating_action_toolbar.dart
-
