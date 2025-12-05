@@ -206,8 +206,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
 
   void _toggleExpand() {
     final wasExpanded = _isExpanded;
-    final screenSize = MediaQuery.of(context).size;
-    final safeArea = MediaQuery.of(context).padding;
+    final mediaQuery = MediaQuery.of(context);
 
     setState(() {
       _isExpanded = !_isExpanded;
@@ -222,13 +221,11 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
         });
         final isNearTop = _calculator.isPositionNearTop(
           currentCenterPosition: _position,
-          screenSize: screenSize,
-          safeArea: safeArea,
+          mediaQuery: mediaQuery,
         );
         _expandedFromTop = isNearTop;
         _position = _calculator.calculateExpandedCenterPosition(
-          screenSize: screenSize,
-          safeArea: safeArea,
+          mediaQuery: mediaQuery,
         );
       } else {
         _animationController.reverse().then((_) {
@@ -264,17 +261,13 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
 
   void _onPanStart(DragStartDetails details) {
     if (_position == null) {
-      final screenSize = MediaQuery.of(context).size;
-      final safeArea = MediaQuery.of(context).padding;
-      final viewPadding = MediaQuery.of(context).viewPadding;
+      final mediaQuery = MediaQuery.of(context);
 
       final widgetWidth = _widgetSize?.width ?? 150.0;
       final widgetHeight = _widgetSize?.height ?? 100.0;
 
       _position = _calculator.calculateInitialDragPosition(
-        screenSize: screenSize,
-        safeArea: safeArea,
-        viewPadding: viewPadding,
+        mediaQuery: mediaQuery,
         widgetSize: Size(widgetWidth, widgetHeight),
       );
     }
@@ -286,9 +279,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       if (_position == null) return;
 
       final newPosition = _position! + details.delta;
-      final screenSize = MediaQuery.of(context).size;
-      final safeArea = MediaQuery.of(context).padding;
-      final viewPadding = MediaQuery.of(context).viewPadding;
+      final mediaQuery = MediaQuery.of(context);
 
       final currentWidgetWidth =
           _widgetSize?.width ?? (_isExpanded ? 250.0 : 150.0);
@@ -298,9 +289,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
 
       _position = _calculator.clampPosition(
         position: newPosition,
-        screenSize: screenSize,
-        safeArea: safeArea,
-        viewPadding: viewPadding,
+        mediaQuery: mediaQuery,
         widgetSize: widgetSize,
         isExpanded: _isExpanded,
       );
@@ -308,15 +297,13 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       // Auto-expand/collapse logic
       if (_calculator.shouldAutoExpand(
         currentCenterPosition: _position!,
-        screenSize: screenSize,
-        safeArea: safeArea,
+        mediaQuery: mediaQuery,
         widgetSize: widgetSize,
         isExpanded: _isExpanded,
       )) {
         final edgeDistances = _calculator.calculateEdgeDistances(
           currentCenterPosition: _position!,
-          screenSize: screenSize,
-          safeArea: safeArea,
+          mediaQuery: mediaQuery,
           widgetSize: widgetSize,
           isExpanded: _isExpanded,
         );
@@ -331,8 +318,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           }
         });
         _position = _calculator.calculateExpandedCenterPosition(
-          screenSize: screenSize,
-          safeArea: safeArea,
+          mediaQuery: mediaQuery,
         );
         widget.onExpandChanged?.call(true);
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -340,8 +326,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
         });
       } else if (_calculator.shouldAutoCollapse(
         currentCenterPosition: _position!,
-        screenSize: screenSize,
-        safeArea: safeArea,
+        mediaQuery: mediaQuery,
         widgetSize: widgetSize,
         isExpanded: _isExpanded,
       )) {
@@ -367,8 +352,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
   void _onPanEnd(DragEndDetails details) {
     if (_position == null) return;
 
-    final screenSize = MediaQuery.of(context).size;
-    final safeArea = MediaQuery.of(context).padding;
+    final mediaQuery = MediaQuery.of(context);
 
     final currentWidgetWidth =
         _widgetSize?.width ?? (_isExpanded ? 250.0 : 150.0);
@@ -378,15 +362,13 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
 
     if (_calculator.shouldAutoExpand(
       currentCenterPosition: _position!,
-      screenSize: screenSize,
-      safeArea: safeArea,
+      mediaQuery: mediaQuery,
       widgetSize: widgetSize,
       isExpanded: _isExpanded,
     )) {
       final edgeDistances = _calculator.calculateEdgeDistances(
         currentCenterPosition: _position!,
-        screenSize: screenSize,
-        safeArea: safeArea,
+        mediaQuery: mediaQuery,
         widgetSize: widgetSize,
         isExpanded: _isExpanded,
       );
@@ -402,8 +384,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           }
         });
         _position = _calculator.calculateExpandedCenterPosition(
-          screenSize: screenSize,
-          safeArea: safeArea,
+          mediaQuery: mediaQuery,
         );
       });
       widget.onExpandChanged?.call(true);
@@ -412,8 +393,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       });
     } else if (_calculator.shouldAutoCollapse(
       currentCenterPosition: _position!,
-      screenSize: screenSize,
-      safeArea: safeArea,
+      mediaQuery: mediaQuery,
       widgetSize: widgetSize,
       isExpanded: _isExpanded,
     )) {
@@ -442,13 +422,11 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
   void _snapToNearestEdge() {
     if (_position == null || !mounted) return;
 
-    final screenSize = MediaQuery.of(context).size;
-    final safeArea = MediaQuery.of(context).padding;
-    final viewPadding = MediaQuery.of(context).viewPadding;
+    final mediaQuery = MediaQuery.of(context);
 
     // Get actual widget dimensions - use conservative estimate if not measured
     // Use larger estimate to prevent clipping
-    final estimatedWidth = _isExpanded ? screenSize.width * 0.9 : 200.0;
+    final estimatedWidth = _isExpanded ? mediaQuery.size.width * 0.9 : 200.0;
     final widgetWidth = _widgetSize?.width ?? estimatedWidth;
     final widgetHeight = _widgetSize?.height ?? (_isExpanded ? 300.0 : 100.0);
     final widgetSize = Size(widgetWidth, widgetHeight);
@@ -460,9 +438,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
 
     final targetPosition = _calculator.calculateSnapPosition(
       currentCenterPosition: _position!,
-      screenSize: screenSize,
-      safeArea: safeArea,
-      viewPadding: viewPadding,
+      mediaQuery: mediaQuery,
       widgetSize: widgetSize,
       isExpanded: _isExpanded,
     );
@@ -499,17 +475,13 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
 
   @override
   Widget build(BuildContext context) {
-    final safeArea = MediaQuery.of(context).padding;
-    final viewPadding = MediaQuery.of(context).viewPadding;
-    final screenSize = MediaQuery.of(context).size;
+    final mediaQuery = MediaQuery.of(context);
 
     // Calculate positioning
     final position = _position != null
         ? _calculator.calculateDraggedPosition(
             currentCenterPosition: _position!,
-            screenSize: screenSize,
-            safeArea: safeArea,
-            viewPadding: viewPadding,
+            mediaQuery: mediaQuery,
             widgetSize: Size(
               _widgetSize?.width ?? (_isExpanded ? 250.0 : 150.0),
               _widgetSize?.height ?? (_isExpanded ? 300.0 : 100.0),
@@ -517,17 +489,17 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
             isExpanded: _isExpanded,
           )
         : _calculator.calculateDefaultPosition(
-            screenSize: screenSize,
-            safeArea: safeArea,
-            viewPadding: viewPadding,
+            mediaQuery: mediaQuery,
+            widgetSize: Size(
+              _widgetSize?.width ?? (_isExpanded ? 250.0 : 150.0),
+              _widgetSize?.height ?? (_isExpanded ? 300.0 : 100.0),
+            ),
           );
 
     // Validate and adjust position
     final validatedPosition = _calculator.validatePosition(
       position: position,
-      screenSize: screenSize,
-      safeArea: safeArea,
-      viewPadding: viewPadding,
+      mediaQuery: mediaQuery,
       widgetSize: _widgetSize,
       isExpanded: _isExpanded,
     );
@@ -540,8 +512,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     // Calculate which position the widget is near based on actual position
     final nearPosition = _calculator.determineNearPosition(
       currentCenterPosition: _position,
-      screenSize: screenSize,
-      safeArea: safeArea,
+      mediaQuery: mediaQuery,
       expandedFromTop: _expandedFromTop,
     );
 
@@ -570,10 +541,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
             child: Padding(
               padding: EdgeInsets.only(
                 top: _calculator.calculateTopPaddingForCenterAlignment(
-                  safeArea: safeArea,
+                  mediaQuery: mediaQuery,
                 ),
                 bottom: _calculator.calculateBottomPaddingForCenterAlignment(
-                  viewPadding: viewPadding,
+                  mediaQuery: mediaQuery,
                 ),
               ),
               child: _buildContent(context, callbacks),
