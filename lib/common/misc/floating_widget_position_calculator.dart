@@ -41,7 +41,7 @@ enum FloatingWidgetBehavior {
 /// ```
 class FloatingWidgetPositionCalculator {
   /// Creates a position calculator with the given configuration.
-  const   FloatingWidgetPositionCalculator({
+  const FloatingWidgetPositionCalculator({
     required this.position,
     this.alignment,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

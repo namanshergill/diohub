@@ -37,6 +37,7 @@ Future<void> debugURLLauncher() async {
 }
 
 void main() async {
+  ChuckerFlutter.showNotification = false;
   // ChuckerFlutter.showOnRelease = true;
   WidgetsFlutterBinding.ensureInitialized();
   // Error popup stream initialised.

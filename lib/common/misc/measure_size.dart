@@ -46,4 +46,3 @@ class _RenderMeasureSize extends RenderProxyBox {
     });
   }
 }
-

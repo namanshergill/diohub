@@ -25,6 +25,7 @@ import 'package:diohub/models/repositories/repository_model.dart';
 import 'package:diohub/providers/base_provider.dart';
 import 'package:diohub/providers/repository/branch_provider.dart';
 import 'package:diohub/providers/repository/code_provider.dart';
+import 'package:diohub/common/issues/issue_list_card.dart';
 import 'package:diohub/providers/repository/issue_templates_provider.dart';
 import 'package:diohub/providers/repository/pinned_issues_provider.dart';
 import 'package:diohub/providers/repository/readme_provider.dart';
@@ -103,16 +104,21 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
   bool _isDeepLinkComp(final String data) =>
       widget.pathData?.componentIs(2, data) ?? false;
 
+  String? _lastActiveIdentifier;
+
   @override
   void initState() {
     _setupTabs();
     tabController = DynamicTabsController(vsync: this, tabs: tabs);
+    _lastActiveIdentifier = tabController.activeIdentifier;
     tabController.addListener(_onTabChanged);
     initBranch = widget.branch;
     super.initState();
     // This HAS to be after the super initState call as some required data
     // is being set in handleDeepLink()!
     _setupProviders();
+    // Schedule periodic checks to catch tab swipes
+    _scheduleTabCheck();
   }
 
   @override
@@ -123,9 +129,26 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
   }
 
   void _onTabChanged() {
-    if (mounted) {
-      setState(() {});
+    final current = tabController.activeIdentifier;
+    if (_lastActiveIdentifier != current && mounted) {
+      setState(() {
+        _lastActiveIdentifier = current;
+      });
     }
+  }
+
+  void _scheduleTabCheck() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final current = tabController.activeIdentifier;
+      if (_lastActiveIdentifier != current) {
+        setState(() {
+          _lastActiveIdentifier = current;
+        });
+      }
+      // Schedule next check to catch swipe changes
+      _scheduleTabCheck();
+    });
   }
 
   void _setupProviders() {
@@ -600,6 +623,9 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
 
   List<ActionButtonData> _buildToolbarActions(
       BuildContext context, RepositoryModel repo) {
+    final currentTab = tabController.activeIdentifier;
+    final isOnIssuesTab = currentTab == 'Issues';
+
     final allActions = [
       ActionButtonData(
         icon: Octicons.file_code,
@@ -639,86 +665,144 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
       ),
     ];
 
-    // When on Issues tab, remove the Issues action
-    final currentTab = tabController.activeIdentifier;
-    if (currentTab == 'Issues') {
-      return allActions.where((action) => action.label != 'Issues').toList();
-    }
-
-    return allActions;
+    return allActions.map((action) {
+      // Hide the Issues action when on the Issues tab
+      if (action.label == 'Issues' && isOnIssuesTab) {
+        return action.copyWith(visible: false);
+      }
+      return action;
+    }).toList();
   }
 
   List<ActionButtonData>? _buildProminentActions(
       BuildContext context, RepositoryModel repo) {
     final currentTab = tabController.activeIdentifier;
+    final isOnIssuesTab = currentTab == 'Issues';
+    final isOnReadmeTab = currentTab == 'Readme';
 
-    // When on Issues tab, show "New Issue" as prominent action
-    if (currentTab == 'Issues') {
-      return [
-        ActionButtonData(
-          icon: Octicons.plus,
-          label: 'New Issue',
-          isPositive: true,
-          onTap: () async {
-            final issueTemplateProvider =
-                Provider.of<IssueTemplateProvider>(context, listen: false);
-            if (issueTemplateProvider.data.isNotEmpty) {
-              await showScrollableBottomSheet(
-                context,
-                headerBuilder: (
+    // Always return the same list structure, but control visibility with the visible property
+    // This allows smooth animations instead of widget recreation
+    return [
+      // "Jump to" button - prominent action, only available in Readme tab
+      ActionButtonData(
+        icon: Octicons.book,
+        label: 'Jump to',
+        visible: isOnReadmeTab, // Only visible when on Readme tab
+        onTap: () {
+          // Placeholder - functionality to be added later
+        },
+      ),
+      ActionButtonData(
+        icon: Octicons.pin,
+        label: 'Pinned Issues',
+        visible: isOnIssuesTab, // Control visibility based on tab
+        onTap: () async {
+          final pinnedIssuesProvider =
+              Provider.of<PinnedIssuesProvider>(context, listen: false);
+          if (pinnedIssuesProvider.data.totalCount > 0) {
+            await showScrollableBottomSheet(
+              context,
+              headerBuilder: (
+                final BuildContext context,
+                final StateSetter setState,
+              ) =>
+                  const BottomSheetHeaderText(
+                headerText: 'Pinned Issues',
+              ),
+              scrollableBodyBuilder: (
+                final BuildContext context,
+                final StateSetter setState,
+                final ScrollController scrollController,
+              ) =>
+                  ListView.separated(
+                controller: scrollController,
+                padding: const EdgeInsets.only(bottom: 8),
+                itemBuilder: (
                   final BuildContext context,
-                  final StateSetter setState,
+                  final int index,
                 ) =>
-                    const BottomSheetHeaderText(
-                  headerText: 'New Issue',
+                    IssueLoadingCard(
+                  pinnedIssuesProvider.data.nodes![index]!.issue.url.toString(),
                 ),
-                scrollableBodyBuilder: (
+                separatorBuilder: (
                   final BuildContext context,
-                  final StateSetter setState,
-                  final ScrollController scrollController,
+                  final int index,
                 ) =>
-                    ListenableProvider<RepositoryProvider>.value(
-                  value: Provider.of<RepositoryProvider>(
-                    context,
-                    listen: false,
-                  ),
-                  child: ListView.separated(
-                    controller: scrollController,
-                    padding: const EdgeInsets.only(bottom: 8),
-                    itemBuilder: (
-                      final BuildContext context,
-                      final int index,
-                    ) {
-                      if (issueTemplateProvider.data.length == index) {
-                        return const BlankIssueTemplate();
-                      } else {
-                        return IssueTemplateCard(
-                            issueTemplateProvider.data[index]);
-                      }
-                    },
-                    separatorBuilder: (
-                      final BuildContext context,
-                      final int index,
-                    ) =>
-                        const Divider(),
-                    itemCount: issueTemplateProvider.data.length + 1,
-                  ),
+                    const Divider(),
+                itemCount: pinnedIssuesProvider.data.nodes!.length,
+              ),
+            );
+          }
+        },
+      ),
+      // "New Issue" button - prominent action
+      // Expanded: visible everywhere EXCEPT Issues tab
+      // Collapsed: visible ONLY on Issues tab
+      // We'll handle this visibility logic in floating_action_toolbar_content.dart based on isExpanded
+      ActionButtonData(
+        icon: Octicons.plus,
+        label: 'New Issue',
+        isPositive: true,
+        // Set visible based on current state - will be overridden in rendering logic
+        // For now, set to true so it's always in the list, visibility will be controlled dynamically
+        visible: true,
+        onTap: () async {
+          final issueTemplateProvider =
+              Provider.of<IssueTemplateProvider>(context, listen: false);
+          if (issueTemplateProvider.data.isNotEmpty) {
+            await showScrollableBottomSheet(
+              context,
+              headerBuilder: (
+                final BuildContext context,
+                final StateSetter setState,
+              ) =>
+                  const BottomSheetHeaderText(
+                headerText: 'New Issue',
+              ),
+              scrollableBodyBuilder: (
+                final BuildContext context,
+                final StateSetter setState,
+                final ScrollController scrollController,
+              ) =>
+                  ListenableProvider<RepositoryProvider>.value(
+                value: Provider.of<RepositoryProvider>(
+                  context,
+                  listen: false,
                 ),
-              );
-            } else {
-              await AutoRouter.of(context).push(
-                NewIssueRoute(
-                  owner: repo.owner!.login!,
-                  repo: repo.name!,
+                child: ListView.separated(
+                  controller: scrollController,
+                  padding: const EdgeInsets.only(bottom: 8),
+                  itemBuilder: (
+                    final BuildContext context,
+                    final int index,
+                  ) {
+                    if (issueTemplateProvider.data.length == index) {
+                      return const BlankIssueTemplate();
+                    } else {
+                      return IssueTemplateCard(
+                          issueTemplateProvider.data[index]);
+                    }
+                  },
+                  separatorBuilder: (
+                    final BuildContext context,
+                    final int index,
+                  ) =>
+                      const Divider(),
+                  itemCount: issueTemplateProvider.data.length + 1,
                 ),
-              );
-            }
-          },
-        ),
-      ];
-    }
-
-    return null;
+              ),
+            );
+          } else {
+            await AutoRouter.of(context).push(
+              NewIssueRoute(
+                owner: repo.owner!.login!,
+                repo: repo.name!,
+              ),
+            );
+          }
+        },
+      ),
+    ];
   }
 
   Widget _buildActionButtons(BuildContext context, RepositoryModel repo) {
@@ -900,17 +984,17 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                             ),
                           ),
                           FloatingActionToolbar(
-                            key: ValueKey(tabController.activeIdentifier),
+                            // Use a stable key so the widget persists across tab changes
+                            // This allows smooth animations instead of widget recreation
+                            key: const ValueKey('repository_toolbar'),
                             actions: _buildToolbarActions(context, repo),
                             prominentActions:
                                 _buildProminentActions(context, repo),
                             actionCardBuilder: buildStandardActionCard,
                             // defaultVisibleCount: 2,
                             position: FloatingPosition.bottom,
-                            alignment:
-                                MediaQuery.of(context).size.width >= 600.0
-                                    ? FloatingAlignment.right
-                                    : FloatingAlignment.center,
+                            // Default alignment for bottom is right (set in FloatingActionToolbar)
+                            // alignment: null,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 12),
                             // bottomPadding should only account for OS navigation bar, not tab bar

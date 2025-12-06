@@ -1,3 +1,4 @@
+import 'package:diohub/common/animations/size_expanded_widget.dart';
 import 'package:diohub/common/misc/action_card_builder.dart';
 import 'package:diohub/common/misc/collapsible_action_buttons.dart';
 import 'package:diohub/common/misc/floating_expandable_widget.dart' as base;
@@ -25,8 +26,11 @@ Widget buildToolbarContent({
   required GlobalKey toolbarKey,
   String? title,
 }) {
+  // Keep all actions (including hidden ones) for animation support
+  // The animated widgets will handle visibility with animation and collapse to zero size
   final regularActions =
       actions.where((a) => !(prominentActions ?? []).contains(a)).toList();
+  final allProminentActions = prominentActions ?? [];
 
   // Split actions by visibility state
   final alwaysVisibleActions = regularActions
@@ -39,6 +43,8 @@ Widget buildToolbarContent({
       .toList();
 
   // Determine visible actions based on expanded state
+  // Note: We include all actions here (even if visible=false) so animations work
+  // The animated widgets will handle the visible property
   final List<ActionButtonData> visibleCollapsedActions;
   final List<ActionButtonData> visibleExpandedActions;
 
@@ -66,6 +72,8 @@ Widget buildToolbarContent({
   }
 
   // Split by enabled state for display
+  // Don't filter by visible here - let animated widgets handle visibility animations
+  // They will filter internally to prevent hit test errors when fully hidden
   final visibleCollapsedEnabled =
       visibleCollapsedActions.where((a) => a.enabled == true).toList();
   final visibleCollapsedDisabled =
@@ -125,6 +133,11 @@ Widget buildToolbarContent({
                         final isNearTop =
                             callbacks.nearPosition == base.FloatingPosition.top;
 
+                        // Don't filter by visible here - let animated widgets handle visibility animations
+                        // They will filter internally to prevent hit test errors when fully hidden
+                        final visibleProminentActionsExpanded =
+                            allProminentActions;
+
                         return Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -134,7 +147,7 @@ Widget buildToolbarContent({
                                 child: _AnimatedCollapsedActionsRow(
                                   enabledActions: visibleCollapsedEnabled,
                                   disabledActions: visibleCollapsedDisabled,
-                                  prominentActions: prominentActions,
+                                  prominentActions: allProminentActions,
                                   spacing: spacing,
                                   buildCompactIconButton:
                                       buildCompactIconButton,
@@ -184,7 +197,7 @@ Widget buildToolbarContent({
                                                       bottom: 12,
                                                     ),
                                                     child: Text(
-                                                      title!,
+                                                      title,
                                                       style: Theme.of(context)
                                                           .textTheme
                                                           .titleLarge
@@ -219,16 +232,17 @@ Widget buildToolbarContent({
                                                           .shrink();
                                                     }
 
-                                                    final allActions = [
-                                                      ...visibleExpandedActions,
-                                                    ];
+                                                    // Don't filter by visible here - let animated widgets handle visibility animations
+                                                    // They will filter internally to prevent hit test errors when fully hidden
+                                                    final allActions =
+                                                        visibleExpandedActions;
 
                                                     if (allActions.isEmpty) {
                                                       return const SizedBox
                                                           .shrink();
                                                     }
 
-                                                    // Use FlexList to show all items
+                                                    // Use FlexList to show all items with animation support
                                                     return FlexList(
                                                       horizontalSpacing: 8.0,
                                                       verticalSpacing: 8.0,
@@ -240,14 +254,17 @@ Widget buildToolbarContent({
                                                         final action =
                                                             entry.value;
 
-                                                        return buildExpandedActionWithLabel(
-                                                          context,
-                                                          action,
-                                                          index,
-                                                          callbacks,
-                                                          onCollapseRequested,
-                                                          expandAnimation,
-                                                          callbacks
+                                                        return _AnimatedExpandedAction(
+                                                          key: ValueKey(
+                                                              'expanded_${action.label}_${action.icon}'),
+                                                          action: action,
+                                                          index: index,
+                                                          callbacks: callbacks,
+                                                          onCollapseRequested:
+                                                              onCollapseRequested,
+                                                          expandAnimation:
+                                                              expandAnimation,
+                                                          isNearTop: callbacks
                                                                   .nearPosition ==
                                                               base.FloatingPosition
                                                                   .top,
@@ -264,33 +281,74 @@ Widget buildToolbarContent({
                                 );
                               },
                             ),
-                            // Prominent actions as compact tiles (only when expanded)
+                            // Prominent actions using Column (only when expanded)
+                            // Use SizeExpandedSection to collapse padding when all actions are hidden
+                            // This keeps all actions in tree while preventing empty padding
                             if (callbacks.isExpanded &&
-                                prominentActions != null &&
-                                prominentActions.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 12),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    ...prominentActions.map((action) {
-                                      return Padding(
-                                        padding: EdgeInsets.only(
-                                          bottom:
-                                              action == prominentActions.last
+                                visibleProminentActionsExpanded.isNotEmpty)
+                              SizeExpandedSection(
+                                expand: visibleProminentActionsExpanded
+                                    .any((a) => a.visible),
+                                axis: Axis.vertical,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      // Ensure we have bounded constraints
+                                      if (!constraints.hasBoundedWidth ||
+                                          constraints.maxWidth.isInfinite ||
+                                          constraints.maxWidth <= 0) {
+                                        return const SizedBox.shrink();
+                                      }
+
+                                      // Use Column instead of FlexList for prominent actions
+                                      // FlexList can have issues with zero-sized animated widgets
+                                      // Column with SizeTransition handles animations better
+                                      return Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children:
+                                            visibleProminentActionsExpanded
+                                                .asMap()
+                                                .entries
+                                                .map((entry) {
+                                          final action = entry.value;
+                                          // Special handling for "New Issue": visible in expanded state everywhere (including Issues tab)
+                                          // In collapsed state, it's only visible on Issues tab (handled below)
+                                          final modifiedAction = action.label ==
+                                                  'New Issue'
+                                              ? action.copyWith(visible: true)
+                                              : action;
+                                          return Padding(
+                                            padding: EdgeInsets.only(
+                                              bottom: entry.key ==
+                                                      visibleProminentActionsExpanded
+                                                              .length -
+                                                          1
                                                   ? 0
-                                                  : 8,
-                                        ),
-                                        child: (prominentActionBuilder ??
-                                            buildProminentActionCard)(
-                                          context,
-                                          action,
-                                        ),
+                                                  : 4.0,
+                                            ),
+                                            child: SizedBox(
+                                              width: double.infinity,
+                                              child: _AnimatedProminentAction(
+                                                key: ValueKey(
+                                                    'prominent_expanded_${modifiedAction.label}_${modifiedAction.icon}'),
+                                                action: modifiedAction,
+                                                prominentActionBuilder:
+                                                    prominentActionBuilder ??
+                                                        buildProminentActionCard,
+                                                expandAnimation:
+                                                    expandAnimation,
+                                                callbacks: callbacks,
+                                                toolbarKey: toolbarKey,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
                                       );
-                                    }),
-                                  ],
+                                    },
+                                  ),
                                 ),
                               ),
                             SizedBox(height: callbacks.isExpanded ? 4 : 4),
@@ -446,6 +504,7 @@ Widget buildCompactProminentButton(
           : null,
       borderRadius: BorderRadius.circular(12),
       child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: backgroundColor,
@@ -457,6 +516,7 @@ Widget buildCompactProminentButton(
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Icon(
               action.icon,
@@ -706,77 +766,239 @@ class _AnimatedCollapsedActionsRowState
     extends State<_AnimatedCollapsedActionsRow> {
   @override
   Widget build(BuildContext context) {
-    return Row(
+    // Don't filter by visible here - let animated widgets handle visibility animations
+    // They will filter internally to prevent hit test errors when fully hidden
+    final visibleProminentActionsCollapsed = widget.prominentActions ?? [];
+
+    return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ...widget.enabledActions.asMap().entries.map((entry) {
-                final index = entry.key;
-                final action = entry.value;
-                return _AnimatedActionButton(
-                  key: ValueKey('enabled_${action.label}_${action.icon}'),
-                  action: action,
-                  spacing: widget.spacing,
-                  buildCompactIconButton: widget.buildCompactIconButton,
-                  callbacks: widget.callbacks,
-                  onCollapseRequested: widget.onCollapseRequested,
-                  context: widget.context,
-                  showDivider: index < widget.enabledActions.length - 1 ||
-                      widget.disabledActions.isNotEmpty ||
-                      (widget.prominentActions != null &&
-                          widget.prominentActions!.isNotEmpty),
-                  expandAnimation: widget.expandAnimation,
-                );
-              }),
-              ...widget.disabledActions.asMap().entries.map((entry) {
-                final index = entry.key;
-                final action = entry.value;
-                return _AnimatedActionButton(
-                  key: ValueKey('disabled_${action.label}_${action.icon}'),
-                  action: action,
-                  spacing: widget.spacing,
-                  buildCompactIconButton: widget.buildCompactIconButton,
-                  callbacks: widget.callbacks,
-                  onCollapseRequested: widget.onCollapseRequested,
-                  context: widget.context,
-                  showDivider: index < widget.disabledActions.length - 1 ||
-                      (widget.prominentActions != null &&
-                          widget.prominentActions!.isNotEmpty),
-                  expandAnimation: widget.expandAnimation,
-                );
-              }),
-              // Prominent actions in collapsed state (horizontal with text) - on the right
-              if (widget.prominentActions != null &&
-                  widget.prominentActions!.isNotEmpty)
-                ...widget.prominentActions!.map((action) {
-                  return _AnimatedActionButton(
-                    key: ValueKey('prominent_${action.label}_${action.icon}'),
-                    action: action,
-                    spacing: widget.spacing,
-                    buildCompactIconButton:
-                        (context, action, callbacks, onCollapse) =>
-                            widget.buildCompactProminentButton(
-                      context,
-                      action,
-                      callbacks,
-                      onCollapse,
-                    ),
-                    callbacks: widget.callbacks,
-                    onCollapseRequested: widget.onCollapseRequested,
-                    context: widget.context,
-                    showDivider: false,
-                    expandAnimation: widget.expandAnimation,
-                  );
-                }),
-            ],
-          ),
+        // Horizontal row of regular actions
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ...widget.enabledActions.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final action = entry.value;
+                    return _AnimatedActionButton(
+                      key: ValueKey('enabled_${action.label}_${action.icon}'),
+                      action: action,
+                      spacing: widget.spacing,
+                      buildCompactIconButton: widget.buildCompactIconButton,
+                      callbacks: widget.callbacks,
+                      onCollapseRequested: widget.onCollapseRequested,
+                      context: widget.context,
+                      showDivider: index < widget.enabledActions.length - 1 ||
+                          widget.disabledActions.isNotEmpty,
+                      expandAnimation: widget.expandAnimation,
+                    );
+                  }),
+                  ...widget.disabledActions.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final action = entry.value;
+                    return _AnimatedActionButton(
+                      key: ValueKey('disabled_${action.label}_${action.icon}'),
+                      action: action,
+                      spacing: widget.spacing,
+                      buildCompactIconButton: widget.buildCompactIconButton,
+                      callbacks: widget.callbacks,
+                      onCollapseRequested: widget.onCollapseRequested,
+                      context: widget.context,
+                      showDivider: index < widget.disabledActions.length - 1,
+                      expandAnimation: widget.expandAnimation,
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
         ),
+        // Prominent actions in collapsed state (vertical) - below other actions
+        // Use SizeExpandedSection to collapse padding when all actions are hidden
+        // This keeps all actions in tree while preventing empty padding
+        if (visibleProminentActionsCollapsed.isNotEmpty)
+          SizeExpandedSection(
+            expand: visibleProminentActionsCollapsed.any((a) => a.visible),
+            axis: Axis.vertical,
+            child: Padding(
+              padding: EdgeInsets.only(top: widget.spacing),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: visibleProminentActionsCollapsed
+                    .asMap()
+                    .entries
+                    .map((entry) {
+                  final action = entry.value;
+                  // Special handling for "New Issue": visible in collapsed ONLY on Issues tab
+                  // Check if we're on Issues tab by checking if "Issues" action is in enabled/disabled lists but hidden
+                  final isOnIssuesTab = (widget.enabledActions
+                          .any((a) => a.label == 'Issues' && !a.visible)) ||
+                      (widget.disabledActions
+                          .any((a) => a.label == 'Issues' && !a.visible));
+                  final modifiedAction = action.label == 'New Issue'
+                      ? action.copyWith(visible: isOnIssuesTab)
+                      : action;
+                  // All actions are kept in the tree for animation, but SizeTransition
+                  // will collapse hidden ones to zero size (spacing == 0 triggers SizeTransition)
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: entry.key ==
+                              visibleProminentActionsCollapsed.length - 1
+                          ? 0
+                          : widget.spacing,
+                    ),
+                    child: _AnimatedActionButton(
+                      key: ValueKey(
+                          'prominent_${modifiedAction.label}_${modifiedAction.icon}'),
+                      action: modifiedAction,
+                      spacing:
+                          0, // No spacing for vertical layout (triggers SizeTransition)
+                      buildCompactIconButton:
+                          (context, action, callbacks, onCollapse) =>
+                              widget.buildCompactProminentButton(
+                        context,
+                        action,
+                        callbacks,
+                        onCollapse,
+                      ),
+                      callbacks: widget.callbacks,
+                      onCollapseRequested: widget.onCollapseRequested,
+                      context: widget.context,
+                      showDivider: false,
+                      expandAnimation: widget.expandAnimation,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
       ],
     );
+  }
+}
+
+/// Animated wrapper for expanded actions with visibility support
+class _AnimatedExpandedAction extends StatefulWidget {
+  const _AnimatedExpandedAction({
+    required this.action,
+    required this.index,
+    required this.callbacks,
+    required this.onCollapseRequested,
+    required this.expandAnimation,
+    required this.isNearTop,
+    super.key,
+  });
+
+  final ActionButtonData action;
+  final int index;
+  final base.ExpandableCallbacks callbacks;
+  final VoidCallback? onCollapseRequested;
+  final Animation<double> expandAnimation;
+  final bool isNearTop;
+
+  @override
+  State<_AnimatedExpandedAction> createState() =>
+      _AnimatedExpandedActionState();
+}
+
+class _AnimatedExpandedActionState extends State<_AnimatedExpandedAction>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _visibilityController;
+  late Animation<double> _fadeAnimation;
+  bool _wasVisible = true;
+  AnimationStatusListener? _statusListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _wasVisible = widget.action.visible;
+    _visibilityController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _visibilityController,
+      curve: Curves.easeInOut,
+    );
+    if (_wasVisible) {
+      _visibilityController.value = 1.0;
+    } else {
+      _visibilityController.value = 0.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedExpandedAction oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.action.visible != widget.action.visible) {
+      // Remove old listener if exists
+      if (_statusListener != null) {
+        _visibilityController.removeStatusListener(_statusListener!);
+        _statusListener = null;
+      }
+
+      if (widget.action.visible) {
+        _visibilityController.forward();
+      } else {
+        _visibilityController.reverse();
+      }
+      _wasVisible = widget.action.visible;
+
+      // Trigger size recalculation after visibility animation completes
+      _statusListener = (status) {
+        if (status == AnimationStatus.completed ||
+            status == AnimationStatus.dismissed) {
+          _visibilityController.removeStatusListener(_statusListener!);
+          _statusListener = null;
+          // Animation completed - widget will handle position updates automatically
+        }
+      };
+      _visibilityController.addStatusListener(_statusListener!);
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_statusListener != null) {
+      _visibilityController.removeStatusListener(_statusListener!);
+    }
+    _visibilityController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // For expanded actions in horizontal layout, use opacity only
+    // SizeTransition causes issues in horizontal FlexList layouts
+    final isFullyHidden = _fadeAnimation.value == 0.0;
+
+    final animatedWidget = FadeTransition(
+      opacity: _fadeAnimation,
+      child: buildExpandedActionWithLabel(
+        context,
+        widget.action,
+        widget.index,
+        widget.callbacks,
+        widget.onCollapseRequested,
+        widget.expandAnimation,
+        widget.isNearTop,
+      ),
+    );
+
+    // Prevent hit testing when fully hidden
+    if (isFullyHidden) {
+      return IgnorePointer(
+        child: animatedWidget,
+      );
+    }
+    return animatedWidget;
   }
 }
 
@@ -813,22 +1035,80 @@ class _AnimatedActionButton extends StatefulWidget {
   State<_AnimatedActionButton> createState() => _AnimatedActionButtonState();
 }
 
-class _AnimatedActionButtonState extends State<_AnimatedActionButton> {
+class _AnimatedActionButtonState extends State<_AnimatedActionButton>
+    with SingleTickerProviderStateMixin {
   double? _lastLoggedValue;
+  late AnimationController _visibilityController;
+  late Animation<double> _fadeAnimation;
+  bool _wasVisible = true;
+  AnimationStatusListener? _statusListener;
 
   @override
   void initState() {
     super.initState();
     _lastLoggedValue = widget.expandAnimation.value;
+    _wasVisible = widget.action.visible;
+    _visibilityController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _visibilityController,
+      curve: Curves.easeInOut,
+    );
+    if (_wasVisible) {
+      _visibilityController.value = 1.0;
+    } else {
+      _visibilityController.value = 0.0;
+    }
     print(
         '[_AnimatedActionButton] initState: action=${widget.action.label}, isExpanded=${widget.callbacks.isExpanded}, expandAnimation.value=${widget.expandAnimation.value}');
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedActionButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.action.visible != widget.action.visible) {
+      // Remove old listener if exists
+      if (_statusListener != null) {
+        _visibilityController.removeStatusListener(_statusListener!);
+        _statusListener = null;
+      }
+
+      if (widget.action.visible) {
+        _visibilityController.forward();
+      } else {
+        _visibilityController.reverse();
+      }
+      _wasVisible = widget.action.visible;
+
+      // Trigger size recalculation after visibility animation completes
+      _statusListener = (status) {
+        if (status == AnimationStatus.completed ||
+            status == AnimationStatus.dismissed) {
+          _visibilityController.removeStatusListener(_statusListener!);
+          _statusListener = null;
+          // Animation completed - widget will handle position updates automatically
+        }
+      };
+      _visibilityController.addStatusListener(_statusListener!);
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_statusListener != null) {
+      _visibilityController.removeStatusListener(_statusListener!);
+    }
+    _visibilityController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     // Use AnimatedBuilder to listen to animation without causing rebuild loops
     return AnimatedBuilder(
-      animation: widget.expandAnimation,
+      animation: Listenable.merge([widget.expandAnimation, _fadeAnimation]),
       builder: (context, child) {
         // When collapsing (expanding -> collapsed), expandAnimation goes from 1 to 0
         // We want buttons to animate in (from 0 to 1) as the toolbar collapses
@@ -841,6 +1121,9 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton> {
         // Calculate slide offset (vertical)
         final slideOffset = Offset(0, (1 - easedProgress) * 0.1);
 
+        // Combine collapse animation with visibility animation
+        final combinedOpacity = easedProgress * _fadeAnimation.value;
+
         // Only log when value changes significantly (every 0.1 or at endpoints)
         final animValue = widget.expandAnimation.value;
         final shouldLog = _lastLoggedValue == null ||
@@ -852,41 +1135,207 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton> {
               '[_AnimatedActionButton] build: action=${widget.action.label}, expandAnimation.value=$animValue, collapseProgress=$collapseProgress, easedProgress=$easedProgress');
         }
 
-        return Opacity(
-          opacity: easedProgress,
-          child: Transform.translate(
-            offset: slideOffset,
-            child: child,
-          ),
-        );
+        // Prevent hit testing when fully hidden to avoid hit test errors
+        final isFullyHidden = _fadeAnimation.value == 0.0;
+
+        // For prominent actions (spacing == 0), use SizeTransition to collapse vertically
+        // For regular actions (spacing > 0), use SizeTransition to collapse horizontally
+        Widget animatedWidget;
+        if (widget.spacing == 0) {
+          // Prominent actions: use SizeTransition to collapse vertically
+          animatedWidget = SizeTransition(
+            sizeFactor: _fadeAnimation,
+            axis: Axis.vertical,
+            child: Opacity(
+              opacity: combinedOpacity.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: slideOffset,
+                child: child,
+              ),
+            ),
+          );
+        } else {
+          // Regular actions: use SizeTransition to collapse width while staying in tree
+          // This allows smooth animations without removing widgets from tree
+          animatedWidget = SizeTransition(
+            sizeFactor: _fadeAnimation,
+            axis: Axis.horizontal,
+            child: Opacity(
+              opacity: combinedOpacity.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: slideOffset,
+                child: child,
+              ),
+            ),
+          );
+        }
+
+        // Prevent hit testing when fully hidden
+        if (isFullyHidden) {
+          return IgnorePointer(
+            child: animatedWidget,
+          );
+        }
+        return animatedWidget;
       },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(right: widget.spacing),
-            child: widget.buildCompactIconButton(
+      child: widget.spacing == 0
+          ? // For prominent actions (spacing == 0), the parent Column with crossAxisAlignment.stretch
+          // will expand to full width, so we don't need SizedBox(width: double.infinity)
+          // which causes IntrinsicWidth calculation issues
+          widget.buildCompactIconButton(
               widget.context,
               widget.action,
               widget.callbacks,
               widget.onCollapseRequested,
+            )
+          : // For regular actions, use horizontal row layout
+          Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(right: widget.spacing),
+                  child: widget.buildCompactIconButton(
+                    widget.context,
+                    widget.action,
+                    widget.callbacks,
+                    widget.onCollapseRequested,
+                  ),
+                ),
+                if (widget.showDivider)
+                  Container(
+                    margin: EdgeInsets.only(right: widget.spacing),
+                    width: 1,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: Theme.of(widget.context)
+                          .colorScheme
+                          .outline
+                          .withOpacity(0.15),
+                    ),
+                  ),
+              ],
             ),
-          ),
-          if (widget.showDivider)
-            Container(
-              margin: EdgeInsets.only(right: widget.spacing),
-              width: 1,
-              height: 20,
-              decoration: BoxDecoration(
-                color: Theme.of(widget.context)
-                    .colorScheme
-                    .outline
-                    .withOpacity(0.15),
-              ),
-            ),
-        ],
+    );
+  }
+}
+
+/// Animated wrapper for prominent actions in expanded state
+class _AnimatedProminentAction extends StatefulWidget {
+  const _AnimatedProminentAction({
+    required this.action,
+    required this.prominentActionBuilder,
+    required this.expandAnimation,
+    required this.callbacks,
+    required this.toolbarKey,
+    super.key,
+  });
+
+  final ActionButtonData action;
+  final Widget Function(BuildContext context, ActionButtonData action)
+      prominentActionBuilder;
+  final Animation<double> expandAnimation;
+  final base.ExpandableCallbacks callbacks;
+  final GlobalKey toolbarKey;
+
+  @override
+  State<_AnimatedProminentAction> createState() =>
+      _AnimatedProminentActionState();
+}
+
+class _AnimatedProminentActionState extends State<_AnimatedProminentAction>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _visibilityController;
+  late Animation<double> _fadeAnimation;
+  bool _wasVisible = true;
+  AnimationStatusListener? _statusListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _wasVisible = widget.action.visible;
+    _visibilityController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _visibilityController,
+      curve: Curves.easeInOut,
+    );
+    if (_wasVisible) {
+      _visibilityController.value = 1.0;
+    } else {
+      _visibilityController.value = 0.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedProminentAction oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final visibilityChanged = oldWidget.action.visible != widget.action.visible;
+
+    if (visibilityChanged) {
+      // Remove old listener if exists
+      if (_statusListener != null) {
+        _visibilityController.removeStatusListener(_statusListener!);
+        _statusListener = null;
+      }
+
+      // Always animate - don't check current value, just animate
+      if (widget.action.visible) {
+        _visibilityController.forward();
+      } else {
+        _visibilityController.reverse();
+      }
+      _wasVisible = widget.action.visible;
+
+      // Trigger size recalculation after visibility animation completes
+      _statusListener = (status) {
+        if (status == AnimationStatus.completed ||
+            status == AnimationStatus.dismissed) {
+          _visibilityController.removeStatusListener(_statusListener!);
+          _statusListener = null;
+          // Wait for animation to fully complete and layout to update
+          // Animation completed - widget will handle position updates automatically
+        }
+      };
+      _visibilityController.addStatusListener(_statusListener!);
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_statusListener != null) {
+      _visibilityController.removeStatusListener(_statusListener!);
+    }
+    _visibilityController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // SizeTransition expects an Animation<double>, not a double value
+    // The animation controller should already provide values between 0.0 and 1.0
+    final isFullyHidden = _fadeAnimation.value == 0.0;
+
+    final animatedWidget = SizeTransition(
+      sizeFactor: _fadeAnimation,
+      axis: Axis.vertical,
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SizedBox(
+          width: double.infinity,
+          child: widget.prominentActionBuilder(context, widget.action),
+        ),
       ),
     );
+
+    // Prevent hit testing when fully hidden
+    if (isFullyHidden) {
+      return IgnorePointer(
+        child: animatedWidget,
+      );
+    }
+    return animatedWidget;
   }
 }
 

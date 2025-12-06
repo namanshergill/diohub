@@ -85,6 +85,7 @@ class ActionButtonData {
     this.isPositive = false,
     this.actionType,
     this.visibilityState = ActionButtonVisibilityState.maybeVisible,
+    this.visible = true,
   });
 
   final IconData icon;
@@ -107,6 +108,41 @@ class ActionButtonData {
   /// Visibility state for collapsed toolbar state
   /// Determines when this button appears in the collapsed horizontal bar
   final ActionButtonVisibilityState visibilityState;
+
+  /// Whether this action button is visible (can be dynamically changed to show/hide with animation)
+  /// When false, the button will be hidden from both collapsed and expanded states
+  final bool visible;
+
+  /// Creates a copy of this ActionButtonData with updated properties
+  ActionButtonData copyWith({
+    IconData? icon,
+    String? label,
+    VoidCallback? onTap,
+    Widget? leading,
+    Widget? trailing,
+    Color? iconColor,
+    bool? enabled,
+    bool? isDestructive,
+    bool? isPositive,
+    ActionButtonActionType? actionType,
+    ActionButtonVisibilityState? visibilityState,
+    bool? visible,
+  }) {
+    return ActionButtonData(
+      icon: icon ?? this.icon,
+      label: label ?? this.label,
+      onTap: onTap ?? this.onTap,
+      leading: leading ?? this.leading,
+      trailing: trailing ?? this.trailing,
+      iconColor: iconColor ?? this.iconColor,
+      enabled: enabled ?? this.enabled,
+      isDestructive: isDestructive ?? this.isDestructive,
+      isPositive: isPositive ?? this.isPositive,
+      actionType: actionType ?? this.actionType,
+      visibilityState: visibilityState ?? this.visibilityState,
+      visible: visible ?? this.visible,
+    );
+  }
 }
 
 /// A reusable widget that displays action buttons with expand/collapse functionality.

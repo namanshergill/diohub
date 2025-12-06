@@ -230,9 +230,8 @@ class HomeScreenState extends State<HomeScreen>
             defaultVisibleCount:
                 3, // Show Issues, PRs, and App Settings in compact mode
             position: FloatingPosition.bottom,
-            alignment: MediaQuery.of(context).size.width >= 600.0
-                ? FloatingAlignment.right
-                : FloatingAlignment.center,
+            // Default alignment for bottom is right (set in FloatingActionToolbar)
+            // alignment: null,
             title: context.provider<CurrentUserProvider>().data.login,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             onExpandChanged: (isExpanded) {

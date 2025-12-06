@@ -189,7 +189,7 @@ Widget buildProminentActionCard(
   ActionButtonData action, {
   double iconSize = 20,
   double borderRadius = 14,
-  EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+  EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
 }) {
   Color iconColor;
   Color textColor;
@@ -197,7 +197,14 @@ Widget buildProminentActionCard(
   Color badgeColor;
   Color badgeTextColor;
 
-  if (!action.enabled) {
+  // Special handling for "Jump to" button - whitish background (similar to positive button style)
+  if (action.label == 'Jump to') {
+    backgroundColor = Colors.white.withOpacity(0.15);
+    iconColor = Colors.grey.shade700;
+    textColor = Colors.grey.shade800;
+    badgeColor = Colors.grey.shade700;
+    badgeTextColor = Colors.white;
+  } else if (!action.enabled) {
     backgroundColor =
         context.colorScheme.surfaceContainerHighest.withOpacity(0.2);
     iconColor = context.colorScheme.onSurfaceVariant.withOpacity(0.3);
@@ -244,6 +251,7 @@ Widget buildProminentActionCard(
         onTap: action.enabled ? action.onTap : null,
         borderRadius: BorderRadius.circular(borderRadius),
         child: Container(
+          width: double.infinity,
           padding: padding,
           decoration: BoxDecoration(
             color: backgroundColor,
@@ -255,6 +263,7 @@ Widget buildProminentActionCard(
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               // Icon
               Stack(

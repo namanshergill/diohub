@@ -312,7 +312,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     );
 
     // Check if collapsed widget should expand when near center
-    if (!_isExpanded) {
+    // BUT: If widget was expanded before drag started, don't allow re-expansion during drag
+    // This prevents the loop where user tries to collapse a tall expanded widget by dragging,
+    // but it keeps re-expanding because the collapsed center is far from edge
+    if (!_isExpanded && !_wasExpandedBeforeDrag) {
       final shouldExpand = _calculator.shouldAutoExpand(
         currentCenterPosition: clampedCenter,
         mediaQuery: mediaQuery,
@@ -379,10 +382,11 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             _snapToEdge();
+            // Reset flag after snapping is initiated
+            _wasExpandedBeforeDrag = false;
           }
         });
       });
-      _wasExpandedBeforeDrag = false; // Reset flag
       return;
     }
 
@@ -526,11 +530,22 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       isExpanded: _isExpanded,
     );
 
-    if (targetCenter == null) return; // freeDrag behavior
+    // If calculateSnapPosition returns null (not within threshold), force snap for collapsed widgets
+    // or widgets that were expanded before drag
+    final shouldForceSnap =
+        targetCenter == null && (!_isExpanded || _wasExpandedBeforeDrag);
+    if (targetCenter == null) {
+      if (shouldForceSnap) {
+        // Force snap to nearest edge - set to current position to trigger force snap logic below
+        targetCenter = _centerPosition;
+      } else {
+        return; // freeDrag behavior for expanded widgets
+      }
+    }
 
-    // If tile was expanded before drag or is currently expanded, force snap to nearest edge
-    // even if not within thresholds (calculateSnapPosition returns currentPosition if not within thresholds)
-    if ((_wasExpandedBeforeDrag || _isExpanded) &&
+    // If tile was expanded before drag, is currently expanded, or should force snap,
+    // force snap to nearest edge even if not within thresholds
+    if ((_wasExpandedBeforeDrag || _isExpanded || shouldForceSnap) &&
         targetCenter == _centerPosition) {
       // Force snap to nearest edge by calculating edge position directly
       final screenSize = mediaQuery.size;
