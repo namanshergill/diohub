@@ -49,8 +49,8 @@ class FloatingWidgetPositionCalculator {
     this.bottomPadding = 0.0,
     this.initialPosition,
     this.behavior = FloatingWidgetBehavior.snapToEdges,
-    this.topSnapThresholdPercent = 0.25,
-    this.bottomSnapThresholdPercent = 0.25,
+    this.topSnapThresholdPercent = 0.4,
+    this.bottomSnapThresholdPercent = 0.4,
     this.debugLogging = false,
   });
 
@@ -546,15 +546,27 @@ class FloatingWidgetPositionCalculator {
     required Size widgetSize,
     required bool isExpanded,
   }) {
-    // Calculate distances from widget's CENTER to screen edges (not from widget's top/bottom)
+    // Calculate distances from widget's ACTUAL EDGES to screen edges (not from center)
+    // This is important for tall widgets - using center makes them appear farther from edges
     final topEdgeY = getTopInset(mediaQuery) + edgePadding;
     final bottomEdgeY = getEffectiveBottomEdge(mediaQuery) - edgePadding;
-    final distanceToTopEdge = currentCenterPosition.dy - topEdgeY;
-    final distanceToBottomEdge = bottomEdgeY - currentCenterPosition.dy;
+
+    // Calculate widget's actual top and bottom edges
+    final widgetTopEdge = currentCenterPosition.dy - widgetSize.height / 2;
+    final widgetBottomEdge = currentCenterPosition.dy + widgetSize.height / 2;
+
+    // Distance from widget's top edge to screen top edge
+    final distanceToTopEdge = widgetTopEdge - topEdgeY;
+    // Distance from widget's bottom edge to screen bottom edge
+    final distanceToBottomEdge = bottomEdgeY - widgetBottomEdge;
+
     final distanceToNearestEdge = distanceToTopEdge < distanceToBottomEdge
         ? distanceToTopEdge
         : distanceToBottomEdge;
     final isNearTop = distanceToTopEdge < distanceToBottomEdge;
+
+    print(
+        '[FloatingWidgetPositionCalculator] calculateEdgeDistances: center=$currentCenterPosition, widgetSize=$widgetSize, isExpanded=$isExpanded, topEdgeY=$topEdgeY, bottomEdgeY=$bottomEdgeY, widgetTop=$widgetTopEdge, widgetBottom=$widgetBottomEdge, distanceToTop=$distanceToTopEdge, distanceToBottom=$distanceToBottomEdge, nearest=$distanceToNearestEdge');
 
     return (
       distanceToTopEdge: distanceToTopEdge,
@@ -602,7 +614,10 @@ class FloatingWidgetPositionCalculator {
       thresholdPercent: thresholdPercent,
     );
 
-    return edgeDistances.distanceToNearestEdge > threshold;
+    final shouldExpand = edgeDistances.distanceToNearestEdge > threshold;
+    print(
+        '[FloatingWidgetPositionCalculator] shouldAutoExpand: position=$currentCenterPosition, widgetSize=$widgetSize, distanceToNearestEdge=${edgeDistances.distanceToNearestEdge}, threshold=$threshold, shouldExpand=$shouldExpand');
+    return shouldExpand;
   }
 
   /// Determines if widget should auto-collapse based on position.
