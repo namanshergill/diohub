@@ -25,6 +25,7 @@ class AddedEventCard extends StatelessWidget {
   @override
   Widget build(final BuildContext context) => BaseEventCard(
         actor: event.actor!.login,
+        eventType: event.type,
         headerText: <TextSpan>[
           TextSpan(text: '$eventTextMiddle'),
           TextSpan(

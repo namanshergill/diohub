@@ -27,9 +27,10 @@ class RepoEventCard extends StatelessWidget {
   @override
   Widget build(final BuildContext context) => BaseEventCard.singular(
         isInTimeline: isInTimeline,
+        eventType: event.type,
         actor: event.actor!.login,
         headerText: <TextSpan>[
-          TextSpan(text: ' $eventTextMiddle '),
+          TextSpan(text: eventTextMiddle),
           if (eventTextEnd != null) TextSpan(text: ' $eventTextEnd'),
         ],
         userLogin: event.actor!.login,

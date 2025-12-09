@@ -1,168 +1,251 @@
 import 'package:auto_route/auto_route.dart';
+import 'package:diohub/adapters/deep_linking_handler.dart';
 import 'package:diohub/common/issues/issue_label.dart';
-import 'package:diohub/common/misc/tappable_card.dart';
+import 'package:diohub/common/misc/header_card.dart';
+import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/models/issues/issue_model.dart';
 import 'package:diohub/models/pull_requests/pull_request_model.dart';
-import 'package:diohub/routes/router.gr.dart';
 import 'package:diohub/utils/get_date.dart';
 import 'package:diohub/utils/utils.dart';
+import 'package:diohub/view/issues_pulls/issue_pull_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 
+/// A widget that displays a pull request card using the nested card layout,
+/// similar to the nested issue card.
 class PullListCard extends StatelessWidget {
   const PullListCard(
     this.item, {
-    this.compact = false,
-    // this.disableMaterial = false,
     this.showRepoName = true,
-    this.padding = const EdgeInsets.symmetric(horizontal: 8),
     super.key,
   });
 
   final PullRequestModel item;
-  final bool compact;
-
-  // final bool disableMaterial;
-  final EdgeInsets padding;
   final bool showRepoName;
 
   @override
   Widget build(final BuildContext context) {
-    final String? href = item.links?.self?.href;
-    final String repoPath = href?.replaceAll('https://api.github.com/repos/', '') ?? '';
-    final List<String> pathParts = repoPath.split('/');
-    final String repoName = pathParts.length >= 2 ? pathParts[1] : '';
-    final String ownerName = pathParts.isNotEmpty ? pathParts[0] : '';
-    
-    return BasicCard(
-      onTap: href != null && item.number != null
-          ? () async {
-              await context.router.push(
-                IssuePullRoute(
-                  number: item.number!,
-                  repoName: repoName,
-                  ownerName: ownerName,
-                ),
-              );
-            }
-          : null,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    // Extract repo name from URL
+    final String? repoName = item.url != null
+        ? item.url!
+            .replaceAll('https://api.github.com/repos/', '')
+            .split('/')
+            .sublist(0, 2)
+            .join('/')
+        : null;
+
+    return InkPot(
+      onTap: () async {
+        if (item.url != null) {
+          await AutoRouter.of(context)
+              .push(issuePullScreenRoute(PathData.fromURL(item.url!)));
+        }
+      },
+      child: HeaderCard(
+        header: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Row(
-              children: <Widget>[
-                GetPullIcon(item.state ?? IssueState.OPEN, item.mergedAt),
-                const SizedBox(
-                  width: 4,
-                ),
-                if (showRepoName && repoPath.isNotEmpty)
-                  Flexible(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: Text(
-                        pathParts.length >= 2
-                            ? pathParts.sublist(0, 2).join('/')
-                            : repoPath,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            // color: Provider.of<PaletteSettings>(context)
-                            //     .currentSetting
-                            //     .faded3,
-                            ),
+            // Pull request icon in colored container with PR number
+            Container(
+              constraints: const BoxConstraints(minWidth: 24),
+              height: 24,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                color: _getPullIconColor(context, item.state, item.mergedAt)
+                    .withOpacity(0.12),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Icon(
+                    _getPullIcon(item.state, item.mergedAt),
+                    size: 12,
+                    color:
+                        _getPullIconColor(context, item.state, item.mergedAt),
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${item.number}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: _getPullIconColor(
+                              context, item.state, item.mergedAt),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 3),
+            // Repo name (only if showRepoName is true)
+            if (showRepoName && repoName != null) ...[
+              Flexible(
+                child: Text(
+                  repoName,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.colorScheme.onSurfaceVariant
+                            .withOpacity(0.8),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 11,
                       ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+            // Author and Comments (only if showRepoName is false)
+            if (!showRepoName) ...[
+              // Creator
+              SizedBox(width: 4),
+              if (item.user?.login != null) ...[
+                Text(
+                  item.user!.login ?? '',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.colorScheme.onSurfaceVariant
+                            .withOpacity(0.75),
+                        fontSize: 11,
+                      ),
+                ),
+                if (item.comments != null && item.comments! > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Container(
+                      width: 1,
+                      height: 12,
+                      color:
+                          context.colorScheme.onSurfaceVariant.withOpacity(0.2),
                     ),
                   ),
-                if (item.number != null)
-                  Text(
-                    '#${item.number}',
-                    style: const TextStyle(
-                        // color: Provider.of<PaletteSettings>(context)
-                        //     .currentSetting
-                        //     .faded3,
-                        ),
-                  ),
               ],
-            ),
-            const SizedBox(
-              height: 8,
-            ),
-            if (item.title != null)
-              Text(
-                item.title!,
-                // style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            if (!compact)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const SizedBox(
-                    height: 8,
-                  ),
-                  Text(
-                    item.state == IssueState.CLOSED
-                        ? item.mergedAt != null
-                            ? 'By ${item.user?.login ?? 'Unknown'}, merged ${getDate(item.mergedAt.toString(), shorten: false)}.'
-                            : 'By ${item.user?.login ?? 'Unknown'}, closed ${getDate(item.closedAt?.toString() ?? '', shorten: false)}.'
-                        : 'Opened ${getDate(item.createdAt?.toString() ?? '', shorten: false)} by ${item.user?.login ?? 'Unknown'}',
-                    style: context.textTheme.bodySmall?.asHint(),
-                  ),
-                  const SizedBox(
-                    height: 8,
-                  ),
-                  if (item.labels != null && item.labels!.isNotEmpty)
-                    Wrap(
-                      children: List<Widget>.generate(
-                        item.labels!.length,
-                        (final int index) => Padding(
-                          padding: const EdgeInsets.only(
-                            right: 8,
-                            bottom: 8,
+              // Comments
+              if (item.comments != null && item.comments! > 0)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      Octicons.comment,
+                      size: 11,
+                      color: context.colorScheme.onSurfaceVariant
+                          .withOpacity(0.75),
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${item.comments}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.onSurfaceVariant
+                                .withOpacity(0.75),
                           ),
-                          child: IssueLabel(item.labels![index]),
+                    ),
+                  ],
+                ),
+            ],
+          ],
+        ),
+        trailing: Text(
+          getDate(
+            item.state == IssueState.CLOSED
+                ? (item.mergedAt ?? item.closedAt)?.toString() ??
+                    item.createdAt?.toString() ??
+                    ''
+                : item.createdAt?.toString() ?? '',
+            shorten: true,
+          ),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: context.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                fontSize: 10,
+              ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            // Pull request title
+            Text(
+              item.title ?? '',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: context.colorScheme.onSurface,
+                    height: 1.3,
+                  ),
+            ),
+            // Labels
+            if (item.labels != null && item.labels!.isNotEmpty) ...[
+              const SizedBox(height: 5),
+              Wrap(
+                spacing: 3,
+                runSpacing: 3,
+                children: List<Widget>.generate(
+                  item.labels!.length,
+                  (final int index) => IssueLabel(item.labels![index]),
+                ),
+              ),
+            ],
+            // Metadata: creator, comments (only if showRepoName is true)
+            if (showRepoName) ...[
+              const SizedBox(height: 5),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  // Creator
+                  if (item.user?.login != null) ...[
+                    Text(
+                      '${item.user!.login}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.onSurfaceVariant
+                                .withOpacity(0.75),
+                          ),
+                    ),
+                  ],
+                  // Comments
+                  if (item.comments != null && item.comments! > 0)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Octicons.comment,
+                          size: 13,
+                          color: context.colorScheme.onSurfaceVariant
+                              .withOpacity(0.75),
                         ),
-                      ),
+                        const SizedBox(width: 2),
+                        Text(
+                          '${item.comments}',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: context.colorScheme.onSurfaceVariant
+                                        .withOpacity(0.75),
+                                  ),
+                        ),
+                      ],
                     ),
                 ],
               ),
+            ],
           ],
         ),
       ),
     );
   }
-}
 
-class GetPullIcon extends StatelessWidget {
-  const GetPullIcon(this.state, this.mergedAt, {super.key});
-
-  final IssueState state;
-  final DateTime? mergedAt;
-
-  @override
-  Widget build(final BuildContext context) {
-    switch (state) {
-      case IssueState.CLOSED:
-        if (mergedAt == null) {
-          return const Icon(
-            Octicons.git_pull_request,
-            // color: red,
-            size: 15,
-          );
-        } else {
-          return const Icon(
-            Octicons.git_merge,
-            // color: deepPurple,
-            size: 15,
-          );
-        }
-      case IssueState.OPEN:
-      case IssueState.REOPENED:
-        return const Icon(
-          Octicons.git_pull_request,
-          // color: green,
-          size: 15,
-        );
+  IconData _getPullIcon(IssueState? state, DateTime? mergedAt) {
+    if (state == IssueState.CLOSED && mergedAt != null) {
+      return Octicons.git_merge;
     }
+    return Octicons.git_pull_request;
+  }
+
+  Color _getPullIconColor(
+      BuildContext context, IssueState? state, DateTime? mergedAt) {
+    if (state == IssueState.CLOSED) {
+      if (mergedAt != null) {
+        return const Color(0xFF9C27B0); // Purple for merged
+      } else {
+        return const Color(0xFFF44336); // Red for closed
+      }
+    }
+    // OPEN or REOPENED
+    return const Color(0xFF4CAF50); // Green
   }
 }

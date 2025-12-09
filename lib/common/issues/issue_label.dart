@@ -22,21 +22,26 @@ class IssueLabel extends StatelessWidget {
           DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: context.themeData
-                  .extension<BorderRadiusTheme>()
-                  ?.smallBorderRadius,
+                      .extension<BorderRadiusTheme>()
+                      ?.smallBorderRadius ??
+                  BorderRadius.circular(4),
+              color: Color(int.tryParse('0xFF$color') ?? 0xFFFFFFFF)
+                  .withOpacity(0.3),
               border: Border.all(
-                color: Color(int.tryParse('0xFF$color') ?? 0xFFFFFFFF),
-              ),
-              color: Color(int.tryParse('0x70$color') ?? 0xFFFFFFFF),
+                  color: Color(int.tryParse('0x60$color') ?? 0xFFFFFFFF),
+                  width: 0.8),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               child: Center(
                 child: Text(
                   name,
-                  style: TextStyle(
-                    color: context.colorScheme.onSurface,
-                  ).merge(context.textTheme.bodySmall),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        // color: Color(int.tryParse('0xFF$color') ?? 0xFF000000),
+                        fontSize: 11,
+                        color: context.colorScheme.onSurface.withOpacity(0.7),
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
               ),
             ),

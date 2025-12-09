@@ -19,6 +19,7 @@ class PushEventCard extends StatelessWidget {
   @override
   Widget build(final BuildContext context) => BaseEventCard.singular(
         isInTimeline: isInTimeline,
+        eventType: event.type,
         onTap: () async {
           if (event.repo?.url != null && data.ref != null) {
             await AutoRouter.of(context).push(
@@ -70,50 +71,50 @@ class PushEventCard extends StatelessWidget {
                         (final int index) {
                           final commit = (data.commits ?? [])[index];
                           return InkPot(
-                    onTap: () async {
-                      if (commit.url != null) {
-                        await AutoRouter.of(context).push(
-                          CommitInfoRoute(
-                            commitURL: commit.url!,
-                          ),
-                        );
-                      }
-                    },
-                    onLongPress: () async {
-                      if (data.ref != null && event.repo?.url != null) {
-                        await AutoRouter.of(context).push(
-                          RepositoryRoute(
-                            index: 2,
-                            branch: data.ref!.split('/').last,
-                            repositoryURL: event.repo!.url!,
-                            initSHA: commit.sha,
-                          ),
-                        );
-                      }
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 8,
-                      ),
-                      child: Text.rich(
-                        TextSpan(
-                          style: Theme.of(context).textTheme.bodyMedium,
-                          children: <InlineSpan>[
-                            if (commit.sha != null)
-                              TextSpan(
-                                text:
-                                    '#${commit.sha!.substring(0, commit.sha!.length > 6 ? 6 : commit.sha!.length)}',
-                                style: TextStyle(
-                                  color: context.colorScheme.primary,
+                            onTap: () async {
+                              if (commit.url != null) {
+                                await AutoRouter.of(context).push(
+                                  CommitInfoRoute(
+                                    commitURL: commit.url!,
+                                  ),
+                                );
+                              }
+                            },
+                            onLongPress: () async {
+                              if (data.ref != null && event.repo?.url != null) {
+                                await AutoRouter.of(context).push(
+                                  RepositoryRoute(
+                                    index: 2,
+                                    branch: data.ref!.split('/').last,
+                                    repositoryURL: event.repo!.url!,
+                                    initSHA: commit.sha,
+                                  ),
+                                );
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 8,
+                              ),
+                              child: Text.rich(
+                                TextSpan(
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                  children: <InlineSpan>[
+                                    if (commit.sha != null)
+                                      TextSpan(
+                                        text:
+                                            '#${commit.sha!.substring(0, commit.sha!.length > 6 ? 6 : commit.sha!.length)}',
+                                        style: TextStyle(
+                                          color: context.colorScheme.primary,
+                                        ),
+                                      ),
+                                    if (commit.message != null)
+                                      TextSpan(text: '  ${commit.message}'),
+                                  ],
                                 ),
                               ),
-                            if (commit.message != null)
-                              TextSpan(text: '  ${commit.message}'),
-                          ],
-                        ),
-                      ),
-                    ),
+                            ),
                           );
                         },
                       ),

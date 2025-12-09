@@ -11,9 +11,10 @@ class PullEventCard extends StatelessWidget {
   @override
   Widget build(final BuildContext context) => BaseEventCard.singular(
         isInTimeline: isInTimeline,
+        eventType: event.type,
         actor: event.actor!.login,
         headerText: <TextSpan>[
-          TextSpan(text: ' ${event.payload!.action} a pull request in '),
+          TextSpan(text: '${event.payload!.action} a pull request in '),
           TextSpan(
             text: event.repo!.name,
             style: const TextStyle(fontWeight: FontWeight.bold),
@@ -24,8 +25,7 @@ class PullEventCard extends StatelessWidget {
         avatarUrl: event.actor!.avatarUrl,
         child: PullListCard(
           event.payload!.pullRequest!,
-          compact: true,
-          padding: EdgeInsets.zero,
+          showRepoName: false,
         ),
       );
 }

@@ -18,6 +18,7 @@ class IssuesEventCard extends StatelessWidget {
   @override
   Widget build(final BuildContext context) => BaseEventCard.singular(
         isInTimeline: isInTimeline,
+        eventType: event.type,
         actor: event.actor!.login,
         headerText: <TextSpan>[
           TextSpan(text: '${event.payload!.action} $trailingHeaderText'),
@@ -29,7 +30,7 @@ class IssuesEventCard extends StatelessWidget {
           event.payload!.issue!,
           commentsSince: time,
           // disableMaterial: true,
-          compact: true,
+          // compact: true,
         ),
       );
 }

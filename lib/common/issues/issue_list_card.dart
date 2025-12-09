@@ -1,7 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:diohub/adapters/deep_linking_handler.dart';
 import 'package:diohub/common/issues/issue_label.dart';
-import 'package:diohub/common/misc/info_card.dart';
 import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/misc/loading_indicator.dart';
 import 'package:diohub/common/pulls/pull_loading_card.dart';
@@ -17,17 +16,12 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 class IssueListCard extends StatelessWidget {
   const IssueListCard(
     this.item, {
-    this.compact = false,
     this.showRepoName = true,
-    // this.disableMaterial = false,
     this.commentsSince,
     super.key,
   });
 
   final IssueModel item;
-  final bool compact;
-
-  // final bool disableMaterial;
   final DateTime? commentsSince;
   final bool showRepoName;
 
@@ -37,112 +31,195 @@ class IssueListCard extends StatelessWidget {
       return PullLoadingCard(
         item.pullRequest!.url!,
         issueModel: item,
-        // disableMaterial: disableMaterial,
-        compact: compact,
       );
     }
-    final Padding child = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              getIcon(item.state!),
-              const SizedBox(
-                width: 4,
+
+    // Extract repo name from URL
+    final String? repoName = item.url != null
+        ? item.url!
+            .replaceAll('https://api.github.com/repos/', '')
+            .split('/')
+            .sublist(0, 2)
+            .join('/')
+        : null;
+
+    // Title-first hierarchy: Title first, then context, then metadata
+    final Widget content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        // Issue title (most prominent - first)
+        Text(
+          item.title!,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: context.colorScheme.onSurface,
+                height: 1.3,
               ),
-              const SizedBox(
-                height: 4,
-              ),
+        ),
+        // Context row: Repo name + Issue number + State icon (grouped together)
+        // OR Author + Comments (when showRepoName is false)
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: <Widget>[
+            // Repo name (only if showRepoName is true)
+            if (showRepoName && repoName != null)
               Text(
-                '${item.number}',
-                style: context.textTheme.bodyMedium?.asHint(),
+                repoName,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color:
+                          context.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    ),
+                overflow: TextOverflow.ellipsis,
               ),
+            // Author and Comments (only if showRepoName is false)
+            if (!showRepoName) ...[
+              // Creator
+              if (item.user?.login != null) ...[
+                Text(
+                  item.user!.login ?? '',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.colorScheme.onSurfaceVariant
+                            .withOpacity(0.75),
+                      ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Container(
+                    width: 1,
+                    height: 12,
+                    color:
+                        context.colorScheme.onSurfaceVariant.withOpacity(0.2),
+                  ),
+                ),
+              ],
+              // Comments
               if (item.comments != 0)
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    const SizedBox(
-                      width: 16,
-                    ),
                     Icon(
                       Octicons.comment,
-                      color: context.colorScheme.onSurface.asHint(),
-                      size: 11,
+                      size: 13,
+                      color: context.colorScheme.onSurfaceVariant
+                          .withOpacity(0.75),
                     ),
-                    const SizedBox(
-                      width: 4,
-                    ),
+                    const SizedBox(width: 4),
                     Text(
-                      '${item.comments} comments',
-                      style: context.textTheme.labelMedium?.asHint(),
+                      '${item.comments}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.onSurfaceVariant
+                                .withOpacity(0.75),
+                          ),
+                    ),
+                  ],
+                ),
+            ],
+            // Issue number and state icon
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                getIcon(item.state!),
+                const SizedBox(width: 4),
+                Text(
+                  '${item.number}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.colorScheme.onSurfaceVariant
+                            .withOpacity(0.7),
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              ],
+            ),
+            // Date
+            Text(
+              getDate(
+                item.state == IssueState.CLOSED
+                    ? item.closedAt.toString()
+                    : item.createdAt.toString(),
+                shorten: true,
+              ),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color:
+                        context.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  ),
+            ),
+          ],
+        ),
+        // Labels (moved up in hierarchy)
+        if (item.labels!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: List<Widget>.generate(
+              item.labels!.length,
+              (final int index) => IssueLabel(item.labels![index]),
+            ),
+          ),
+        ],
+        // Metadata row: creator, comments (only if showRepoName is true)
+        if (showRepoName) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: <Widget>[
+              // Creator
+              if (item.user?.login != null) ...[
+                Text(
+                  item.user!.login ?? '',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.colorScheme.onSurfaceVariant
+                            .withOpacity(0.75),
+                      ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Container(
+                    width: 1,
+                    height: 12,
+                    color:
+                        context.colorScheme.onSurfaceVariant.withOpacity(0.2),
+                  ),
+                ),
+              ],
+              // Comments
+              if (item.comments != 0)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      Octicons.comment,
+                      size: 13,
+                      color: context.colorScheme.onSurfaceVariant
+                          .withOpacity(0.75),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${item.comments}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.onSurfaceVariant
+                                .withOpacity(0.75),
+                          ),
                     ),
                   ],
                 ),
             ],
           ),
-          Text(
-            item.title!,
-            style: context.textTheme.bodyMedium,
-          ),
-          if (!compact)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  item.state == IssueState.CLOSED
-                      ? 'By ${item.user!.login}, closed ${getDate(item.closedAt.toString(), shorten: false)}.'
-                      : 'Opened ${getDate(item.createdAt.toString(), shorten: false)} by ${item.user!.login}',
-                  style: context.textTheme.bodySmall?.asHint(),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Wrap(
-                    children: List<Widget>.generate(
-                      item.labels!.length,
-                      (final int index) => Padding(
-                        padding: const EdgeInsets.only(
-                          right: 8,
-                          bottom: 8,
-                        ),
-                        child: IssueLabel(item.labels![index]),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
         ],
-      ),
+      ],
     );
+
     return InkPot(
       onTap: () async {
         await AutoRouter.of(context)
             .push(issuePullScreenRoute(PathData.fromURL(item.url!)));
       },
-      child: Row(
-        children: [
-          Expanded(
-            child: showRepoName
-                ? InfoCard(
-                    leading: Text(
-                      item.url!
-                          .replaceAll('https://api.github.com/repos/', '')
-                          .split('/')
-                          .sublist(0, 2)
-                          .join('/'),
-                      overflow: TextOverflow.ellipsis,
-                      style: context.textTheme.bodySmall?.asHint(),
-                    ),
-                    headerPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                    ).copyWith(top: 8),
-                    child: child,
-                  )
-                : child,
-          )
-        ],
-      ),
+      child: content,
     );
   }
 }
@@ -168,16 +245,11 @@ Widget getIcon(final IssueState state) => switch (state) {
 class IssueLoadingCard extends StatelessWidget {
   const IssueLoadingCard(
     this.url, {
-    this.compact = false,
-    this.padding = const EdgeInsets.symmetric(horizontal: 8),
-    // this.backgroundColor,
+    this.padding = const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
     super.key,
   });
 
   final String url;
-
-  // final Color? backgroundColor;
-  final bool compact;
   final EdgeInsets padding;
 
   @override
@@ -189,8 +261,6 @@ class IssueLoadingCard extends StatelessWidget {
           builder: (final BuildContext context, final IssueModel data) =>
               IssueListCard(
             data,
-            compact: compact,
-            // disableMaterial: true,
           ),
           loadingBuilder: (final BuildContext context) => const SizedBox(
             height: 80,
