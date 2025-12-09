@@ -65,150 +65,150 @@ class IssuesList extends StatelessWidget {
             return filteredData;
           },
         ),
-        // Align(
-        //   alignment: Alignment.bottomRight,
-        //   child: Row(
-        //     mainAxisAlignment: MainAxisAlignment.end,
-        //     crossAxisAlignment: CrossAxisAlignment.end,
-        //     children: <Widget>[
-        //       ProviderLoadingProgressWrapper<PinnedIssuesProvider>(
-        //         loadingBuilder: (final BuildContext context) => Container(),
-        //         childBuilder: (
-        //           final BuildContext context,
-        //           final PinnedIssuesProvider value,
-        //         ) {
-        //           if (value.data.totalCount > 0) {
-        //             return SlideExpandedSection(
-        //               child: Column(
-        //                 mainAxisAlignment: MainAxisAlignment.end,
-        //                 children: <Widget>[
-        //                   Padding(
-        //                     padding: const EdgeInsets.symmetric(vertical: 20),
-        //                     child: FloatingActionButton.extended(
-        //                       onPressed: () async {
-        //                         await showScrollableBottomSheet(
-        //                           context,
-        //                           headerBuilder: (
-        //                             final BuildContext context,
-        //                             final StateSetter setState,
-        //                           ) =>
-        //                               const BottomSheetHeaderText(
-        //                             headerText: 'Pinned Issues',
-        //                           ),
-        //                           scrollableBodyBuilder: (
-        //                             final BuildContext context,
-        //                             final StateSetter setState,
-        //                             final ScrollController scrollController,
-        //                           ) =>
-        //                               ListView.separated(
-        //                             controller: scrollController,
-        //                             padding: const EdgeInsets.only(bottom: 8),
-        //                             itemBuilder: (
-        //                               final BuildContext context,
-        //                               final int index,
-        //                             ) =>
-        //                                 IssueLoadingCard(
-        //                               toRepoAPIResource(
-        //                                 value.data.nodes![index]!.issue.url
-        //                                     .toString(),
-        //                               ),
-        //                               // backgroundColor:
-        //                               //     context.palette.secondary,
-        //                             ),
-        //                             separatorBuilder: (
-        //                               final BuildContext context,
-        //                               final int index,
-        //                             ) =>
-        //                                 const Divider(),
-        //                             itemCount: value.data.nodes!.length,
-        //                           ),
-        //                         );
-        //                       },
-        //                       label: Text('${value.data.totalCount} Pinned'),
-        //                       icon: const Icon(MdiIcons.pin),
-        //                     ),
-        //                   ),
-        //                 ],
-        //               ),
-        //             );
-        //           }
-        //           return Container();
-        //         },
-        //       ),
-        //       Padding(
-        //         padding: const EdgeInsets.all(16),
-        //         child: ProviderLoadingProgressWrapper<IssueTemplateProvider>(
-        //           loadingBuilder: (final BuildContext context) =>
-        //               const FloatingActionButton(
-        //             onPressed: null,
-        //             child: LoadingIndicator(),
-        //           ),
-        //           childBuilder: (
-        //             final BuildContext context,
-        //             final IssueTemplateProvider value,
-        //           ) =>
-        //               FloatingActionButton(
-        //             onPressed: () async {
-        //               if (value.data.isNotEmpty) {
-        //                 await showScrollableBottomSheet(
-        //                   context,
-        //                   headerBuilder: (
-        //                     final BuildContext context,
-        //                     final StateSetter setState,
-        //                   ) =>
-        //                       const BottomSheetHeaderText(
-        //                     headerText: 'New Issue',
-        //                   ),
-        //                   scrollableBodyBuilder: (
-        //                     final BuildContext context,
-        //                     final StateSetter setState,
-        //                     final ScrollController scrollController,
-        //                   ) =>
-        //                       ListenableProvider<RepositoryProvider>.value(
-        //                     value: Provider.of<RepositoryProvider>(
-        //                       context,
-        //                       listen: false,
-        //                     ),
-        //                     child: ListView.separated(
-        //                       controller: scrollController,
-        //                       padding: const EdgeInsets.only(bottom: 8),
-        //                       itemBuilder: (
-        //                         final BuildContext context,
-        //                         final int index,
-        //                       ) {
-        //                         if (value.data.length == index) {
-        //                           return const BlankIssueTemplate();
-        //                         } else {
-        //                           return IssueTemplateCard(value.data[index]);
-        //                         }
-        //                       },
-        //                       separatorBuilder: (
-        //                         final BuildContext context,
-        //                         final int index,
-        //                       ) =>
-        //                           const Divider(),
-        //                       itemCount: value.data.length + 1,
-        //                     ),
-        //                   ),
-        //                 );
-        //               } else {
-        //                 final RepositoryModel repo =
-        //                     context.read<RepositoryProvider>().data;
-        //                 await AutoRouter.of(context).push(
-        //                   NewIssueRoute(
-        //                     owner: repo.owner!.login!,
-        //                     repo: repo.name!,
-        //                   ),
-        //                 );
-        //               }
-        //             },
-        //             child: const Icon(Icons.add),
-        //           ),
-        //         ),
-        //       ),
-        //     ],
-        //   ),
-        // ),
+        Align(
+          alignment: Alignment.bottomRight,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              ProviderLoadingProgressWrapper<PinnedIssuesProvider>(
+                loadingBuilder: (final BuildContext context) => Container(),
+                childBuilder: (
+                  final BuildContext context,
+                  final PinnedIssuesProvider value,
+                ) {
+                  if (value.data.totalCount > 0) {
+                    return SlideExpandedSection(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: <Widget>[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: FloatingActionButton.extended(
+                              onPressed: () async {
+                                await showScrollableBottomSheet(
+                                  context,
+                                  headerBuilder: (
+                                    final BuildContext context,
+                                    final StateSetter setState,
+                                  ) =>
+                                      const BottomSheetHeaderText(
+                                    headerText: 'Pinned Issues',
+                                  ),
+                                  scrollableBodyBuilder: (
+                                    final BuildContext context,
+                                    final StateSetter setState,
+                                    final ScrollController scrollController,
+                                  ) =>
+                                      ListView.separated(
+                                    controller: scrollController,
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    itemBuilder: (
+                                      final BuildContext context,
+                                      final int index,
+                                    ) =>
+                                        IssueLoadingCard(
+                                      toRepoAPIResource(
+                                        value.data.nodes![index]!.issue.url
+                                            .toString(),
+                                      ),
+                                      // backgroundColor:
+                                      //     context.palette.secondary,
+                                    ),
+                                    separatorBuilder: (
+                                      final BuildContext context,
+                                      final int index,
+                                    ) =>
+                                        const Divider(),
+                                    itemCount: value.data.nodes!.length,
+                                  ),
+                                );
+                              },
+                              label: Text('${value.data.totalCount} Pinned'),
+                              icon: const Icon(MdiIcons.pin),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return Container();
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: ProviderLoadingProgressWrapper<IssueTemplateProvider>(
+                  loadingBuilder: (final BuildContext context) =>
+                      const FloatingActionButton(
+                    onPressed: null,
+                    child: LoadingIndicator(),
+                  ),
+                  childBuilder: (
+                    final BuildContext context,
+                    final IssueTemplateProvider value,
+                  ) =>
+                      FloatingActionButton(
+                    onPressed: () async {
+                      if (value.data.isNotEmpty) {
+                        await showScrollableBottomSheet(
+                          context,
+                          headerBuilder: (
+                            final BuildContext context,
+                            final StateSetter setState,
+                          ) =>
+                              const BottomSheetHeaderText(
+                            headerText: 'New Issue',
+                          ),
+                          scrollableBodyBuilder: (
+                            final BuildContext context,
+                            final StateSetter setState,
+                            final ScrollController scrollController,
+                          ) =>
+                              ListenableProvider<RepositoryProvider>.value(
+                            value: Provider.of<RepositoryProvider>(
+                              context,
+                              listen: false,
+                            ),
+                            child: ListView.separated(
+                              controller: scrollController,
+                              padding: const EdgeInsets.only(bottom: 8),
+                              itemBuilder: (
+                                final BuildContext context,
+                                final int index,
+                              ) {
+                                if (value.data.length == index) {
+                                  return const BlankIssueTemplate();
+                                } else {
+                                  return IssueTemplateCard(value.data[index]);
+                                }
+                              },
+                              separatorBuilder: (
+                                final BuildContext context,
+                                final int index,
+                              ) =>
+                                  const Divider(),
+                              itemCount: value.data.length + 1,
+                            ),
+                          ),
+                        );
+                      } else {
+                        final RepositoryModel repo =
+                            context.read<RepositoryProvider>().data;
+                        await AutoRouter.of(context).push(
+                          NewIssueRoute(
+                            owner: repo.owner!.login!,
+                            repo: repo.name!,
+                          ),
+                        );
+                      }
+                    },
+                    child: const Icon(Icons.add),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

@@ -27,6 +27,7 @@ class HighlightedContainer extends StatelessWidget {
   const HighlightedContainer({
     required this.child,
     required this.highlightColor,
+    this.backgroundColor,
     this.borderSide = BorderSideType.bottom,
     this.borderWidth = 2.0,
     this.borderRadius = 12.0,
@@ -38,6 +39,9 @@ class HighlightedContainer extends StatelessWidget {
 
   /// Color for the highlight (border color in border mode, not used in elevation mode)
   final Color highlightColor;
+
+  /// Background color for the container. If null, uses default Material background.
+  final Color? backgroundColor;
 
   /// Which side to show the border on (only used in border mode)
   final BorderSideType borderSide;
@@ -59,6 +63,7 @@ class HighlightedContainer extends StatelessWidget {
     if (_style == HighlightStyle.elevation) {
       // Elevation mode: use Material with elevation
       return Material(
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(borderRadius),
         elevation: 1,
         child: ClipRRect(
@@ -122,6 +127,7 @@ class HighlightedContainer extends StatelessWidget {
         borderRadius: clipRadius,
         child: Container(
           decoration: BoxDecoration(
+            color: backgroundColor,
             borderRadius: BorderRadius.circular(borderRadius),
             border: border,
           ),

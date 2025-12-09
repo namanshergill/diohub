@@ -1,4 +1,4 @@
-import 'package:diohub/common/issues/issue_list_card.dart';
+import 'package:diohub/common/issues/nested_issue_card.dart';
 import 'package:diohub/common/misc/profile_card.dart';
 import 'package:diohub/common/misc/repository_card.dart';
 import 'package:diohub/common/misc/round_button.dart';
@@ -189,12 +189,9 @@ class SearchScrollWrapperState extends State<SearchScrollWrapper> {
               final BuildContext context,
               final data,
             ) =>
-                Padding(
-              padding: widget.padding,
-              child: IssueListCard(
-                data.item,
-                showRepoName: widget.showRepoNameOnIssues,
-              ),
+                NestedIssueCard(
+              data.item,
+              showRepoName: widget.showRepoNameOnIssues,
             ),
           );
         } else if (searchData.searchFilters!.searchType == SearchType.users) {

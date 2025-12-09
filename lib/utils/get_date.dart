@@ -8,7 +8,7 @@ String getDate(final String date, {final bool shorten = true}) {
   // Handle future dates (shouldn't happen but just in case)
   if (difference.isNegative) {
     return shorten
-        ? DateFormat('d MMM yy').format(dateTime)
+        ? DateFormat('MMM d, yy').format(dateTime)
         : DateFormat('MMM d, yyyy').format(dateTime);
   }
 
@@ -23,7 +23,7 @@ String getDate(final String date, {final bool shorten = true}) {
     if (shorten) {
       return '${minutes}m';
     }
-    return minutes == 1 ? '1 minute ago' : '$minutes minutes ago';
+    return minutes == 1 ? '1 min ago' : '$minutes mins ago';
   }
 
   // Hours ago
@@ -32,7 +32,7 @@ String getDate(final String date, {final bool shorten = true}) {
     if (shorten) {
       return '${hours}h';
     }
-    return hours == 1 ? '1 hour ago' : '$hours hours ago';
+    return hours == 1 ? '1 hr ago' : '$hours hrs ago';
   }
 
   // Days ago
@@ -77,11 +77,11 @@ String getDate(final String date, {final bool shorten = true}) {
     }
     return DateFormat('MMM d, yy').format(dateTime);
   } else {
-    // Full date format: "January 15, 2024"
+    // Full date format: "Jan 15, 2024" (shorter month names for consistency)
     // Check if it's the current year to optionally omit year
     if (dateTime.year == now.year) {
-      return DateFormat('MMMM d').format(dateTime);
+      return DateFormat('MMM d').format(dateTime);
     }
-    return DateFormat('MMMM d, yyyy').format(dateTime);
+    return DateFormat('MMM d, yyyy').format(dateTime);
   }
 }
