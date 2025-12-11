@@ -1,7 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:diohub/adapters/deep_linking_handler.dart';
 import 'package:diohub/common/issues/issue_label.dart';
-import 'package:diohub/common/misc/header_card.dart';
+import 'package:diohub/common/misc/nested_card_with_header.dart';
 import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/pulls/pull_loading_card.dart';
 import 'package:diohub/models/issues/issue_model.dart';
@@ -18,12 +18,14 @@ class NestedIssueCard extends StatelessWidget {
     this.item, {
     this.showRepoName = true,
     this.commentsSince,
+    this.isNested = false,
     super.key,
   });
 
   final IssueModel item;
   final DateTime? commentsSince;
   final bool showRepoName;
+  final bool isNested;
 
   @override
   Widget build(final BuildContext context) {
@@ -32,6 +34,7 @@ class NestedIssueCard extends StatelessWidget {
         item.pullRequest!.url!,
         issueModel: item,
         compact: !showRepoName,
+        isNested: isNested,
       );
     }
 
@@ -49,7 +52,8 @@ class NestedIssueCard extends StatelessWidget {
         await AutoRouter.of(context)
             .push(issuePullScreenRoute(PathData.fromURL(item.url!)));
       },
-      child: HeaderCard(
+      child: NestedCardWithHeader(
+        flipColors: isNested,
         header: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
@@ -149,18 +153,20 @@ class NestedIssueCard extends StatelessWidget {
             ],
           ],
         ),
-        trailing: Text(
-          getDate(
-            item.state == IssueState.CLOSED
-                ? item.closedAt.toString()
-                : item.createdAt.toString(),
-            shorten: true,
-          ),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.colorScheme.onSurfaceVariant.withOpacity(0.7),
-                fontSize: 10,
+        trailing: isNested
+            ? null
+            : Text(
+                (item.state == IssueState.CLOSED
+                            ? item.closedAt
+                            : item.createdAt)
+                        ?.toRelativeDate(shorten: true) ??
+                    '',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color:
+                          context.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                      fontSize: 10,
+                    ),
               ),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,

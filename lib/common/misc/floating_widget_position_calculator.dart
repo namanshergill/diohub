@@ -565,8 +565,8 @@ class FloatingWidgetPositionCalculator {
         : distanceToBottomEdge;
     final isNearTop = distanceToTopEdge < distanceToBottomEdge;
 
-    print(
-        '[FloatingWidgetPositionCalculator] calculateEdgeDistances: center=$currentCenterPosition, widgetSize=$widgetSize, isExpanded=$isExpanded, topEdgeY=$topEdgeY, bottomEdgeY=$bottomEdgeY, widgetTop=$widgetTopEdge, widgetBottom=$widgetBottomEdge, distanceToTop=$distanceToTopEdge, distanceToBottom=$distanceToBottomEdge, nearest=$distanceToNearestEdge');
+    // print(
+    //     '[FloatingWidgetPositionCalculator] calculateEdgeDistances: center=$currentCenterPosition, widgetSize=$widgetSize, isExpanded=$isExpanded, topEdgeY=$topEdgeY, bottomEdgeY=$bottomEdgeY, widgetTop=$widgetTopEdge, widgetBottom=$widgetBottomEdge, distanceToTop=$distanceToTopEdge, distanceToBottom=$distanceToBottomEdge, nearest=$distanceToNearestEdge');
 
     return (
       distanceToTopEdge: distanceToTopEdge,
@@ -615,8 +615,8 @@ class FloatingWidgetPositionCalculator {
     );
 
     final shouldExpand = edgeDistances.distanceToNearestEdge > threshold;
-    print(
-        '[FloatingWidgetPositionCalculator] shouldAutoExpand: position=$currentCenterPosition, widgetSize=$widgetSize, distanceToNearestEdge=${edgeDistances.distanceToNearestEdge}, threshold=$threshold, shouldExpand=$shouldExpand');
+    // print(
+    //     '[FloatingWidgetPositionCalculator] shouldAutoExpand: position=$currentCenterPosition, widgetSize=$widgetSize, distanceToNearestEdge=${edgeDistances.distanceToNearestEdge}, threshold=$threshold, shouldExpand=$shouldExpand');
     return shouldExpand;
   }
 

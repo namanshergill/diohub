@@ -104,51 +104,26 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
   bool _isDeepLinkComp(final String data) =>
       widget.pathData?.componentIs(2, data) ?? false;
 
-  String? _lastActiveIdentifier;
-
   @override
   void initState() {
     _setupTabs();
     tabController = DynamicTabsController(vsync: this, tabs: tabs);
-    _lastActiveIdentifier = tabController.activeIdentifier;
-    tabController.addListener(_onTabChanged);
     initBranch = widget.branch;
     super.initState();
     // This HAS to be after the super initState call as some required data
     // is being set in handleDeepLink()!
     _setupProviders();
-    // Schedule periodic checks to catch tab swipes
-    _scheduleTabCheck();
   }
 
   @override
   void dispose() {
-    tabController.removeListener(_onTabChanged);
     _expandAnimationController.dispose();
     super.dispose();
   }
 
-  void _onTabChanged() {
-    final current = tabController.activeIdentifier;
-    if (_lastActiveIdentifier != current && mounted) {
-      setState(() {
-        _lastActiveIdentifier = current;
-      });
-    }
-  }
-
-  void _scheduleTabCheck() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final current = tabController.activeIdentifier;
-      if (_lastActiveIdentifier != current) {
-        setState(() {
-          _lastActiveIdentifier = current;
-        });
-      }
-      // Schedule next check to catch swipe changes
-      _scheduleTabCheck();
-    });
+  /// Helper method to centralize tab state information
+  _TabState _getTabState(String currentTab) {
+    return _TabState(currentTab: currentTab);
   }
 
   void _setupProviders() {
@@ -259,34 +234,40 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
   Widget _buildExpandedHeader(BuildContext context, RepositoryModel repo) {
     const double leadingWidth =
         56.0; // Standard Material Design back button width
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          // Repo name
-          Padding(
-            padding: EdgeInsets.only(left: leadingWidth),
-            child: Text(
-              repo.name!,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.headlineSmall!.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
+    return ValueListenableBuilder<String>(
+      valueListenable: tabController.activeIdentifierNotifier,
+      builder: (context, currentTab, _) {
+        final tabState = _getTabState(currentTab);
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              // Repo name
+              Padding(
+                padding: EdgeInsets.only(left: leadingWidth),
+                child: Text(
+                  repo.name!,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.headlineSmall!.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Detail tiles section
+              _buildDetailTilesSection(context, repo),
+              const SizedBox(height: 16),
+              // Description and Stats section
+              _buildDescriptionAndStats(context, repo),
+              const SizedBox(height: 16),
+              // Action buttons (includes expand button)
+              _buildActionButtons(context, repo, tabState),
+            ],
           ),
-          const SizedBox(height: 16),
-          // Detail tiles section
-          _buildDetailTilesSection(context, repo),
-          const SizedBox(height: 16),
-          // Description and Stats section
-          _buildDescriptionAndStats(context, repo),
-          const SizedBox(height: 16),
-          // Action buttons (includes expand button)
-          _buildActionButtons(context, repo),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -622,11 +603,8 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
   }
 
   List<ActionButtonData> _buildToolbarActions(
-      BuildContext context, RepositoryModel repo) {
-    final currentTab = tabController.activeIdentifier;
-    final isOnIssuesTab = currentTab == 'Issues';
-
-    final allActions = [
+      BuildContext context, RepositoryModel repo, _TabState tabState) {
+    return [
       ActionButtonData(
         icon: Octicons.file_code,
         label: repo.language ?? 'Code',
@@ -635,14 +613,22 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
         trailing: repo.size != null
             ? buildActionButtonTrailingSize(context, repo.size!)
             : null,
+        visibilityState: tabState.isOnCodeTab
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.both,
         onTap: () => tabController.openTab('Code'),
       ),
+      // Always include Issues action, but hide it when on Issues tab using visibilityState
+      // This keeps the list structure stable for smooth animations
       ActionButtonData(
         icon: Octicons.issue_opened,
         label: 'Issues',
         trailing: repo.openIssuesCount != null
             ? buildActionButtonTrailingCount(context, repo.openIssuesCount!)
             : null,
+        visibilityState: tabState.isOnIssuesTab
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.both,
         onTap: () => tabController.openTab('Issues'),
       ),
       ActionButtonData(
@@ -651,35 +637,32 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
         trailing: repo.openIssuesCount != null
             ? buildActionButtonTrailingCount(context, repo.openIssuesCount!)
             : null,
+        visibilityState: tabState.isOnPullRequestsTab
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.both,
         onTap: () => tabController.openTab('Pull Requests'),
       ),
       ActionButtonData(
         icon: Octicons.book,
         label: 'Readme',
+        visibilityState: tabState.isOnReadmeTab
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.expandedOnly,
         onTap: () => tabController.openTab('Readme'),
       ),
       ActionButtonData(
         icon: Octicons.kebab_horizontal,
         label: 'More',
+        visibilityState: tabState.isOnMoreTab
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.expandedOnly,
         onTap: () => tabController.openTab('More'),
       ),
     ];
-
-    return allActions.map((action) {
-      // Hide the Issues action when on the Issues tab
-      if (action.label == 'Issues' && isOnIssuesTab) {
-        return action.copyWith(visible: false);
-      }
-      return action;
-    }).toList();
   }
 
   List<ActionButtonData>? _buildProminentActions(
-      BuildContext context, RepositoryModel repo) {
-    final currentTab = tabController.activeIdentifier;
-    final isOnIssuesTab = currentTab == 'Issues';
-    final isOnReadmeTab = currentTab == 'Readme';
-
+      BuildContext context, RepositoryModel repo, _TabState tabState) {
     // Always return the same list structure, but control visibility with the visible property
     // This allows smooth animations instead of widget recreation
     return [
@@ -687,7 +670,9 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
       ActionButtonData(
         icon: Octicons.book,
         label: 'Jump to',
-        visible: isOnReadmeTab, // Only visible when on Readme tab
+        visibilityState: tabState.isOnReadmeTab
+            ? ActionButtonVisibilityState.both
+            : ActionButtonVisibilityState.none,
         onTap: () {
           // Placeholder - functionality to be added later
         },
@@ -695,7 +680,9 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
       ActionButtonData(
         icon: Octicons.pin,
         label: 'Pinned Issues',
-        visible: isOnIssuesTab, // Control visibility based on tab
+        visibilityState: tabState.isOnIssuesTab
+            ? ActionButtonVisibilityState.both
+            : ActionButtonVisibilityState.none,
         onTap: () async {
           final pinnedIssuesProvider =
               Provider.of<PinnedIssuesProvider>(context, listen: false);
@@ -736,16 +723,16 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
         },
       ),
       // "New Issue" button - prominent action
-      // Expanded: visible everywhere EXCEPT Issues tab
+      // Expanded: visible everywhere
       // Collapsed: visible ONLY on Issues tab
-      // We'll handle this visibility logic in floating_action_toolbar_content.dart based on isExpanded
       ActionButtonData(
         icon: Octicons.plus,
         label: 'New Issue',
         isPositive: true,
-        // Set visible based on current state - will be overridden in rendering logic
-        // For now, set to true so it's always in the list, visibility will be controlled dynamically
-        visible: true,
+        // Visible in expanded state everywhere, but only in collapsed state on Issues tab
+        visibilityState: tabState.isOnIssuesTab
+            ? ActionButtonVisibilityState.both
+            : ActionButtonVisibilityState.expandedOnly,
         onTap: () async {
           final issueTemplateProvider =
               Provider.of<IssueTemplateProvider>(context, listen: false);
@@ -805,7 +792,8 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
     ];
   }
 
-  Widget _buildActionButtons(BuildContext context, RepositoryModel repo) {
+  Widget _buildActionButtons(
+      BuildContext context, RepositoryModel repo, _TabState tabState) {
     // All actions - show all in primary to ensure minColumns is respected
     final primaryActions = <ActionButtonData>[
       ActionButtonData(
@@ -817,6 +805,9 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
             ? buildActionButtonTrailingSize(context, repo.size!)
             : null,
         actionType: ActionButtonActionType.tab,
+        visibilityState: tabState.isOnCodeTab
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.both,
         onTap: () => tabController.openTab('Code'),
       ),
       ActionButtonData(
@@ -826,6 +817,9 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
             ? buildActionButtonTrailingCount(context, repo.openIssuesCount!)
             : null,
         actionType: ActionButtonActionType.tab,
+        visibilityState: tabState.isOnIssuesTab
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.both,
         onTap: () => tabController.openTab('Issues'),
       ),
       ActionButtonData(
@@ -835,12 +829,18 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
             ? buildActionButtonTrailingCount(context, repo.openIssuesCount!)
             : null, // Note: using openIssuesCount as placeholder
         actionType: ActionButtonActionType.tab,
+        visibilityState: tabState.isOnPullRequestsTab
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.both,
         onTap: () => tabController.openTab('Pull Requests'),
       ),
       ActionButtonData(
         icon: Icons.menu_rounded,
         label: 'More',
         actionType: ActionButtonActionType.tab,
+        visibilityState: tabState.isOnMoreTab
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.expandedOnly,
         onTap: () => tabController.openTab('More'),
       ),
     ];
@@ -983,30 +983,38 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                               ),
                             ),
                           ),
-                          FloatingActionToolbar(
-                            // Use a stable key so the widget persists across tab changes
-                            // This allows smooth animations instead of widget recreation
-                            key: const ValueKey('repository_toolbar'),
-                            actions: _buildToolbarActions(context, repo),
-                            prominentActions:
-                                _buildProminentActions(context, repo),
-                            actionCardBuilder: buildStandardActionCard,
-                            // defaultVisibleCount: 2,
-                            position: FloatingPosition.bottom,
-                            // Default alignment for bottom is right (set in FloatingActionToolbar)
-                            // alignment: null,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            // bottomPadding should only account for OS navigation bar, not tab bar
-                            // since FloatingActionToolbar is above tab bar in widget tree
-                            bottomPadding: 0.0,
-                            title: repo.name,
-                            onExpandChanged: (isExpanded) {
-                              if (isExpanded) {
-                                _expandAnimationController.forward();
-                              } else {
-                                _expandAnimationController.reverse();
-                              }
+                          ValueListenableBuilder<String>(
+                            valueListenable:
+                                tabController.activeIdentifierNotifier,
+                            builder: (context, currentTab, _) {
+                              final tabState = _getTabState(currentTab);
+                              return FloatingActionToolbar(
+                                // Use a stable key so the widget persists across tab changes
+                                // This allows smooth animations instead of widget recreation
+                                key: const ValueKey('repository_toolbar'),
+                                actions: _buildToolbarActions(
+                                    context, repo, tabState),
+                                prominentActions: _buildProminentActions(
+                                    context, repo, tabState),
+                                actionCardBuilder: buildStandardActionCard,
+                                // defaultVisibleCount: 2,
+                                position: FloatingPosition.bottom,
+                                // Default alignment for bottom is right (set in FloatingActionToolbar)
+                                // alignment: null,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                // bottomPadding should only account for OS navigation bar, not tab bar
+                                // since FloatingActionToolbar is above tab bar in widget tree
+                                bottomPadding: 0.0,
+                                title: repo.name,
+                                onExpandChanged: (isExpanded) {
+                                  if (isExpanded) {
+                                    _expandAnimationController.forward();
+                                  } else {
+                                    _expandAnimationController.reverse();
+                                  }
+                                },
+                              );
                             },
                           ),
                         ],
@@ -1019,4 +1027,19 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
           ),
         ),
       );
+}
+
+/// Helper class to centralize tab state information
+class _TabState {
+  const _TabState({
+    required this.currentTab,
+  });
+
+  final String currentTab;
+
+  bool get isOnIssuesTab => currentTab == 'Issues';
+  bool get isOnReadmeTab => currentTab == 'Readme';
+  bool get isOnCodeTab => currentTab == 'Code';
+  bool get isOnPullRequestsTab => currentTab == 'Pull Requests';
+  bool get isOnMoreTab => currentTab == 'More';
 }

@@ -1,8 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:diohub/adapters/deep_linking_handler.dart';
-import 'package:diohub/common/misc/header_card.dart';
+import 'package:diohub/common/misc/nested_card_with_header.dart';
 import 'package:diohub/common/misc/ink_pot.dart';
-import 'package:diohub/common/misc/loading_indicator.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
 import 'package:diohub/common/pulls/pull_list_card.dart';
 import 'package:diohub/common/wrappers/api_wrapper_widget.dart';
@@ -20,6 +19,7 @@ class PullLoadingCard extends StatelessWidget {
     this.url, {
     this.compact = false,
     this.issueModel,
+    this.isNested = false,
     // this.disableMaterial = false,
     super.key,
   });
@@ -27,6 +27,7 @@ class PullLoadingCard extends StatelessWidget {
   final String url;
   final bool compact;
   final IssueModel? issueModel;
+  final bool isNested;
 
   // final bool disableMaterial;
 
@@ -48,13 +49,19 @@ class PullLoadingCard extends StatelessWidget {
 
             final bool showRepoName = !compact;
 
+            // Get the date to display
+            final DateTime? dateToUse = issueModel!.state == IssueState.CLOSED
+                ? (issueModel!.closedAt ?? issueModel!.createdAt)
+                : issueModel!.createdAt;
+
             return InkPot(
               onTap: () async {
                 await AutoRouter.of(context).push(
                   issuePullScreenRoute(PathData.fromURL(issueModel!.url!)),
                 );
               },
-              child: HeaderCard(
+              child: NestedCardWithHeader(
+                flipColors: isNested,
                 header: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
@@ -165,21 +172,21 @@ class PullLoadingCard extends StatelessWidget {
                     ],
                   ],
                 ),
-                trailing: Text(
-                  getDate(
-                    issueModel!.state == IssueState.CLOSED
-                        ? issueModel!.closedAt?.toString() ??
-                            issueModel!.createdAt?.toString() ??
-                            ''
-                        : issueModel!.createdAt?.toString() ?? '',
-                    shorten: true,
-                  ),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: context.colorScheme.onSurfaceVariant
-                            .withOpacity(0.7),
-                        fontSize: 10,
-                      ),
-                ),
+                trailing: isNested
+                    ? null
+                    : (dateToUse != null
+                        ? Text(
+                            dateToUse.toRelativeDate(shorten: true),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: context.colorScheme.onSurfaceVariant
+                                      .withOpacity(0.7),
+                                  fontSize: 10,
+                                ),
+                          )
+                        : null),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -251,18 +258,77 @@ class PullLoadingCard extends StatelessWidget {
               ),
             );
           }
-          return const SizedBox(
-            height: 80,
-            child: Center(
-              child: LoadingIndicator(),
+          // Show shimmer effect matching the HeaderCard structure
+          return NestedCardWithHeader(
+            flipColors: isNested,
+            header: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                // Shimmer for PR icon container
+                ShimmerWidget.container(
+                  width: 60,
+                  height: 24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                const SizedBox(width: 3),
+                // Shimmer for repo name
+                if (!compact) ...[
+                  ShimmerWidget.container(
+                    width: 120,
+                    height: 14,
+                  ),
+                ],
+              ],
+            ),
+            trailing: isNested
+                ? null
+                : ShimmerWidget.container(
+                    width: 40,
+                    height: 12,
+                  ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                // Shimmer for title
+                ShimmerWidget.container(
+                  height: 20,
+                ),
+                if (!compact) ...[
+                  const SizedBox(height: 5),
+                  // Shimmer for labels
+                  ShimmerWidget.container(
+                    width: 80,
+                    height: 20,
+                  ),
+                  const SizedBox(height: 5),
+                  // Shimmer for metadata
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      ShimmerWidget.container(
+                        width: 60,
+                        height: 14,
+                      ),
+                      ShimmerWidget.container(
+                        width: 30,
+                        height: 14,
+                      ),
+                    ],
+                  ),
+                ],
+              ],
             ),
           );
         },
-        builder: (final BuildContext context, final PullRequestModel data) =>
-            PullListCard(
-          data,
-          showRepoName: !compact,
-        ),
+        builder: (final BuildContext context, final PullRequestModel data) {
+          return PullListCard(
+            data,
+            showRepoName: !compact,
+            isNested: isNested,
+          );
+        },
       );
 
   IconData _getPullIcon(IssueState? state, DateTime? mergedAt) {

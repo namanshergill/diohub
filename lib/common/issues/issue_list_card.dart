@@ -51,7 +51,7 @@ class IssueListCard extends StatelessWidget {
         // Issue title (most prominent - first)
         Text(
           item.title!,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: context.colorScheme.onSurface,
                 height: 1.3,

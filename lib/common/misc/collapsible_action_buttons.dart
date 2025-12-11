@@ -58,17 +58,21 @@ enum ActionButtonActionType {
 
 /// Visibility state for action buttons in collapsed toolbar state
 enum ActionButtonVisibilityState {
-  /// Always visible in collapsed state, regardless of min count
-  /// These buttons are shown first, before any maybeVisible buttons
-  alwaysVisible,
+  /// Visible only in collapsed state
+  /// These buttons are hidden when the toolbar is expanded
+  collapsedOnly,
 
-  /// Never visible in collapsed state, regardless of min count
-  /// These buttons are only shown when expanded
-  alwaysHidden,
+  /// Visible only in expanded state
+  /// These buttons are hidden when the toolbar is collapsed
+  expandedOnly,
 
-  /// Visible in collapsed state if there's room (based on minCount/maxCount)
-  /// Shown after alwaysVisible buttons, up to the specified count limit
-  maybeVisible,
+  /// Visible in both collapsed and expanded states
+  /// These buttons are always shown regardless of toolbar state
+  both,
+
+  /// Never visible in either state
+  /// These buttons are hidden in both collapsed and expanded states
+  none,
 }
 
 /// Data class for action button configuration
@@ -84,8 +88,7 @@ class ActionButtonData {
     this.isDestructive = false,
     this.isPositive = false,
     this.actionType,
-    this.visibilityState = ActionButtonVisibilityState.maybeVisible,
-    this.visible = true,
+    this.visibilityState = ActionButtonVisibilityState.both,
   });
 
   final IconData icon;
@@ -105,13 +108,9 @@ class ActionButtonData {
   /// Type of action this button performs (determines trailing icon if trailing is not provided)
   final ActionButtonActionType? actionType;
 
-  /// Visibility state for collapsed toolbar state
-  /// Determines when this button appears in the collapsed horizontal bar
+  /// Visibility state that determines when this button appears
+  /// Controls visibility in both collapsed and expanded toolbar states
   final ActionButtonVisibilityState visibilityState;
-
-  /// Whether this action button is visible (can be dynamically changed to show/hide with animation)
-  /// When false, the button will be hidden from both collapsed and expanded states
-  final bool visible;
 
   /// Creates a copy of this ActionButtonData with updated properties
   ActionButtonData copyWith({
@@ -126,7 +125,6 @@ class ActionButtonData {
     bool? isPositive,
     ActionButtonActionType? actionType,
     ActionButtonVisibilityState? visibilityState,
-    bool? visible,
   }) {
     return ActionButtonData(
       icon: icon ?? this.icon,
@@ -140,7 +138,6 @@ class ActionButtonData {
       isPositive: isPositive ?? this.isPositive,
       actionType: actionType ?? this.actionType,
       visibilityState: visibilityState ?? this.visibilityState,
-      visible: visible ?? this.visible,
     );
   }
 }

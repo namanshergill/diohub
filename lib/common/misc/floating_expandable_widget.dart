@@ -284,7 +284,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     setState(() {
       _isDragging = false;
       _dragStartCenterOffset = null;
-    });
+    }); 
     print(
         '[FloatingExpandableWidget] _unlockSizeAndStopDragging: positionBeforeUnlock=$positionBeforeUnlock, positionAfterUnlock=$_centerPosition, sizeBeforeUnlock=$sizeBeforeUnlock, sizeAfterUnlock=${_getCurrentWidgetSize()}');
   }

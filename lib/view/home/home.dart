@@ -174,72 +174,91 @@ class HomeScreenState extends State<HomeScreen>
               ),
             ),
           ),
-          FloatingActionToolbar(
-            actions: [
-              ActionButtonData(
-                icon: Octicons.issue_opened,
-                label: 'Issues',
-                trailing: buildActionButtonTrailingCount(
-                  context,
-                  context.viewer.issues.totalCount,
-                ),
-                actionType: ActionButtonActionType.tab,
-                onTap: () => tabsController.openTab('Issues'),
-              ),
-              ActionButtonData(
-                icon: Octicons.git_pull_request,
-                label: 'Pull Requests',
-                trailing: buildActionButtonTrailingCount(
-                  context,
-                  context.viewer.pullRequests.totalCount,
-                ),
-                actionType: ActionButtonActionType.tab,
-                onTap: () => tabsController.openTab('Pulls'),
-              ),
-              ActionButtonData(
-                icon: Icons.settings_rounded,
-                label: 'App Settings',
-                onTap: () {
-                  // Navigate to settings
+          ValueListenableBuilder<String>(
+            valueListenable: tabsController.activeIdentifierNotifier,
+            builder: (context, currentTab, _) {
+              return FloatingActionToolbar(
+                key: const ValueKey('home_toolbar'),
+                actions: [
+                  ActionButtonData(
+                    icon: Octicons.issue_opened,
+                    label: 'Issues',
+                    trailing: buildActionButtonTrailingCount(
+                      context,
+                      context.viewer.issues.totalCount,
+                    ),
+                    actionType: ActionButtonActionType.tab,
+                    visibilityState: currentTab == 'Issues'
+                        ? ActionButtonVisibilityState.none
+                        : ActionButtonVisibilityState.both,
+                    onTap: () => tabsController.openTab('Issues'),
+                  ),
+                  ActionButtonData(
+                    icon: Octicons.git_pull_request,
+                    label: 'Pull Requests',
+                    trailing: buildActionButtonTrailingCount(
+                      context,
+                      context.viewer.pullRequests.totalCount,
+                    ),
+                    actionType: ActionButtonActionType.tab,
+                    visibilityState: currentTab == 'Pulls'
+                        ? ActionButtonVisibilityState.none
+                        : ActionButtonVisibilityState.both,
+                    onTap: () => tabsController.openTab('Pulls'),
+                  ),
+                  ActionButtonData(
+                    icon: Icons.settings_rounded,
+                    label: 'App Settings',
+                    onTap: () {
+                      // Navigate to settings
+                    },
+                  ),
+                  ActionButtonData(
+                    icon: Octicons.organization,
+                    label: 'Organizations',
+                    trailing: buildActionButtonTrailingCount(
+                      context,
+                      context.viewer.organizations.totalCount,
+                    ),
+                    actionType: ActionButtonActionType.tab,
+                    visibilityState: currentTab == 'orgs'
+                        ? ActionButtonVisibilityState.none
+                        : ActionButtonVisibilityState.expandedOnly,
+                    onTap: () => tabsController.openTab('orgs'),
+                  ),
+                  ActionButtonData(
+                    icon: Octicons.repo,
+                    label: 'Repositories',
+                    trailing: buildActionButtonTrailingCount(
+                      context,
+                      context.viewer.repositories.totalCount,
+                    ),
+                    visibilityState: currentTab == 'repos'
+                        ? ActionButtonVisibilityState.none
+                        : ActionButtonVisibilityState.expandedOnly,
+                    onTap: () {
+                      // tabsController.openTab('repos');
+                    },
+                  ),
+                ],
+                actionCardBuilder: (context, action) =>
+                    buildStandardActionCard(context, action),
+                defaultVisibleCount:
+                    3, // Show Issues, PRs, and App Settings in compact mode
+                position: FloatingPosition.bottom,
+                // Default alignment for bottom is right (set in FloatingActionToolbar)
+                // alignment: null,
+                title: context.provider<CurrentUserProvider>().data.login,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                onExpandChanged: (isExpanded) {
+                  if (isExpanded) {
+                    _expandAnimationController.forward();
+                  } else {
+                    _expandAnimationController.reverse();
+                  }
                 },
-              ),
-              ActionButtonData(
-                icon: Octicons.organization,
-                label: 'Organizations',
-                trailing: buildActionButtonTrailingCount(
-                  context,
-                  context.viewer.organizations.totalCount,
-                ),
-                actionType: ActionButtonActionType.tab,
-                onTap: () => tabsController.openTab('orgs'),
-              ),
-              ActionButtonData(
-                icon: Octicons.repo,
-                label: 'Repositories',
-                trailing: buildActionButtonTrailingCount(
-                  context,
-                  context.viewer.repositories.totalCount,
-                ),
-                onTap: () {
-                  // tabsController.openTab('repos');
-                },
-              ),
-            ],
-            actionCardBuilder: (context, action) =>
-                buildStandardActionCard(context, action),
-            defaultVisibleCount:
-                3, // Show Issues, PRs, and App Settings in compact mode
-            position: FloatingPosition.bottom,
-            // Default alignment for bottom is right (set in FloatingActionToolbar)
-            // alignment: null,
-            title: context.provider<CurrentUserProvider>().data.login,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            onExpandChanged: (isExpanded) {
-              if (isExpanded) {
-                _expandAnimationController.forward();
-              } else {
-                _expandAnimationController.reverse();
-              }
+              );
             },
           ),
         ],

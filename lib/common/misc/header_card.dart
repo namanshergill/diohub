@@ -1,13 +1,12 @@
-import 'package:diohub/common/misc/nested_card.dart';
 import 'package:flutter/material.dart';
 
 /// A generic card widget that implements the common layout pattern:
 /// - Outer Card with padding
 /// - Header row with header content (left) and trailing (right)
 /// - Spacing
-/// - NestedCard for child content
+/// - Direct child content (no nested card)
 ///
-/// This widget is used by both BaseEventCard and NestedIssueCard patterns.
+/// This is the base widget. For nested card behavior, use NestedCardWithHeader.
 class HeaderCard extends StatelessWidget {
   const HeaderCard({
     required this.child,
@@ -15,12 +14,13 @@ class HeaderCard extends StatelessWidget {
     this.trailing,
     this.padding,
     this.headerPadding,
-    this.childPadding,
     this.spacing,
+    this.color,
+    this.margin,
     super.key,
   });
 
-  /// The main content to display in the nested card
+  /// The main content to display
   final Widget child;
 
   /// Header content displayed on the left side
@@ -32,14 +32,17 @@ class HeaderCard extends StatelessWidget {
   /// Padding around the entire card (default: EdgeInsets.symmetric(horizontal: 8, vertical: 8))
   final EdgeInsetsGeometry? padding;
 
-  /// Padding around the header row (default: EdgeInsets.symmetric(horizontal: 8, vertical: 8))
+  /// Padding around the header row (default: EdgeInsets.symmetric(horizontal: 4, vertical: 2))
   final EdgeInsetsGeometry? headerPadding;
 
-  /// Padding inside the nested card for child content (default: EdgeInsets.all(8))
-  final EdgeInsetsGeometry? childPadding;
-
-  /// Spacing between header and nested card (default: 8)
+  /// Spacing between header and child (default: 8)
   final double? spacing;
+
+  /// Optional color for the card background
+  final Color? color;
+
+  /// Optional margin for the card (default: null, uses Material default)
+  final EdgeInsetsGeometry? margin;
 
   @override
   Widget build(final BuildContext context) {
@@ -48,6 +51,8 @@ class HeaderCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
+      margin: margin,
+      color: color,
       child: Padding(
         padding:
             padding ?? const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -59,18 +64,15 @@ class HeaderCard extends StatelessWidget {
             if (header != null || trailing != null) ...[
               Padding(
                 padding: headerPadding ??
-                    const EdgeInsets.symmetric(horizontal: 4,vertical: 2),
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     // Header content in nested row
                     if (header != null)
                       Expanded(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: <Widget>[header!],
-                        ),
+                        child: header!,
                       ),
                     // Trailing content on the right
                     if (trailing != null)
@@ -83,11 +85,8 @@ class HeaderCard extends StatelessWidget {
               ),
               SizedBox(height: spacing ?? 8),
             ],
-            // Content in nested card
-            NestedCard(
-              padding: childPadding ?? const EdgeInsets.all(8),
-              child: child,
-            ),
+            // Content rendered directly
+            child,
           ],
         ),
       ),

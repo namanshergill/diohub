@@ -19,6 +19,7 @@ class CodeBlockView extends StatelessWidget {
       true => language!,
       false => 'plaintext',
     };
+
     return HighlightView(
       data,
       backgroundColor: Colors.transparent,

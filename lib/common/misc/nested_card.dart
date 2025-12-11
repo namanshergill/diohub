@@ -7,72 +7,41 @@ import 'package:flutter/material.dart';
 class NestedCard extends StatelessWidget {
   const NestedCard({
     required this.child,
-    this.header,
-    this.trailing,
+    // this.header,
+    // this.trailing,
     this.padding,
-    this.headerPadding,
+    this.swapColors = false,
     super.key,
   });
 
   final Widget child;
-  final Widget? header;
-  final Widget? trailing;
+
   final EdgeInsetsGeometry? padding;
-  final EdgeInsetsGeometry? headerPadding;
+  final bool swapColors;
 
   @override
   Widget build(final BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          if (header != null || trailing != null) ...[
-            Padding(
-              padding: headerPadding ??
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  if (header != null)
-                    Expanded(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: <Widget>[header!],
-                      ),
-                    ),
-                  if (trailing != null)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: trailing!,
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          Card(
-            elevation: 0,
-            margin: EdgeInsets.zero,
-            color: context.colorScheme.brightness == Brightness.dark
-                ? Color.alphaBlend(
-                    Colors.white.withOpacity(0.08),
-                    context.colorScheme.surface,
-                  )
-                : Color.alphaBlend(
-                    Colors.black.withOpacity(0.06),
-                    context.colorScheme.surface,
-                  ),
-            child: Padding(
-              padding: padding ?? const EdgeInsets.all(8),
-              child: SizedBox(
-                width: double.infinity,
-                child: child,
-              ),
-            ),
-          ),
-        ],
+    // When swapColors is true, nested card gets the darker color (default Material surface)
+    // When swapColors is false, nested card gets the lighter blended color
+    final Color? nestedCardColor = swapColors
+        ? null // null means use default Material surface color (darker)
+        : (context.colorScheme.brightness == Brightness.dark
+            ? Color.alphaBlend(
+                Colors.white.withOpacity(0.08),
+                context.colorScheme.surface,
+              )
+            : Color.alphaBlend(
+                Colors.black.withOpacity(0.06),
+                context.colorScheme.surface,
+              ));
+
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: nestedCardColor,
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(8),
+        child: child,
       ),
     );
   }

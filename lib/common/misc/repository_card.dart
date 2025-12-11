@@ -64,8 +64,9 @@ class RepositoryCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   repo!.name!,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
+
                         color: context.colorScheme.onSurface,
                       ),
                   maxLines: 1,
@@ -109,9 +110,9 @@ class RepositoryCard extends StatelessWidget {
               repo!.description!,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: context.colorScheme.onSurfaceVariant,
-                    height: 1.4,
+                    // height: 1.4,
                   ),
             ),
           ],

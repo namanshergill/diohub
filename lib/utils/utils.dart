@@ -107,8 +107,24 @@ extension BuiltListExtn<T> on Future<BuiltList<T>> {
 T returnItself<T>(final T data) => data;
 
 extension StringIntp on int {
-  String toShortenedStr() => switch (this) {
-        > 1000 => '${toString()[0]}.${toString()[1]}k',
-        _ => toString(),
-      };
+  String toShortenedStr() {
+    if (this >= 1000000) {
+      final double millions = this / 1000000;
+      // If it's a whole number, show without decimal
+      if (millions == millions.truncateToDouble()) {
+        return '${millions.toInt()}M';
+      }
+      // Otherwise show one decimal place
+      return '${millions.toStringAsFixed(1)}M';
+    } else if (this >= 1000) {
+      final double thousands = this / 1000;
+      // If it's a whole number, show without decimal
+      if (thousands == thousands.truncateToDouble()) {
+        return '${thousands.toInt()}k';
+      }
+      // Otherwise show one decimal place
+      return '${thousands.toStringAsFixed(1)}k';
+    }
+    return toString();
+  }
 }

@@ -1,5 +1,6 @@
 import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/misc/menu_button.dart';
+import 'package:diohub/common/misc/nested_card_with_header.dart';
 import 'package:diohub/common/misc/tappable_card.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:flex_list/flex_list.dart';
@@ -32,7 +33,8 @@ class InfoCard extends StatelessWidget {
     super.key,
     this.title,
     this.leading,
-    this.headerPadding = const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    this.headerPadding =
+        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     final VoidCallback? onHeaderTap,
     this.headerColor,
     this.elevation,
@@ -71,7 +73,8 @@ class InfoCard extends StatelessWidget {
     super.key,
     this.title,
     this.leading,
-    this.headerPadding = const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    this.headerPadding =
+        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     this.onHeaderTap,
     this.headerColor,
     this.elevation,
@@ -117,7 +120,8 @@ class InfoCard extends StatelessWidget {
             children: <Widget>[
               CardHeader(
                 onTap: onHeaderTap,
-                elevation: 0, // Remove elevation from header since parent has it
+                elevation:
+                    0, // Remove elevation from header since parent has it
                 color: headerColor,
                 child: Padding(
                   padding: headerPadding,
@@ -138,7 +142,8 @@ class InfoCard extends StatelessWidget {
                       Divider(
                         height: 1,
                         thickness: 1,
-                        color: context.colorScheme.outlineVariant.withOpacity(0.5),
+                        color:
+                            context.colorScheme.outlineVariant.withOpacity(0.5),
                       ),
                     BasicCard.linked(
                       elevation: 0, // Remove elevation since parent has it
@@ -166,9 +171,9 @@ class InfoCard extends StatelessWidget {
               ),
               child: DefaultTextStyle(
                 style: context.textTheme.labelMedium!.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: context.colorScheme.onSurface,
-                    ),
+                  fontWeight: FontWeight.w600,
+                  color: context.colorScheme.onSurface,
+                ),
                 child: leading!,
               ),
             ),
@@ -216,6 +221,40 @@ class MenuInfoCard extends StatelessWidget {
   final List<PullDownMenuEntry> Function(BuildContext context) menuBuilder;
   final Widget child;
 
+  Widget _buildHeader(final BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          if (leading != null)
+            Theme(
+              data: context.themeData.copyWith(
+                iconTheme: context.themeData.iconTheme.copyWith(
+                  size: 16,
+                  color: context.colorScheme.primary,
+                ),
+              ),
+              child: DefaultTextStyle(
+                style: context.textTheme.labelMedium!.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: context.colorScheme.onSurface,
+                ),
+                child: leading!,
+              ),
+            ),
+          if (title.isNotEmpty && leading != null)
+            const SizedBox(
+              width: 8,
+            ),
+          if (title.isNotEmpty)
+            Text(
+              title,
+              style: context.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: context.colorScheme.onSurface,
+              ),
+            ),
+        ],
+      );
+
   @override
   Widget build(final BuildContext context) {
     final List<PullDownMenuEntry> menuItems = menuBuilder.call(context);
@@ -229,6 +268,7 @@ class MenuInfoCard extends StatelessWidget {
             onPressed: showMenu,
             icon: Icon(
               Icons.adaptive.more_rounded,
+              size: 16,
             ),
             // padding: const EdgeInsets.all(4),
             // constraints: const BoxConstraints(),
@@ -238,32 +278,31 @@ class MenuInfoCard extends StatelessWidget {
             (final BuildContext context, final Widget button, final showMenu) =>
                 GestureDetector(
           onLongPress: showMenu,
-          child: InfoCard(
-            trailing: button,
-            headerColor: headerColor,
-            headerPadding: const EdgeInsets.only(
-              left: 12,
-              bottom: 2,
-              top: 2,
+          child: NestedCardWithHeader(
+            headerPadding: EdgeInsets.symmetric(horizontal: 4),
+            // childPadding:
+            // const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            header: InkPot(
+              onTap: showMenu,
+              child: _buildHeader(context),
             ),
-            elevation: elevation,
-            onTap: onTap,
-            onHeaderTap: showMenu,
-            title: title,
-            leading: leading,
-            // titleTextStyle: titleTextStyle,
-            child: child,
+            trailing: button,
+            child: InkPot(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12),
+              child: child,
+            ),
           ),
         ),
       );
     }
-    return InfoCard(
-      onTap: onTap,
-      title: title,
-      elevation: elevation,
-      headerColor: headerColor,
-      leading: leading,
-      child: child,
+    return NestedCardWithHeader(
+      header: _buildHeader(context),
+      child: InkPot(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: child,
+      ),
     );
   }
 }

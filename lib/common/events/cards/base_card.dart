@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:diohub/common/misc/header_card.dart';
 import 'package:diohub/common/misc/ink_pot.dart';
+import 'package:diohub/common/misc/nested_card_with_header.dart';
 import 'package:diohub/common/misc/profile_banner.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
 import 'package:diohub/models/events/events_model.dart' hide Key;
@@ -19,6 +20,11 @@ class BaseEventCard extends StatelessWidget {
     this.userLogin,
     this.date,
     this.eventType,
+    this.padding,
+    this.headerPadding,
+    this.childPadding,
+    this.spacing,
+    this.useNestedCard = true,
     super.key,
     required this.isInTimeline,
   });
@@ -32,6 +38,11 @@ class BaseEventCard extends StatelessWidget {
     this.userLogin,
     this.date,
     this.eventType,
+    this.padding,
+    this.headerPadding,
+    this.childPadding,
+    this.spacing,
+    this.useNestedCard = true,
     super.key,
     required this.isInTimeline,
   }) : children = <Widget>[
@@ -46,117 +57,147 @@ class BaseEventCard extends StatelessWidget {
   final List<TextSpan> headerText;
   final DateTime? date;
   final EventsType? eventType;
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? headerPadding;
+  final EdgeInsetsGeometry? childPadding;
+  final double? spacing;
+  final bool useNestedCard;
 
   @override
   Widget build(final BuildContext context) {
     // Modern feed-style design with prominent icon and clean hierarchy
-    return HeaderCard(
-      header: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          // Smaller event icon in colored container
-          if (eventType != null)
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                color: _getEventIconColor(context, eventType).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(
-                _getEventIcon(eventType),
-                size: 12,
-                color: _getEventIconColor(context, eventType),
-              ),
+    final Widget headerRow = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        // Smaller event icon in colored container
+        if (eventType != null)
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              color: _getEventIconColor(context, eventType).withOpacity(0.12),
+              borderRadius: BorderRadius.circular(6),
             ),
-          if (eventType != null) const SizedBox(width: 6),
-          // Actor avatar
-          if (avatarUrl != null && actor != null)
-            ClipOval(
-              child: CachedNetworkImage(
-                imageUrl: avatarUrl!,
-                width: 18,
-                height: 18,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => ShimmerWidget(
-                  child: Container(
-                    width: 18,
-                    height: 18,
-                    color: context.colorScheme.surfaceVariant,
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
+            child: Icon(
+              _getEventIcon(eventType),
+              size: 12,
+              color: _getEventIconColor(context, eventType),
+            ),
+          ),
+        if (eventType != null) const SizedBox(width: 6),
+        // Actor avatar
+        if (avatarUrl != null && actor != null)
+          ClipOval(
+            child: CachedNetworkImage(
+              imageUrl: avatarUrl!,
+              width: 18,
+              height: 18,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => ShimmerWidget(
+                child: Container(
                   width: 18,
                   height: 18,
                   color: context.colorScheme.surfaceVariant,
-                  child: Icon(
-                    Icons.person,
-                    size: 10,
-                    color: context.colorScheme.onSurfaceVariant,
-                  ),
                 ),
               ),
-            ),
-          if (avatarUrl != null && actor != null) const SizedBox(width: 4),
-          // Actor name and action text combined in RichText
-          Flexible(
-            child: Text.rich(
-              TextSpan(
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: context.colorScheme.onSurface.withOpacity(0.7),
-                      fontSize: 12,
-                    ),
-                children: <TextSpan>[
-                  // Tappable actor name
-                  if (actor != null)
-                    TextSpan(
-                      text: actor!,
-                      recognizer: userLogin != null
-                          ? (TapGestureRecognizer()
-                            ..onTap = () {
-                              navigateToProfile(
-                                context: context,
-                                login: userLogin!,
-                              );
-                            })
-                          : null,
-                          // style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  // Space between actor and action
-                  if (actor != null) const TextSpan(text: ' '),
-                  // Action description text - children automatically inherit parent style
-                  ...headerText,
-                ],
+              errorWidget: (context, url, error) => Container(
+                width: 18,
+                height: 18,
+                color: context.colorScheme.surfaceVariant,
+                child: Icon(
+                  Icons.person,
+                  size: 10,
+                  color: context.colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ),
-        ],
-      ),
-      trailing: date != null
-          ? Text(
-              getDate(date.toString()),
+        if (avatarUrl != null && actor != null) const SizedBox(width: 4),
+        // Actor name and action text combined in RichText
+        Flexible(
+          child: Text.rich(
+            TextSpan(
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color:
-                        context.colorScheme.onSurfaceVariant.withOpacity(0.7),
-                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: context.colorScheme.onSurface.withOpacity(0.7),
+                    fontSize: 12,
                   ),
-            )
-          : null,
-      child: children.isNotEmpty
-          ? Column(
-              children: List<Widget>.generate(
-                children.length,
-                (final int index) => Column(
-                  children: <Widget>[
-                    if (index > 0) const SizedBox(height: 8),
-                    children[index],
-                  ],
+              children: <TextSpan>[
+                // Tappable actor name
+                if (actor != null)
+                  TextSpan(
+                    text: actor!,
+                    recognizer: userLogin != null
+                        ? (TapGestureRecognizer()
+                          ..onTap = () {
+                            navigateToProfile(
+                              context: context,
+                              login: userLogin!,
+                            );
+                          })
+                        : null,
+                    // style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                // Space between actor and action
+                if (actor != null) const TextSpan(text: ' '),
+                // Action description text - children automatically inherit parent style
+                ...headerText,
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    final Widget? trailingWidget = date != null
+        ? Text(
+            getDate(date.toString()),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                  fontSize: 11,
                 ),
+          )
+        : null;
+
+    final Widget childWidget = children.isNotEmpty
+        ? Column(
+            children: List<Widget>.generate(
+              children.length,
+              (final int index) => Column(
+                children: <Widget>[
+                  if (index > 0) const SizedBox(height: 8),
+                  children[index],
+                ],
               ),
+            ),
+          )
+        : const SizedBox.shrink();
+
+    if (useNestedCard) {
+      return NestedCardWithHeader(
+        padding: padding,
+        headerPadding: headerPadding,
+        childPadding: childPadding,
+        spacing: spacing,
+        header: headerRow,
+        trailing: trailingWidget,
+        child: childWidget,
+      );
+    }
+
+    return HeaderCard(
+      padding: padding,
+      headerPadding: headerPadding,
+      spacing: spacing,
+      header: headerRow,
+      trailing: trailingWidget,
+      child: children.isNotEmpty
+          ? Padding(
+              padding: childPadding ?? const EdgeInsets.all(8),
+              child: childWidget,
             )
-          : const SizedBox.shrink(),
+          : childWidget,
     );
   }
 

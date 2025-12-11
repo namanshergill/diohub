@@ -1,5 +1,5 @@
 import 'package:diohub/common/events/cards/base_card.dart';
-import 'package:diohub/common/issues/issue_list_card.dart';
+import 'package:diohub/common/issues/nested_issue_card.dart';
 import 'package:diohub/models/events/events_model.dart' hide Key;
 import 'package:flutter/material.dart';
 
@@ -18,6 +18,8 @@ class IssuesEventCard extends StatelessWidget {
   @override
   Widget build(final BuildContext context) => BaseEventCard.singular(
         isInTimeline: isInTimeline,
+        useNestedCard: false,
+        childPadding: EdgeInsets.zero,
         eventType: event.type,
         actor: event.actor!.login,
         headerText: <TextSpan>[
@@ -26,9 +28,11 @@ class IssuesEventCard extends StatelessWidget {
         userLogin: event.actor!.login,
         date: event.createdAt,
         avatarUrl: event.actor!.avatarUrl,
-        child: IssueListCard(
+        child: NestedIssueCard(
           event.payload!.issue!,
           commentsSince: time,
+          isNested: true,
+
           // disableMaterial: true,
           // compact: true,
         ),
