@@ -33,7 +33,7 @@ class NestedIssueCard extends StatelessWidget {
       return PullLoadingCard(
         item.pullRequest!.url!,
         issueModel: item,
-        compact: !showRepoName,
+        showRepoName: showRepoName,
         isNested: isNested,
       );
     }
@@ -53,7 +53,7 @@ class NestedIssueCard extends StatelessWidget {
             .push(issuePullScreenRoute(PathData.fromURL(item.url!)));
       },
       child: NestedCardWithHeader(
-        flipColors: isNested,
+        isNested: isNested,
         header: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
