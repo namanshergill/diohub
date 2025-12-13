@@ -25,7 +25,9 @@ class RepoBranchProvider extends ProxyProvider<String, RepositoryProvider> {
   }
 
   void reloadBranch() {
-    _loadBranch.add(_currentBranch ?? parentProvider.data.defaultBranch!);
+    _loadBranch.add(
+      _currentBranch ?? parentProvider.data.defaultBranchRef?.name ?? 'main',
+    );
   }
 
   @override
@@ -43,7 +45,10 @@ class RepoBranchProvider extends ProxyProvider<String, RepositoryProvider> {
   @override
   Future<String> setInitData({final bool isInitialisation = false}) =>
       setBranch(
-        _initCommitSHA ?? _currentBranch ?? parentProvider.data.defaultBranch!,
+        _initCommitSHA ??
+            _currentBranch ??
+            parentProvider.data.defaultBranchRef?.name ??
+            'main',
         isCommitSha: _initCommitSHA != null,
         setState: !isInitialisation,
       );
