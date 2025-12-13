@@ -1,6 +1,7 @@
 import 'package:diohub/common/misc/collapsible_action_buttons.dart';
 import 'package:diohub/common/misc/floating_action_toolbar_content.dart';
 import 'package:diohub/common/misc/floating_expandable_widget.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
 // Export enums for convenience
@@ -27,7 +28,6 @@ export 'package:diohub/common/misc/floating_expandable_widget.dart'
 ///         // ... more actions
 ///       ],
 ///       actionCardBuilder: buildStandardActionCard,
-///       defaultVisibleCount: 3,
 ///       position: FloatingPosition.bottom,
 ///     ),
 ///   ],
@@ -37,8 +37,6 @@ class FloatingActionToolbar extends StatefulWidget {
   const FloatingActionToolbar({
     required this.actions,
     required this.actionCardBuilder,
-    this.defaultVisibleCount = 3,
-    this.expandedVisibleCount,
     this.onExpandChanged,
     this.onCollapseRequested,
     this.position = FloatingPosition.bottom,
@@ -46,32 +44,26 @@ class FloatingActionToolbar extends StatefulWidget {
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     this.spacing = 8,
     this.maxHeight,
-    this.prominentActions,
     this.prominentActionBuilder,
     this.bottomPadding = 0.0,
     this.title,
+    this.debugLogging = false,
     super.key,
   });
 
-  /// All actions to display in the toolbar
+  /// All actions to display in the toolbar.
+  /// Actions are automatically split by type:
+  /// - MinorActionButton → displayed in the horizontal row (minor actions)
+  /// - MajorActionButton, ExpandableActionButton, CheckboxActionButton → displayed as prominent actions above the row
   final List<ActionButtonData> actions;
 
   /// Builder function to create individual action cards
   final Widget Function(BuildContext context, ActionButtonData action)
       actionCardBuilder;
 
-  /// Prominent actions (like "Comment") that appear as expanded tiles
-  final List<ActionButtonData>? prominentActions;
-
   /// Builder for prominent action cards (uses buildProminentActionCard by default)
   final Widget Function(BuildContext context, ActionButtonData action)?
       prominentActionBuilder;
-
-  /// Number of actions visible when collapsed (default: 3)
-  final int defaultVisibleCount;
-
-  /// Number of actions visible when expanded (if null, shows all)
-  final int? expandedVisibleCount;
 
   /// Callback when expand state changes
   final void Function(bool isExpanded)? onExpandChanged;
@@ -102,6 +94,9 @@ class FloatingActionToolbar extends StatefulWidget {
 
   /// Title to display in expanded view (e.g., username on home, repo name on repo screen)
   final String? title;
+
+  /// Enable debug logging for positioning and state changes
+  final bool debugLogging;
 
   @override
   State<FloatingActionToolbar> createState() => _FloatingActionToolbarState();
@@ -152,8 +147,10 @@ class _FloatingActionToolbarState extends State<FloatingActionToolbar>
             ? FloatingAlignment.right
             : null);
 
-    print(
-        '[FloatingActionToolbar] build: position=${widget.position}, alignment=${widget.alignment}, effectiveAlignment=$effectiveAlignment');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingActionToolbar] build: position=${widget.position}, alignment=${widget.alignment}, effectiveAlignment=$effectiveAlignment');
+    }
 
     return FloatingExpandableWidget(
       contentBuilder: (context, callbacks) {
@@ -169,9 +166,6 @@ class _FloatingActionToolbarState extends State<FloatingActionToolbar>
           context: context,
           callbacks: callbacks,
           actions: widget.actions,
-          prominentActions: widget.prominentActions,
-          defaultVisibleCount: widget.defaultVisibleCount,
-          expandedVisibleCount: widget.expandedVisibleCount,
           spacing: widget.spacing,
           maxHeight: widget.maxHeight,
           position: widget.position,
@@ -180,12 +174,14 @@ class _FloatingActionToolbarState extends State<FloatingActionToolbar>
           expandAnimation: _expandAnimation,
           toolbarKey: _toolbarKey,
           title: widget.title,
+          debugLogging: widget.debugLogging,
         );
       },
       position: widget.position,
       alignment: effectiveAlignment,
       padding: widget.padding,
       bottomPadding: widget.bottomPadding,
+      debugLogging: widget.debugLogging,
       onExpandChanged: _onExpandChanged,
     );
   }

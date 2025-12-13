@@ -75,12 +75,39 @@ enum ActionButtonVisibilityState {
   none,
 }
 
-/// Data class for action button configuration
-class ActionButtonData {
+/// An option that can be displayed when an expandable button is expanded
+class ExpandableOption {
+  const ExpandableOption({
+    required this.label,
+    this.icon,
+    required this.onTap,
+    this.customWidget,
+    this.enabled = true,
+  });
+
+  /// Label text for the option
+  final String label;
+
+  /// Optional icon for the option
+  final IconData? icon;
+
+  /// Callback when the option is tapped
+  final VoidCallback onTap;
+
+  /// Optional custom widget to display instead of standard label/icon
+  final Widget? customWidget;
+
+  /// Whether the option is enabled
+  final bool enabled;
+}
+
+/// Base class for all action button types
+///
+/// Use sealed class for exhaustive pattern matching
+sealed class ActionButtonData {
   const ActionButtonData({
     required this.icon,
     required this.label,
-    required this.onTap,
     this.leading,
     this.trailing,
     this.iconColor,
@@ -89,11 +116,11 @@ class ActionButtonData {
     this.isPositive = false,
     this.actionType,
     this.visibilityState = ActionButtonVisibilityState.both,
+    this.seedColor,
   });
 
   final IconData icon;
   final String label;
-  final VoidCallback? onTap;
 
   /// Optional widget to display on the leading side (left) of the card
   final Widget? leading;
@@ -112,8 +139,32 @@ class ActionButtonData {
   /// Controls visibility in both collapsed and expanded toolbar states
   final ActionButtonVisibilityState visibilityState;
 
-  /// Creates a copy of this ActionButtonData with updated properties
-  ActionButtonData copyWith({
+  /// Optional seed color used to determine button colors (for prominent action cards)
+  /// When provided, this color is used as the base for generating icon, text, and background colors
+  final Color? seedColor;
+}
+
+/// Small action button (replaces the previous ActionButtonData for minor actions)
+class MinorActionButton extends ActionButtonData {
+  const MinorActionButton({
+    required super.icon,
+    required super.label,
+    required this.onTap,
+    super.leading,
+    super.trailing,
+    super.iconColor,
+    super.enabled,
+    super.isDestructive,
+    super.isPositive,
+    super.actionType,
+    super.visibilityState,
+    super.seedColor,
+  });
+
+  final VoidCallback? onTap;
+
+  /// Creates a copy of this MinorActionButton with updated properties
+  MinorActionButton copyWith({
     IconData? icon,
     String? label,
     VoidCallback? onTap,
@@ -125,8 +176,9 @@ class ActionButtonData {
     bool? isPositive,
     ActionButtonActionType? actionType,
     ActionButtonVisibilityState? visibilityState,
+    Color? seedColor,
   }) {
-    return ActionButtonData(
+    return MinorActionButton(
       icon: icon ?? this.icon,
       label: label ?? this.label,
       onTap: onTap ?? this.onTap,
@@ -138,6 +190,173 @@ class ActionButtonData {
       isPositive: isPositive ?? this.isPositive,
       actionType: actionType ?? this.actionType,
       visibilityState: visibilityState ?? this.visibilityState,
+      seedColor: seedColor ?? this.seedColor,
+    );
+  }
+}
+
+/// Major action button for prominent actions (has onTap field)
+class MajorActionButton extends ActionButtonData {
+  const MajorActionButton({
+    required super.icon,
+    required super.label,
+    required this.onTap,
+    super.leading,
+    super.trailing,
+    super.iconColor,
+    super.enabled,
+    super.isDestructive,
+    super.isPositive,
+    super.actionType,
+    super.visibilityState,
+    super.seedColor,
+  });
+
+  final VoidCallback? onTap;
+
+  /// Creates a copy of this MajorActionButton with updated properties
+  MajorActionButton copyWith({
+    IconData? icon,
+    String? label,
+    VoidCallback? onTap,
+    Widget? leading,
+    Widget? trailing,
+    Color? iconColor,
+    bool? enabled,
+    bool? isDestructive,
+    bool? isPositive,
+    ActionButtonActionType? actionType,
+    ActionButtonVisibilityState? visibilityState,
+    Color? seedColor,
+  }) {
+    return MajorActionButton(
+      icon: icon ?? this.icon,
+      label: label ?? this.label,
+      onTap: onTap ?? this.onTap,
+      leading: leading ?? this.leading,
+      trailing: trailing ?? this.trailing,
+      iconColor: iconColor ?? this.iconColor,
+      enabled: enabled ?? this.enabled,
+      isDestructive: isDestructive ?? this.isDestructive,
+      isPositive: isPositive ?? this.isPositive,
+      actionType: actionType ?? this.actionType,
+      visibilityState: visibilityState ?? this.visibilityState,
+      seedColor: seedColor ?? this.seedColor,
+    );
+  }
+}
+
+/// Expandable action button that can expand to show additional content
+class ExpandableActionButton extends ActionButtonData {
+  const ExpandableActionButton({
+    required super.icon,
+    required super.label,
+    required this.expandableWidgetBuilder,
+    super.leading,
+    super.trailing,
+    super.iconColor,
+    super.enabled,
+    super.isDestructive,
+    super.isPositive,
+    super.actionType,
+    super.visibilityState,
+    super.seedColor,
+  });
+
+  /// Builder function to create widget to show when this button is expanded
+  /// The builder receives a collapse callback that can be called to collapse the expandable widget
+  final Widget Function(VoidCallback onCollapse) expandableWidgetBuilder;
+
+  /// Whether this button is expandable (always true for ExpandableActionButton)
+  bool get isExpandable => true;
+
+  /// Creates a copy of this ExpandableActionButton with updated properties
+  ExpandableActionButton copyWith({
+    IconData? icon,
+    String? label,
+    Widget Function(VoidCallback onCollapse)? expandableWidgetBuilder,
+    Widget? leading,
+    Widget? trailing,
+    Color? iconColor,
+    bool? enabled,
+    bool? isDestructive,
+    bool? isPositive,
+    ActionButtonActionType? actionType,
+    ActionButtonVisibilityState? visibilityState,
+    Color? seedColor,
+  }) {
+    return ExpandableActionButton(
+      icon: icon ?? this.icon,
+      label: label ?? this.label,
+      expandableWidgetBuilder:
+          expandableWidgetBuilder ?? this.expandableWidgetBuilder,
+      leading: leading ?? this.leading,
+      trailing: trailing ?? this.trailing,
+      iconColor: iconColor ?? this.iconColor,
+      enabled: enabled ?? this.enabled,
+      isDestructive: isDestructive ?? this.isDestructive,
+      isPositive: isPositive ?? this.isPositive,
+      actionType: actionType ?? this.actionType,
+      visibilityState: visibilityState ?? this.visibilityState,
+      seedColor: seedColor ?? this.seedColor,
+    );
+  }
+}
+
+/// Checkbox action button for toggleable actions
+class CheckboxActionButton extends ActionButtonData {
+  const CheckboxActionButton({
+    required super.icon,
+    required super.label,
+    required this.value,
+    required this.onChanged,
+    super.leading,
+    super.trailing,
+    super.iconColor,
+    super.enabled,
+    super.isDestructive,
+    super.isPositive,
+    super.actionType,
+    super.visibilityState,
+    super.seedColor,
+  });
+
+  /// Current checkbox value
+  final bool value;
+
+  /// Callback when checkbox value changes
+  final ValueChanged<bool>? onChanged;
+
+  /// Creates a copy of this CheckboxActionButton with updated properties
+  CheckboxActionButton copyWith({
+    IconData? icon,
+    String? label,
+    bool? value,
+    ValueChanged<bool>? onChanged,
+    Widget? leading,
+    Widget? trailing,
+    Color? iconColor,
+    bool? enabled,
+    bool? isDestructive,
+    bool? isPositive,
+    ActionButtonActionType? actionType,
+    ActionButtonVisibilityState? visibilityState,
+    Color? seedColor,
+  }) {
+    return CheckboxActionButton(
+      icon: icon ?? this.icon,
+      label: label ?? this.label,
+      value: value ?? this.value,
+      onChanged: onChanged ?? this.onChanged,
+      leading: leading ?? this.leading,
+      trailing: trailing ?? this.trailing,
+      iconColor: iconColor ?? this.iconColor,
+      enabled: enabled ?? this.enabled,
+      isDestructive: isDestructive ?? this.isDestructive,
+      isPositive: isPositive ?? this.isPositive,
+      actionType: actionType ?? this.actionType,
+      visibilityState: visibilityState ?? this.visibilityState,
+      seedColor: seedColor ?? this.seedColor,
     );
   }
 }

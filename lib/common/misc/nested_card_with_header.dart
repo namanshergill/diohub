@@ -16,7 +16,7 @@ class NestedCardWithHeader extends StatelessWidget {
     this.headerPadding,
     this.childPadding,
     this.spacing,
-    this.flipColors = false,
+    this.isNested = false,
     this.useMaxWidth = true,
     super.key,
   });
@@ -43,7 +43,7 @@ class NestedCardWithHeader extends StatelessWidget {
   final double? spacing;
 
   /// Whether to flip colors: header card gets lighter color, nested card gets darker color (default: false)
-  final bool flipColors;
+  final bool isNested;
 
   /// Whether to use max width constraints (default: true)
   /// When false, the widget will size to its content instead of expanding to fill available width
@@ -52,7 +52,7 @@ class NestedCardWithHeader extends StatelessWidget {
   @override
   Widget build(final BuildContext context) {
     // Calculate colors based on flipColors
-    final Color? headerCardColor = flipColors
+    final Color? headerCardColor = isNested
         ? (context.colorScheme.brightness == Brightness.dark
             ? Color.alphaBlend(
                 Colors.white.withOpacity(0.08),
@@ -66,15 +66,16 @@ class NestedCardWithHeader extends StatelessWidget {
 
     final cardWidget = HeaderCard(
       padding: padding,
-      headerPadding: headerPadding,
+      headerPadding: headerPadding??(isNested ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 4, vertical: 2)),
       spacing: spacing,
       color: headerCardColor,
-      margin: flipColors ? EdgeInsets.zero : null,
+      margin: isNested ? EdgeInsets.zero : null,
       header: header,
+      
       trailing: trailing,
       child: NestedCard(
-        padding: childPadding ?? const EdgeInsets.all(8),
-        swapColors: flipColors,
+        padding: childPadding ?? (isNested ? EdgeInsets.zero : const EdgeInsets.all(8)),
+        // swapColors: isN,
         child: child,
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:diohub/common/misc/floating_widget_position_calculator.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -164,7 +165,7 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       final shouldLog = oldPosition == null ||
           positionChange > 5.0 ||
           (_snapController.value < 0.1 || _snapController.value > 0.9);
-      if (shouldLog) {
+      if (shouldLog && widget.debugLogging && kDebugMode) {
         print(
             '[FloatingExpandableWidget] _onSnapUpdate: position=$newPosition, oldPosition=$oldPosition, animationValue=${_snapController.value}');
       }
@@ -202,8 +203,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
         if (_expandedSize != newExpandedSize) {
           _expandedSize = newExpandedSize;
           hasChanges = true;
-          print(
-              '[FloatingExpandableWidget] _measureSize: Expanded size changed - oldSize=$_expandedSize, newSize=$newExpandedSize');
+          if (widget.debugLogging && kDebugMode) {
+            print(
+                '[FloatingExpandableWidget] _measureSize: Expanded size changed - oldSize=$_expandedSize, newSize=$newExpandedSize');
+          }
         }
       }
     } else {
@@ -215,8 +218,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
         if (_collapsedSize != newCollapsedSize) {
           _collapsedSize = newCollapsedSize;
           hasChanges = true;
-          print(
-              '[FloatingExpandableWidget] _measureSize: Collapsed size changed - oldSize=$_collapsedSize, newSize=$newCollapsedSize');
+          if (widget.debugLogging && kDebugMode) {
+            print(
+                '[FloatingExpandableWidget] _measureSize: Collapsed size changed - oldSize=$_collapsedSize, newSize=$newCollapsedSize');
+          }
         }
       }
     }
@@ -226,11 +231,15 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
         // Update legacy _widgetSize for backward compatibility
         _widgetSize = _isExpanded ? _expandedSize : _collapsedSize;
       });
-      print(
-          '[FloatingExpandableWidget] _measureSize: Sizes updated - expanded=$_expandedSize, collapsed=$_collapsedSize, current=$_widgetSize');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _measureSize: Sizes updated - expanded=$_expandedSize, collapsed=$_collapsedSize, current=$_widgetSize');
+      }
     } else {
-      print(
-          '[FloatingExpandableWidget] _measureSize: Sizes unchanged - expanded=$_expandedSize, collapsed=$_collapsedSize');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _measureSize: Sizes unchanged - expanded=$_expandedSize, collapsed=$_collapsedSize');
+      }
     }
   }
 
@@ -260,8 +269,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
   void _collapse() {
     if (!_isExpanded) return;
     HapticFeedback.mediumImpact();
-    print(
-        '[FloatingExpandableWidget] _collapse: Starting collapse, current position=$_centerPosition, widgetSize=$_widgetSize');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingExpandableWidget] _collapse: Starting collapse, current position=$_centerPosition, widgetSize=$_widgetSize');
+    }
     setState(() {
       _isExpanded = false;
       _justCollapsed = true; // Set flag to prevent immediate re-expansion
@@ -270,8 +281,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     // Wait for collapse animation to complete, then snap to nearest edge
     _expandController.reverse().then((_) {
       if (mounted) {
-        print(
-            '[FloatingExpandableWidget] _collapse: Collapse animation completed, position=$_centerPosition');
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _collapse: Collapse animation completed, position=$_centerPosition');
+        }
         _snapToEdgeWithMeasurement();
       }
     });
@@ -284,25 +297,35 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     setState(() {
       _isDragging = false;
       _dragStartCenterOffset = null;
-    }); 
-    print(
-        '[FloatingExpandableWidget] _unlockSizeAndStopDragging: positionBeforeUnlock=$positionBeforeUnlock, positionAfterUnlock=$_centerPosition, sizeBeforeUnlock=$sizeBeforeUnlock, sizeAfterUnlock=${_getCurrentWidgetSize()}');
+    });
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingExpandableWidget] _unlockSizeAndStopDragging: positionBeforeUnlock=$positionBeforeUnlock, positionAfterUnlock=$_centerPosition, sizeBeforeUnlock=$sizeBeforeUnlock, sizeAfterUnlock=${_getCurrentWidgetSize()}');
+    }
   }
 
   /// Measures widget size and snaps to edge
   void _snapToEdgeWithMeasurement() {
-    print(
-        '[FloatingExpandableWidget] _snapToEdgeWithMeasurement: START - _centerPosition=$_centerPosition, _widgetSize=$_widgetSize, _isExpanded=$_isExpanded');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingExpandableWidget] _snapToEdgeWithMeasurement: START - _centerPosition=$_centerPosition, _widgetSize=$_widgetSize, _isExpanded=$_isExpanded');
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      print(
-          '[FloatingExpandableWidget] _snapToEdgeWithMeasurement: First postFrameCallback - measuring size, _centerPosition=$_centerPosition, _widgetSize=$_widgetSize');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _snapToEdgeWithMeasurement: First postFrameCallback - measuring size, _centerPosition=$_centerPosition, _widgetSize=$_widgetSize');
+      }
       _measureSize();
-      print(
-          '[FloatingExpandableWidget] _snapToEdgeWithMeasurement: After _measureSize - _centerPosition=$_centerPosition, _widgetSize=$_widgetSize');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _snapToEdgeWithMeasurement: After _measureSize - _centerPosition=$_centerPosition, _widgetSize=$_widgetSize');
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          print(
-              '[FloatingExpandableWidget] _snapToEdgeWithMeasurement: Second postFrameCallback - About to snap to edge, position=$_centerPosition, widgetSize=$_widgetSize');
+          if (widget.debugLogging && kDebugMode) {
+            print(
+                '[FloatingExpandableWidget] _snapToEdgeWithMeasurement: Second postFrameCallback - About to snap to edge, position=$_centerPosition, widgetSize=$_widgetSize');
+          }
           _snapToEdge();
         }
       });
@@ -419,22 +442,28 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
                   isSwipingDown)); // Near bottom, swiping down
 
       if (shouldCollapse) {
-        print(
-            '[FloatingExpandableWidget] _onPanUpdate: AUTO-COLLAPSING! Swiping ${isSwipingDown ? "down" : "up"} near ${edgeDistances.isNearTop ? "top" : "bottom"} edge.');
-        print(
-            '[FloatingExpandableWidget] _onPanUpdate: BEFORE collapse - clampedCenter=$clampedCenter, newCenter=$newCenter, widgetSize=$widgetSize, _centerPosition=$_centerPosition, _wasExpandedBeforeDrag=$_wasExpandedBeforeDrag, _isExpanded=$_isExpanded');
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _onPanUpdate: AUTO-COLLAPSING! Swiping ${isSwipingDown ? "down" : "up"} near ${edgeDistances.isNearTop ? "top" : "bottom"} edge.');
+          print(
+              '[FloatingExpandableWidget] _onPanUpdate: BEFORE collapse - clampedCenter=$clampedCenter, newCenter=$newCenter, widgetSize=$widgetSize, _centerPosition=$_centerPosition, _wasExpandedBeforeDrag=$_wasExpandedBeforeDrag, _isExpanded=$_isExpanded');
+        }
         HapticFeedback.mediumImpact();
 
         // Track that widget was expanded before this collapse
         if (!_wasExpandedBeforeDrag) {
           _wasExpandedBeforeDrag = true;
-          print(
-              '[FloatingExpandableWidget] _onPanUpdate: Setting _wasExpandedBeforeDrag=true');
+          if (widget.debugLogging && kDebugMode) {
+            print(
+                '[FloatingExpandableWidget] _onPanUpdate: Setting _wasExpandedBeforeDrag=true');
+          }
         }
 
         _collapseImmediately();
-        print(
-            '[FloatingExpandableWidget] _onPanUpdate: AFTER _collapseImmediately - _isExpanded=$_isExpanded, _justCollapsed=$_justCollapsed');
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _onPanUpdate: AFTER _collapseImmediately - _isExpanded=$_isExpanded, _justCollapsed=$_justCollapsed');
+        }
 
         // Use collapsed size directly (no estimation needed)
         final collapsedSize = _collapsedSize ?? Size(150.0, 100.0);
@@ -449,19 +478,25 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           isExpanded: false,
         );
 
-        print(
-            '[FloatingExpandableWidget] _onPanUpdate: Position calculation - clampedCenter=$clampedCenter, collapsedSize=$collapsedSize, maintainedPosition=$maintainedPosition');
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _onPanUpdate: Position calculation - clampedCenter=$clampedCenter, collapsedSize=$collapsedSize, maintainedPosition=$maintainedPosition');
+        }
 
         // Update position
         setState(() {
           final oldPosition = _centerPosition;
           _centerPosition = maintainedPosition;
           _dragStartCenterOffset = maintainedPosition - details.globalPosition;
-          print(
-              '[FloatingExpandableWidget] _onPanUpdate: setState - oldPosition=$oldPosition, newPosition=$maintainedPosition, _dragStartCenterOffset=$_dragStartCenterOffset');
+          if (widget.debugLogging && kDebugMode) {
+            print(
+                '[FloatingExpandableWidget] _onPanUpdate: setState - oldPosition=$oldPosition, newPosition=$maintainedPosition, _dragStartCenterOffset=$_dragStartCenterOffset');
+          }
         });
-        print(
-            '[FloatingExpandableWidget] _onPanUpdate: AFTER setState - _centerPosition=$_centerPosition');
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _onPanUpdate: AFTER setState - _centerPosition=$_centerPosition');
+        }
         return; // Early return after collapsing
       }
     }
@@ -470,20 +505,26 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     // Don't auto-expand if we just collapsed (prevent immediate re-expansion)
     // Also don't auto-expand if widget was expanded before drag started (it collapsed on drag start)
     if (!_isExpanded && !_justCollapsed && !_wasExpandedBeforeDrag) {
-      print(
-          '[FloatingExpandableWidget] _onPanUpdate: Checking shouldAutoExpand, position=$clampedCenter, widgetSize=$widgetSize, isExpanded=$_isExpanded, justCollapsed=$_justCollapsed, wasExpandedBeforeDrag=$_wasExpandedBeforeDrag');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _onPanUpdate: Checking shouldAutoExpand, position=$clampedCenter, widgetSize=$widgetSize, isExpanded=$_isExpanded, justCollapsed=$_justCollapsed, wasExpandedBeforeDrag=$_wasExpandedBeforeDrag');
+      }
       final shouldExpand = _calculator.shouldAutoExpand(
         currentCenterPosition: clampedCenter,
         mediaQuery: mediaQuery,
         widgetSize: widgetSize,
         isExpanded: false,
       );
-      print(
-          '[FloatingExpandableWidget] _onPanUpdate: shouldAutoExpand=$shouldExpand');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _onPanUpdate: shouldAutoExpand=$shouldExpand');
+      }
 
       if (shouldExpand) {
-        print(
-            '[FloatingExpandableWidget] _onPanUpdate: AUTO-EXPANDING! Position=$clampedCenter, widgetSize=$widgetSize');
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _onPanUpdate: AUTO-EXPANDING! Position=$clampedCenter, widgetSize=$widgetSize');
+        }
         HapticFeedback.mediumImpact();
         // Expand but keep current position - don't force center
         // This allows user to continue dragging while expanded
@@ -512,15 +553,19 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     setState(() {
       _centerPosition = clampedCenter;
     });
-    print(
-        '[FloatingExpandableWidget] _onPanUpdate: Normal position update - oldPosition=$oldPosition, newPosition=$clampedCenter, _isExpanded=$_isExpanded, _justCollapsed=$_justCollapsed, _wasExpandedBeforeDrag=$_wasExpandedBeforeDrag');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingExpandableWidget] _onPanUpdate: Normal position update - oldPosition=$oldPosition, newPosition=$clampedCenter, _isExpanded=$_isExpanded, _justCollapsed=$_justCollapsed, _wasExpandedBeforeDrag=$_wasExpandedBeforeDrag');
+    }
   }
 
   void _onPanEnd(DragEndDetails details) {
     if (_centerPosition == null) return;
 
-    print(
-        '[FloatingExpandableWidget] _onPanEnd: START - _centerPosition=$_centerPosition, _isExpanded=$_isExpanded, _justCollapsed=$_justCollapsed, _wasExpandedBeforeDrag=$_wasExpandedBeforeDrag, expandedSize=$_expandedSize, collapsedSize=$_collapsedSize, currentSize=${_getCurrentWidgetSize()}');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingExpandableWidget] _onPanEnd: START - _centerPosition=$_centerPosition, _isExpanded=$_isExpanded, _justCollapsed=$_justCollapsed, _wasExpandedBeforeDrag=$_wasExpandedBeforeDrag, expandedSize=$_expandedSize, collapsedSize=$_collapsedSize, currentSize=${_getCurrentWidgetSize()}');
+    }
 
     final mediaQuery = MediaQuery.of(context);
 
@@ -530,33 +575,45 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     // (don't collapse or expand/center)
     // Note: Tile collapses on drag start if it was expanded, so check both states
     if (_isExpanded || _wasExpandedBeforeDrag) {
-      print(
-          '[FloatingExpandableWidget] _onPanEnd: Widget was expanded - _isExpanded=$_isExpanded, _wasExpandedBeforeDrag=$_wasExpandedBeforeDrag');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _onPanEnd: Widget was expanded - _isExpanded=$_isExpanded, _wasExpandedBeforeDrag=$_wasExpandedBeforeDrag');
+      }
 
       // If it was expanded before drag, it collapsed on drag start (via _collapseImmediately)
       // We need to measure the collapsed size first, then snap
       // This prevents the jump that happens when using expanded size for snap calculation
       if (_wasExpandedBeforeDrag && !_isExpanded) {
-        print(
-            '[FloatingExpandableWidget] _onPanEnd: Widget collapsed during drag - unlocking size and measuring');
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _onPanEnd: Widget collapsed during drag - unlocking size and measuring');
+        }
         // Widget was collapsed during drag - unlock size, measure collapsed size, then snap
         final positionBeforeUnlock = _centerPosition;
         final sizeBeforeUnlock = _widgetSize;
         _unlockSizeAndStopDragging();
-        print(
-            '[FloatingExpandableWidget] _onPanEnd: After unlock - positionBeforeUnlock=$positionBeforeUnlock, positionAfterUnlock=$_centerPosition, sizeBeforeUnlock=$sizeBeforeUnlock, sizeAfterUnlock=$_widgetSize');
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _onPanEnd: After unlock - positionBeforeUnlock=$positionBeforeUnlock, positionAfterUnlock=$_centerPosition, sizeBeforeUnlock=$sizeBeforeUnlock, sizeAfterUnlock=$_widgetSize');
+        }
         // Force a rebuild to get the collapsed size before snapping
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && !_isExpanded) {
-            print(
-                '[FloatingExpandableWidget] _onPanEnd: First postFrameCallback - measuring size, _centerPosition=$_centerPosition, _widgetSize=$_widgetSize');
+            if (widget.debugLogging && kDebugMode) {
+              print(
+                  '[FloatingExpandableWidget] _onPanEnd: First postFrameCallback - measuring size, _centerPosition=$_centerPosition, _widgetSize=$_widgetSize');
+            }
             _measureSize();
-            print(
-                '[FloatingExpandableWidget] _onPanEnd: After _measureSize - _centerPosition=$_centerPosition, _widgetSize=$_widgetSize');
+            if (widget.debugLogging && kDebugMode) {
+              print(
+                  '[FloatingExpandableWidget] _onPanEnd: After _measureSize - _centerPosition=$_centerPosition, _widgetSize=$_widgetSize');
+            }
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted && !_isExpanded) {
-                print(
-                    '[FloatingExpandableWidget] _onPanEnd: Second postFrameCallback - about to snap, _centerPosition=$_centerPosition, _widgetSize=$_widgetSize');
+                if (widget.debugLogging && kDebugMode) {
+                  print(
+                      '[FloatingExpandableWidget] _onPanEnd: Second postFrameCallback - about to snap, _centerPosition=$_centerPosition, _widgetSize=$_widgetSize');
+                }
                 _snapToEdge();
                 // Reset flags after snapping is initiated
                 _wasExpandedBeforeDrag = false;
@@ -565,14 +622,18 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           }
         });
       } else {
-        print(
-            '[FloatingExpandableWidget] _onPanEnd: Widget still expanded - unlocking size and snapping');
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _onPanEnd: Widget still expanded - unlocking size and snapping');
+        }
         // Currently expanded - unlock size and measure expanded size
         final positionBeforeUnlock = _centerPosition;
         final sizeBeforeUnlock = _widgetSize;
         _unlockSizeAndStopDragging();
-        print(
-            '[FloatingExpandableWidget] _onPanEnd: After unlock (expanded) - positionBeforeUnlock=$positionBeforeUnlock, positionAfterUnlock=$_centerPosition, sizeBeforeUnlock=$sizeBeforeUnlock, sizeAfterUnlock=$_widgetSize');
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _onPanEnd: After unlock (expanded) - positionBeforeUnlock=$positionBeforeUnlock, positionAfterUnlock=$_centerPosition, sizeBeforeUnlock=$sizeBeforeUnlock, sizeAfterUnlock=$_widgetSize');
+        }
         _snapToEdgeWithMeasurement();
         _wasExpandedBeforeDrag = false;
       }
@@ -599,8 +660,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     );
 
     if (shouldExpand) {
-      print(
-          '[FloatingExpandableWidget] _onPanEnd: AUTO-EXPANDING from shouldExpand check! Position=$_centerPosition, widgetSize=$widgetSize');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _onPanEnd: AUTO-EXPANDING from shouldExpand check! Position=$_centerPosition, widgetSize=$widgetSize');
+      }
       HapticFeedback.mediumImpact();
       // Expand and center
       setState(() {
@@ -658,14 +721,18 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
 
   void _snapToEdge() {
     if (_centerPosition == null || !mounted) return;
-    print(
-        '[FloatingExpandableWidget] _snapToEdge: Starting snap, position=$_centerPosition, isExpanded=$_isExpanded, widgetSize=$_widgetSize, _wasExpandedBeforeDrag=$_wasExpandedBeforeDrag, _justCollapsed=$_justCollapsed');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingExpandableWidget] _snapToEdge: Starting snap, position=$_centerPosition, isExpanded=$_isExpanded, widgetSize=$_widgetSize, _wasExpandedBeforeDrag=$_wasExpandedBeforeDrag, _justCollapsed=$_justCollapsed');
+    }
 
     // Don't snap if expand/collapse animation is running
     // Wait for animation to complete first
     if (_expandController.isAnimating) {
-      print(
-          '[FloatingExpandableWidget] _snapToEdge: Animation is running, waiting for completion');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _snapToEdge: Animation is running, waiting for completion');
+      }
       // Remove listener first to avoid duplicates, then add it
       _expandController.removeStatusListener(_snapAfterAnimationListener);
       _expandController.addStatusListener(_snapAfterAnimationListener);
@@ -677,8 +744,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     final status = _expandController.status;
     if (status == AnimationStatus.forward ||
         status == AnimationStatus.reverse) {
-      print(
-          '[FloatingExpandableWidget] _snapToEdge: Animation status is $status, waiting for completion');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _snapToEdge: Animation status is $status, waiting for completion');
+      }
       _expandController.removeStatusListener(_snapAfterAnimationListener);
       _expandController.addStatusListener(_snapAfterAnimationListener);
       return;
@@ -687,8 +756,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     final mediaQuery = MediaQuery.of(context);
     // Use current widget size based on expanded state
     final widgetSize = _getCurrentWidgetSize();
-    print(
-        '[FloatingExpandableWidget] _snapToEdge: Using widgetSize=$widgetSize for snap calculation (isExpanded=$_isExpanded)');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingExpandableWidget] _snapToEdge: Using widgetSize=$widgetSize for snap calculation (isExpanded=$_isExpanded)');
+    }
 
     var targetCenter = _calculator.calculateSnapPosition(
       currentCenterPosition: _centerPosition!,
@@ -696,12 +767,16 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       widgetSize: widgetSize,
       isExpanded: _isExpanded,
     );
-    print(
-        '[FloatingExpandableWidget] _snapToEdge: calculateSnapPosition returned targetCenter=$targetCenter, _centerPosition=$_centerPosition');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingExpandableWidget] _snapToEdge: calculateSnapPosition returned targetCenter=$targetCenter, _centerPosition=$_centerPosition');
+    }
 
     if (targetCenter == null) {
-      print(
-          '[FloatingExpandableWidget] _snapToEdge: targetCenter is null (freeDrag), returning');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _snapToEdge: targetCenter is null (freeDrag), returning');
+      }
       return; // freeDrag behavior
     }
 
@@ -709,12 +784,16 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     // even if not within thresholds (calculateSnapPosition returns currentPosition if not within thresholds)
     final shouldForceSnap = (_wasExpandedBeforeDrag || _isExpanded);
     final targetEqualsCurrent = targetCenter == _centerPosition;
-    print(
-        '[FloatingExpandableWidget] _snapToEdge: shouldForceSnap=$shouldForceSnap, targetEqualsCurrent=$targetEqualsCurrent');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingExpandableWidget] _snapToEdge: shouldForceSnap=$shouldForceSnap, targetEqualsCurrent=$targetEqualsCurrent');
+    }
 
     if (shouldForceSnap && targetEqualsCurrent) {
-      print(
-          '[FloatingExpandableWidget] _snapToEdge: Forcing snap to edge - calculating edge position');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _snapToEdge: Forcing snap to edge - calculating edge position');
+      }
       // Force snap to nearest edge by calculating edge position directly
       final screenSize = mediaQuery.size;
       final effectiveHeight = _calculator.calculateEffectiveHeight(
@@ -780,19 +859,25 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       targetY = targetY.clamp(minY, maxY);
 
       targetCenter = Offset(targetX, targetY);
-      print(
-          '[FloatingExpandableWidget] _snapToEdge: After forced snap calculation - targetCenter=$targetCenter, startCenter=$_centerPosition, widgetSize=$widgetSize, snappingToTop=$snappingToTop, effectiveHeight=$effectiveHeight');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _snapToEdge: After forced snap calculation - targetCenter=$targetCenter, startCenter=$_centerPosition, widgetSize=$widgetSize, snappingToTop=$snappingToTop, effectiveHeight=$effectiveHeight');
+      }
       // Reset flag after using it
       _wasExpandedBeforeDrag = false;
     } else if (shouldForceSnap && !targetEqualsCurrent) {
-      print(
-          '[FloatingExpandableWidget] _snapToEdge: Widget was expanded but calculateSnapPosition found edge (targetCenter != _centerPosition). Using calculated targetCenter=$targetCenter');
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingExpandableWidget] _snapToEdge: Widget was expanded but calculateSnapPosition found edge (targetCenter != _centerPosition). Using calculated targetCenter=$targetCenter');
+      }
     }
 
     final distance = ((_centerPosition!.dx - targetCenter.dx).abs() +
         (_centerPosition!.dy - targetCenter.dy).abs());
-    print(
-        '[FloatingExpandableWidget] _snapToEdge: Final snap target - startCenter=$_centerPosition, targetCenter=$targetCenter, distance=$distance');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingExpandableWidget] _snapToEdge: Final snap target - startCenter=$_centerPosition, targetCenter=$targetCenter, distance=$distance');
+    }
 
     final startCenter = _centerPosition!;
 
@@ -800,8 +885,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     _snapController.stop();
     _snapController.reset();
 
-    print(
-        '[FloatingExpandableWidget] _snapToEdge: Setting up snap animation - startCenter=$startCenter, targetCenter=$targetCenter');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingExpandableWidget] _snapToEdge: Setting up snap animation - startCenter=$startCenter, targetCenter=$targetCenter');
+    }
 
     _snapAnimation =
         Tween<Offset>(begin: startCenter, end: targetCenter).animate(
@@ -809,12 +896,16 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     );
 
     _snapController.addListener(_onSnapUpdate);
-    print(
-        '[FloatingExpandableWidget] _snapToEdge: Starting snap animation from $startCenter to $targetCenter');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingExpandableWidget] _snapToEdge: Starting snap animation from $startCenter to $targetCenter');
+    }
     _snapController.forward(from: 0.0).then((_) {
       if (mounted) {
-        print(
-            '[FloatingExpandableWidget] _snapToEdge: Snap animation completed callback - setting position to $targetCenter');
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _snapToEdge: Snap animation completed callback - setting position to $targetCenter');
+        }
         _snapController.removeListener(_onSnapUpdate);
         _snapController.reset();
         HapticFeedback.lightImpact();
@@ -823,8 +914,10 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
           _centerPosition = targetCenter;
           _justCollapsed = false; // Clear flag after snap completes
         });
-        print(
-            '[FloatingExpandableWidget] _snapToEdge: Snap animation completed - positionBeforeSetState=$positionBeforeSetState, positionAfterSetState=$targetCenter, justCollapsed cleared');
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _snapToEdge: Snap animation completed - positionBeforeSetState=$positionBeforeSetState, positionAfterSetState=$targetCenter, justCollapsed cleared');
+        }
         _snapController.addListener(_onSnapUpdate);
       }
     });

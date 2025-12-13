@@ -3,6 +3,7 @@ import 'package:diohub/common/misc/action_card_builder.dart';
 import 'package:diohub/common/misc/collapsible_action_buttons.dart';
 import 'package:diohub/common/misc/floating_expandable_widget.dart' as base;
 import 'package:flex_list/flex_list.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
@@ -12,9 +13,6 @@ Widget buildToolbarContent({
   required BuildContext context,
   required base.ExpandableCallbacks callbacks,
   required List<ActionButtonData> actions,
-  required List<ActionButtonData>? prominentActions,
-  required int defaultVisibleCount,
-  required int? expandedVisibleCount,
   required double spacing,
   required double? maxHeight,
   required dynamic
@@ -25,12 +23,18 @@ Widget buildToolbarContent({
   required Animation<double> expandAnimation,
   required GlobalKey toolbarKey,
   String? title,
+  bool debugLogging = false,
 }) {
-  // Keep all actions (including hidden ones) for animation support
-  // The animated widgets will handle visibility with animation and collapse to zero size
-  final regularActions =
-      actions.where((a) => !(prominentActions ?? []).contains(a)).toList();
-  final allProminentActions = prominentActions ?? [];
+  // Automatically split actions by type:
+  // - MinorActionButton → minor actions (row)
+  // - MajorActionButton, ExpandableActionButton, CheckboxActionButton → prominent actions
+  final regularActions = actions.where((a) => a is MinorActionButton).toList();
+  final allProminentActions = actions
+      .where((a) =>
+          a is MajorActionButton ||
+          a is ExpandableActionButton ||
+          a is CheckboxActionButton)
+      .toList();
 
   // Helper function to check if action should be visible in expanded state
   // Used for prominent actions visibility checks
@@ -122,10 +126,14 @@ Widget buildToolbarContent({
                                       buildCompactIconButton,
                                   buildCompactProminentButton:
                                       buildCompactProminentButton,
+                                  prominentActionBuilder:
+                                      prominentActionBuilder,
                                   callbacks: callbacks,
                                   onCollapseRequested: onCollapseRequested,
                                   context: context,
                                   expandAnimation: expandAnimation,
+                                  toolbarKey: toolbarKey,
+                                  debugLogging: debugLogging,
                                 ),
                               ),
                             AnimatedBuilder(
@@ -313,6 +321,7 @@ Widget buildToolbarContent({
                                               toolbarKey: toolbarKey,
                                               bottomPadding:
                                                   isLastVisible ? 0 : 4.0,
+                                              debugLogging: debugLogging,
                                             ),
                                           );
                                         }).toList(),
@@ -464,7 +473,14 @@ Widget buildCompactProminentButton(
     child: InkWell(
       onTap: action.enabled
           ? () {
-              action.onTap?.call();
+              switch (action) {
+                case MinorActionButton(:final onTap):
+                case MajorActionButton(:final onTap):
+                  onTap?.call();
+                  break;
+                default:
+                  break;
+              }
               if (onCollapseRequested != null) {
                 onCollapseRequested();
               } else {
@@ -540,7 +556,14 @@ Widget buildCompactIconButton(
     child: InkWell(
       onTap: action.enabled
           ? () {
-              action.onTap?.call();
+              switch (action) {
+                case MinorActionButton(:final onTap):
+                case MajorActionButton(:final onTap):
+                  onTap?.call();
+                  break;
+                default:
+                  break;
+              }
               if (onCollapseRequested != null) {
                 onCollapseRequested();
               } else {
@@ -625,7 +648,14 @@ Widget buildExpandedActionWithLabel(
       child: InkWell(
         onTap: action.enabled
             ? () {
-                action.onTap?.call();
+                switch (action) {
+                  case MinorActionButton(:final onTap):
+                  case MajorActionButton(:final onTap):
+                    onTap?.call();
+                    break;
+                  default:
+                    break;
+                }
                 if (onCollapseRequested != null) {
                   onCollapseRequested();
                 } else {
@@ -700,10 +730,13 @@ class _AnimatedCollapsedActionsRow extends StatefulWidget {
     required this.spacing,
     required this.buildCompactIconButton,
     required this.buildCompactProminentButton,
+    required this.prominentActionBuilder,
     required this.callbacks,
     required this.onCollapseRequested,
     required this.context,
     required this.expandAnimation,
+    required this.toolbarKey,
+    this.debugLogging = false,
   });
 
   final List<ActionButtonData> enabledActions;
@@ -722,10 +755,14 @@ class _AnimatedCollapsedActionsRow extends StatefulWidget {
     base.ExpandableCallbacks callbacks,
     VoidCallback? onCollapseRequested,
   ) buildCompactProminentButton;
+  final Widget Function(BuildContext context, ActionButtonData action)?
+      prominentActionBuilder;
   final base.ExpandableCallbacks callbacks;
   final VoidCallback? onCollapseRequested;
   final BuildContext context;
   final Animation<double> expandAnimation;
+  final GlobalKey toolbarKey;
+  final bool debugLogging;
 
   @override
   State<_AnimatedCollapsedActionsRow> createState() =>
@@ -784,6 +821,7 @@ class _AnimatedCollapsedActionsRowState
                     context: widget.context,
                     showDivider: showDivider,
                     expandAnimation: widget.expandAnimation,
+                    debugLogging: widget.debugLogging,
                   );
                 }),
                 ...widget.disabledActions.map((action) {
@@ -802,6 +840,7 @@ class _AnimatedCollapsedActionsRowState
                     context: widget.context,
                     showDivider: !isLastVisibleDisabled,
                     expandAnimation: widget.expandAnimation,
+                    debugLogging: widget.debugLogging,
                   );
                 }),
               ],
@@ -839,28 +878,47 @@ class _AnimatedCollapsedActionsRowState
                               action ==
                                   actuallyVisibleCollapsed[
                                       actuallyVisibleCollapsed.length - 1];
-                      // Padding is inside the animated widget so it collapses with hidden actions
-                      return _AnimatedActionButton(
-                        key: ValueKey(
-                            'prominent_${action.label}_${action.icon}'),
-                        action: action,
-                        spacing:
-                            0, // No spacing for vertical layout (triggers SizeTransition)
-                        buildCompactIconButton:
-                            (context, action, callbacks, onCollapse) =>
-                                widget.buildCompactProminentButton(
-                          context,
-                          action,
-                          callbacks,
-                          onCollapse,
-                        ),
-                        callbacks: widget.callbacks,
-                        onCollapseRequested: widget.onCollapseRequested,
-                        context: widget.context,
-                        showDivider: false,
-                        expandAnimation: widget.expandAnimation,
-                        bottomPadding: isLastVisible ? 0 : widget.spacing,
-                      );
+                      // Use _AnimatedProminentAction for expandable actions to support expandable options
+                      // Use _AnimatedActionButton for non-expandable actions
+                      if (action is ExpandableActionButton) {
+                        return _AnimatedProminentAction(
+                          key: ValueKey(
+                              'prominent_collapsed_${action.label}_${action.icon}'),
+                          action: action,
+                          prominentActionBuilder:
+                              widget.prominentActionBuilder ??
+                                  buildProminentActionCard,
+                          expandAnimation: widget.expandAnimation,
+                          callbacks: widget.callbacks,
+                          toolbarKey: widget.toolbarKey,
+                          bottomPadding: isLastVisible ? 0 : widget.spacing,
+                          debugLogging: widget.debugLogging,
+                        );
+                      } else {
+                        // Padding is inside the animated widget so it collapses with hidden actions
+                        return _AnimatedActionButton(
+                          key: ValueKey(
+                              'prominent_${action.label}_${action.icon}'),
+                          action: action,
+                          spacing:
+                              0, // No spacing for vertical layout (triggers SizeTransition)
+                          buildCompactIconButton:
+                              (context, action, callbacks, onCollapse) =>
+                                  widget.buildCompactProminentButton(
+                            context,
+                            action,
+                            callbacks,
+                            onCollapse,
+                          ),
+                          callbacks: widget.callbacks,
+                          onCollapseRequested: widget.onCollapseRequested,
+                          context: widget.context,
+                          showDivider: false,
+                          expandAnimation: widget.expandAnimation,
+                          bottomPadding: isLastVisible ? 0 : widget.spacing,
+                          debugLogging: widget.debugLogging,
+                        );
+                      }
                     }).toList(),
                   );
                 },
@@ -1013,6 +1071,7 @@ class _AnimatedActionButton extends StatefulWidget {
     required this.showDivider,
     required this.expandAnimation,
     this.bottomPadding = 0,
+    this.debugLogging = false,
     super.key,
   });
 
@@ -1030,6 +1089,7 @@ class _AnimatedActionButton extends StatefulWidget {
   final bool showDivider;
   final Animation<double> expandAnimation;
   final double bottomPadding;
+  final bool debugLogging;
 
   @override
   State<_AnimatedActionButton> createState() => _AnimatedActionButtonState();
@@ -1074,8 +1134,10 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
     } else {
       _visibilityController.value = 0.0;
     }
-    print(
-        '[_AnimatedActionButton] initState: action=${widget.action.label}, isExpanded=${widget.callbacks.isExpanded}, expandAnimation.value=${widget.expandAnimation.value}');
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[_AnimatedActionButton] initState: action=${widget.action.label}, isExpanded=${widget.callbacks.isExpanded}, expandAnimation.value=${widget.expandAnimation.value}');
+    }
   }
 
   @override
@@ -1145,7 +1207,7 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
         final shouldLog = _lastLoggedValue == null ||
             (animValue == 0.0 || animValue == 1.0) ||
             ((animValue - _lastLoggedValue!).abs() >= 0.1);
-        if (shouldLog) {
+        if (shouldLog && widget.debugLogging && kDebugMode) {
           _lastLoggedValue = animValue;
           print(
               '[_AnimatedActionButton] build: action=${widget.action.label}, expandAnimation.value=$animValue, collapseProgress=$collapseProgress, easedProgress=$easedProgress');
@@ -1249,6 +1311,7 @@ class _AnimatedProminentAction extends StatefulWidget {
     required this.callbacks,
     required this.toolbarKey,
     this.bottomPadding = 0,
+    this.debugLogging = false,
     super.key,
   });
 
@@ -1259,6 +1322,7 @@ class _AnimatedProminentAction extends StatefulWidget {
   final base.ExpandableCallbacks callbacks;
   final GlobalKey toolbarKey;
   final double bottomPadding;
+  final bool debugLogging;
 
   @override
   State<_AnimatedProminentAction> createState() =>
@@ -1356,6 +1420,30 @@ class _AnimatedProminentActionState extends State<_AnimatedProminentAction>
     // The animation controller should already provide values between 0.0 and 1.0
     final isFullyHidden = _fadeAnimation.value == 0.0;
 
+    // Use expandable builder if action has expandable options, otherwise use regular builder
+    final Widget actionWidget;
+    final isExpandable = widget.action is ExpandableActionButton;
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[FloatingActionToolbarContent] _AnimatedProminentAction build: action=${widget.action.label}, isExpandable=$isExpandable, debugLogging=${widget.debugLogging}');
+    }
+    if (isExpandable) {
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[FloatingActionToolbarContent] Using expandable card builder for: ${widget.action.label}');
+      }
+      actionWidget = buildExpandableProminentActionCard(
+        context,
+        widget.action,
+        onOptionSelected: () {
+          // Optionally collapse toolbar after option selection
+          // widget.callbacks.collapse();
+        },
+      );
+    } else {
+      actionWidget = widget.prominentActionBuilder(context, widget.action);
+    }
+
     // Padding is inside SizeTransition so it collapses with the widget
     final animatedWidget = SizeTransition(
       sizeFactor: _fadeAnimation,
@@ -1366,7 +1454,7 @@ class _AnimatedProminentActionState extends State<_AnimatedProminentAction>
           opacity: _fadeAnimation,
           child: SizedBox(
             width: double.infinity,
-            child: widget.prominentActionBuilder(context, widget.action),
+            child: actionWidget,
           ),
         ),
       ),

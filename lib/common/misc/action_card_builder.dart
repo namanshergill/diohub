@@ -3,6 +3,12 @@ import 'package:diohub/common/misc/highlighted_container.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:flutter/material.dart';
 
+// Generic padding constants for prominent action buttons
+// These ensure consistent sizing across MajorActionButton, ExpandableActionButton, and CheckboxActionButton
+// This padding applies ONLY to the buttons themselves, not to the expanded widget content
+const EdgeInsets _kProminentActionButtonPadding =
+    EdgeInsets.symmetric(horizontal: 16, vertical: 14);
+
 /// Formats size in KB to human-readable format (KB, MB, GB)
 String formatSize(int? sizeInKB) {
   if (sizeInKB == null) return '';
@@ -21,6 +27,31 @@ Widget buildActionButtonTrailingCount(BuildContext context, int count) {
     count.toString(),
     style: context.textTheme.titleSmall?.copyWith(
       fontWeight: FontWeight.bold,
+    ),
+  );
+}
+
+/// Helper function to build a modern, sleek count badge for action buttons
+/// Uses a subtle pill-shaped design with good contrast
+Widget buildModernCountBadge(BuildContext context, int count) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: context.colorScheme.surfaceContainerHighest.withOpacity(0.8),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: context.colorScheme.outline.withOpacity(0.1),
+        width: 0.5,
+      ),
+    ),
+    child: Text(
+      count.toString(),
+      style: context.textTheme.labelSmall?.copyWith(
+        color: context.colorScheme.onSurface,
+        fontWeight: FontWeight.w600,
+        fontSize: 11,
+        letterSpacing: 0.2,
+      ),
     ),
   );
 }
@@ -92,7 +123,15 @@ Widget buildStandardActionCard(
     child: AbsorbPointer(
       absorbing: !action.enabled,
       child: InkWell(
-        onTap: action.enabled ? action.onTap : null,
+        onTap: action.enabled
+            ? switch (action) {
+                MinorActionButton(:final onTap) => onTap,
+                CheckboxActionButton(:final onChanged, :final value) => () {
+                    onChanged?.call(!value);
+                  },
+                _ => null,
+              }
+            : null,
         borderRadius: BorderRadius.circular(borderRadius),
         child: Padding(
           padding: padding,
@@ -111,7 +150,9 @@ Widget buildStandardActionCard(
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      action.icon,
+                      action is CheckboxActionButton && action.value
+                          ? Icons.check_box_rounded
+                          : action.icon,
                       size: iconSize,
                       color: iconColor,
                     ),
@@ -184,27 +225,28 @@ Widget buildStandardActionCard(
 /// - More prominent appearance
 /// - Larger touch target
 /// - Can span full width when in expanded vertical layout
+///
+/// Accepts MajorActionButton which has onTap field.
 Widget buildProminentActionCard(
   BuildContext context,
   ActionButtonData action, {
   double iconSize = 20,
   double borderRadius = 14,
-  EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  EdgeInsets? padding,
+  Color? seedColor,
 }) {
+  // Use generic padding constant if not specified
+  final effectivePadding = padding ?? _kProminentActionButtonPadding;
   Color iconColor;
   Color textColor;
   Color backgroundColor;
   Color badgeColor;
   Color badgeTextColor;
 
-  // Special handling for "Jump to" button - whitish background (similar to positive button style)
-  if (action.label == 'Jump to') {
-    backgroundColor = Colors.white.withOpacity(0.15);
-    iconColor = Colors.grey.shade700;
-    textColor = Colors.grey.shade800;
-    badgeColor = Colors.grey.shade700;
-    badgeTextColor = Colors.white;
-  } else if (!action.enabled) {
+  // Use seedColor from action if provided, otherwise use parameter
+  final effectiveSeedColor = action.seedColor ?? seedColor;
+
+  if (!action.enabled) {
     backgroundColor =
         context.colorScheme.surfaceContainerHighest.withOpacity(0.2);
     iconColor = context.colorScheme.onSurfaceVariant.withOpacity(0.3);
@@ -223,6 +265,13 @@ Widget buildProminentActionCard(
     textColor = Colors.green.shade700;
     badgeColor = Colors.green.shade600;
     badgeTextColor = Colors.white;
+  } else if (effectiveSeedColor != null) {
+    // Use seedColor to generate colors
+    backgroundColor = effectiveSeedColor.withOpacity(0.15);
+    iconColor = effectiveSeedColor;
+    textColor = effectiveSeedColor;
+    badgeColor = effectiveSeedColor;
+    badgeTextColor = Colors.white;
   } else {
     // Prominent actions get a subtle background
     backgroundColor =
@@ -233,26 +282,37 @@ Widget buildProminentActionCard(
     badgeTextColor = Colors.white;
   }
 
-  // Extract badge text from trailing widget
+  // Extract badge text from trailing widget or use trailing widget directly
   String? badgeText;
+  Widget? trailingWidget;
   if (action.trailing != null) {
     if (action.trailing is Text) {
       badgeText = (action.trailing as Text).data;
     } else {
-      badgeText = null;
+      // Use trailing widget directly for custom designs
+      trailingWidget = action.trailing;
     }
   }
+
+  // Get onTap from MajorActionButton or CheckboxActionButton
+  final VoidCallback? onTap = switch (action) {
+    MajorActionButton(:final onTap) => onTap,
+    CheckboxActionButton(:final onChanged, :final value) => () {
+        onChanged?.call(!value);
+      },
+    _ => null,
+  };
 
   return Material(
     color: Colors.transparent,
     child: AbsorbPointer(
       absorbing: !action.enabled,
       child: InkWell(
-        onTap: action.enabled ? action.onTap : null,
+        onTap: action.enabled ? onTap : null,
         borderRadius: BorderRadius.circular(borderRadius),
         child: Container(
           width: double.infinity,
-          padding: padding,
+          padding: effectivePadding,
           decoration: BoxDecoration(
             color: backgroundColor,
             borderRadius: BorderRadius.circular(borderRadius),
@@ -266,24 +326,283 @@ Widget buildProminentActionCard(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               // Icon
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(
-                    action.icon,
-                    size: iconSize,
-                    color: iconColor,
+              Icon(
+                action is CheckboxActionButton && action.value
+                    ? Icons.check_box_rounded
+                    : action.icon,
+                size: iconSize,
+                color: iconColor,
+              ),
+              const SizedBox(width: 10),
+              // Label
+              Flexible(
+                child: Text(
+                  action.label,
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    letterSpacing: -0.2,
+                    height:
+                        1.0, // Prevent extra line height from affecting Row height
                   ),
-                  // Badge overlay
-                  if (badgeText != null && badgeText.isNotEmpty)
-                    Positioned(
-                      right: -6,
-                      top: -5,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textHeightBehavior: const TextHeightBehavior(
+                    applyHeightToFirstAscent: false,
+                    applyHeightToLastDescent: false,
+                  ),
+                ),
+              ),
+              // Badge or trailing widget (moved to the right side)
+              if (trailingWidget != null) ...[
+                const SizedBox(width: 8),
+                trailingWidget,
+              ] else if (badgeText != null && badgeText.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: badgeColor,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      width: 1.5,
+                    ),
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 14,
+                    minHeight: 14,
+                  ),
+                  child: Center(
+                    child: Text(
+                      badgeText,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: badgeTextColor,
+                        fontSize: 10,
+                        height: 1,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Builds an expandable prominent action card widget that can expand to show options.
+///
+/// When expanded, shows a list of options below the button.
+/// Uses SizeExpandedSection for smooth expand/collapse animations.
+///
+/// Accepts ExpandableActionButton which has expandableWidgetBuilder field.
+Widget buildExpandableProminentActionCard(
+  BuildContext context,
+  ActionButtonData action, {
+  double iconSize = 20,
+  double borderRadius = 14,
+  EdgeInsets? padding,
+  VoidCallback? onOptionSelected,
+}) {
+  // Use generic padding constant if not specified
+  final effectivePadding = padding ?? _kProminentActionButtonPadding;
+  return _ExpandableProminentActionCard(
+    action: action,
+    iconSize: iconSize,
+    borderRadius: borderRadius,
+    padding: effectivePadding,
+    onOptionSelected: onOptionSelected,
+  );
+}
+
+/// Internal stateful widget for expandable prominent action card
+class _ExpandableProminentActionCard extends StatefulWidget {
+  const _ExpandableProminentActionCard({
+    required this.action,
+    required this.iconSize,
+    required this.borderRadius,
+    required this.padding,
+    this.onOptionSelected,
+  });
+
+  final ActionButtonData action;
+  final double iconSize;
+  final double borderRadius;
+  final EdgeInsets padding;
+  final VoidCallback? onOptionSelected;
+
+  @override
+  State<_ExpandableProminentActionCard> createState() =>
+      _ExpandableProminentActionCardState();
+}
+
+class _ExpandableProminentActionCardState
+    extends State<_ExpandableProminentActionCard> {
+  bool _isExpanded = false;
+
+  void _toggleExpanded() {
+    print(
+        '[buildExpandableProminentActionCard] Toggling expanded state: ${!_isExpanded} for ${widget.action.label}');
+    setState(() {
+      _isExpanded = !_isExpanded;
+    });
+  }
+
+  // Public method to collapse the expandable widget
+  void collapse() {
+    if (_isExpanded) {
+      _toggleExpanded();
+    }
+  }
+
+  // Call this when an option is selected to collapse
+  void _onOptionSelected() {
+    if (_isExpanded) {
+      collapse();
+    }
+    widget.onOptionSelected?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final action = widget.action;
+    final expandableWidgetBuilder = switch (action) {
+      ExpandableActionButton(:final expandableWidgetBuilder) =>
+        expandableWidgetBuilder,
+      _ => throw ArgumentError(
+          'buildExpandableProminentActionCard requires ExpandableActionButton'),
+    };
+    print(
+        '[buildExpandableProminentActionCard] Building expandable button: ${action.label}, expandableWidgetBuilder is not null');
+
+    Color iconColor;
+    Color textColor;
+    Color backgroundColor;
+    Color badgeColor;
+    Color badgeTextColor;
+
+    // Use seedColor from action if provided
+    final effectiveSeedColor = action.seedColor;
+
+    if (!action.enabled) {
+      backgroundColor =
+          context.colorScheme.surfaceContainerHighest.withOpacity(0.2);
+      iconColor = context.colorScheme.onSurfaceVariant.withOpacity(0.3);
+      textColor = context.colorScheme.onSurfaceVariant.withOpacity(0.4);
+      badgeColor = Colors.transparent;
+      badgeTextColor = context.colorScheme.onSurfaceVariant.withOpacity(0.4);
+    } else if (action.isDestructive) {
+      backgroundColor = context.colorScheme.errorContainer.withOpacity(0.2);
+      iconColor = context.colorScheme.error;
+      textColor = context.colorScheme.error;
+      badgeColor = context.colorScheme.error;
+      badgeTextColor = Colors.white;
+    } else if (action.isPositive) {
+      backgroundColor = Colors.green.withOpacity(0.15);
+      iconColor = Colors.green.shade600;
+      textColor = Colors.green.shade700;
+      badgeColor = Colors.green.shade600;
+      badgeTextColor = Colors.white;
+    } else if (effectiveSeedColor != null) {
+      // Use seedColor to generate colors
+      backgroundColor = effectiveSeedColor.withOpacity(0.15);
+      iconColor = effectiveSeedColor;
+      textColor = effectiveSeedColor;
+      badgeColor = effectiveSeedColor;
+      badgeTextColor = Colors.white;
+    } else {
+      backgroundColor =
+          context.colorScheme.surfaceContainerHighest.withOpacity(0.25);
+      iconColor = action.iconColor ?? context.colorScheme.primary;
+      textColor = context.colorScheme.onSurface;
+      badgeColor = context.colorScheme.primary;
+      badgeTextColor = Colors.white;
+    }
+
+    // Extract badge text from trailing widget or use trailing widget directly
+    String? badgeText;
+    Widget? trailingWidget;
+    if (action.trailing != null) {
+      if (action.trailing is Text) {
+        badgeText = (action.trailing as Text).data;
+      } else {
+        // Use trailing widget directly for custom designs
+        trailingWidget = action.trailing;
+      }
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Main button
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              print(
+                  '[buildExpandableProminentActionCard] Button tapped: ${action.label}, enabled: ${action.enabled}');
+              if (action.enabled != false) {
+                _toggleExpanded();
+              }
+            },
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            child: Container(
+              width: double.infinity,
+              padding: widget.padding,
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(widget.borderRadius),
+                border: Border.all(
+                  color: context.colorScheme.outline.withOpacity(0.1),
+                  width: 0.5,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Icon
+                Expanded(
+                  child: Row(children: [  Icon(
+                      action.icon,
+                      size: widget.iconSize,
+                      color: iconColor,
+                    ),
+                    const SizedBox(width: 10),
+                    // Label
+                    Flexible(
+                      child: Text(
+                        action.label,
+                        style: context.textTheme.bodyMedium?.copyWith(
+                          color: textColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // Badge or trailing widget (moved to the right side, before expand indicator)
+                    if (trailingWidget != null) ...[
+                      const SizedBox(width: 8),
+                      trailingWidget,
+                    ] else if (badgeText != null && badgeText.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: badgeColor,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: Theme.of(context).scaffoldBackgroundColor,
                             width: 1.5,
@@ -299,37 +618,64 @@ Widget buildProminentActionCard(
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               color: badgeTextColor,
-                              fontSize: 8,
+                              fontSize: 10,
                               height: 1,
                             ),
                             textAlign: TextAlign.center,
                           ),
                         ),
                       ),
-                    ),
+                    ],]),
+                ),
+                  Icon(
+                    _isExpanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    size: widget.iconSize,
+                    color: iconColor.withOpacity(0.7),
+                  ),
                 ],
               ),
-              const SizedBox(width: 10),
-              // Label
-              Flexible(
-                child: Text(
-                  action.label,
-                  style: context.textTheme.bodyMedium?.copyWith(
-                    color: textColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    letterSpacing: -0.2,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-      ),
-    ),
-  );
+        // Expanded options list
+        Builder(
+          builder: (context) {
+            print(
+                '[buildExpandableProminentActionCard] Rendering SizeExpandedSection, _isExpanded: $_isExpanded, expandableWidgetBuilder is not null');
+
+            final screenWidth = MediaQuery.of(context).size.width;
+            final maxWidth = screenWidth * 0.8;
+
+            return AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.fastOutSlowIn,
+              child: _isExpanded
+                  ? ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: maxWidth),
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        decoration: BoxDecoration(
+                          color: context.colorScheme.surfaceContainerHighest
+                              .withOpacity(0.2),
+                          borderRadius:
+                              BorderRadius.circular(widget.borderRadius),
+                          border: Border.all(
+                            color: context.colorScheme.outline.withOpacity(0.1),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: expandableWidgetBuilder(_onOptionSelected),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            );
+          },
+        ),
+      ],
+    );
+  }
 }
 
 /// Builds an action card widget specifically for appbar collapsible sections.
@@ -397,7 +743,12 @@ Widget buildAppBarActionCard(
       child: AbsorbPointer(
         absorbing: !action.enabled,
         child: InkWell(
-          onTap: action.enabled ? action.onTap : null,
+          onTap: action.enabled
+              ? switch (action) {
+                  MinorActionButton(:final onTap) => onTap,
+                  _ => null,
+                }
+              : null,
           borderRadius: BorderRadius.circular(borderRadius),
           child: Padding(
             padding: padding,
@@ -522,7 +873,12 @@ Widget buildCompactActionCard(
       child: AbsorbPointer(
         absorbing: !action.enabled,
         child: InkWell(
-          onTap: action.enabled ? action.onTap : null,
+          onTap: action.enabled
+              ? switch (action) {
+                  MinorActionButton(:final onTap) => onTap,
+                  _ => null,
+                }
+              : null,
           borderRadius: BorderRadius.circular(borderRadius),
           child: Padding(
             padding: padding,
