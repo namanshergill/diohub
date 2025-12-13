@@ -208,7 +208,7 @@ class CodeBrowserState extends State<CodeBrowser>
                             Provider.of<RepositoryProvider>(
                               context,
                               listen: false,
-                            ).data.url,
+                            ).data.url.toString(),
                             index,
                           ),
                           separatorBuilder:
@@ -367,7 +367,8 @@ class CodeBrowserState extends State<CodeBrowser>
 }
 
 void showCommitHistory(final BuildContext context, final String? currentSHA) {
-  final String? repoUrl = context.read<RepositoryProvider>().data.url;
+  final String? repoUrl =
+      context.read<RepositoryProvider>().data.url.toString();
 
   final String branchName = context.read<RepoBranchProvider>().currentSHA;
 

@@ -484,7 +484,7 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
   Widget _buildActionButtons(
       GcommitInfoData_repository_object__asCommit commit) {
     final primaryActions = <ActionButtonData>[
-      ActionButtonData(
+      MinorActionButton(
         icon: Octicons.code,
         label: 'Browse Files',
         onTap: () => AutoRouter.of(context).push(
@@ -495,7 +495,7 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
           ),
         ),
       ),
-      ActionButtonData(
+      MinorActionButton(
         icon: Octicons.link_external,
         label: 'View on GitHub',
         onTap: () async {
@@ -509,7 +509,7 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
 
     final secondaryActions = <ActionButtonData>[
       if (commit.comments.totalCount > 0)
-        ActionButtonData(
+        MinorActionButton(
           icon: Octicons.comment,
           label: 'Comments',
           trailing: buildActionButtonTrailingCount(

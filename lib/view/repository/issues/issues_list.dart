@@ -8,12 +8,9 @@ import 'package:diohub/common/search_overlay/filters.dart';
 import 'package:diohub/common/search_overlay/search_overlay.dart';
 import 'package:diohub/common/wrappers/provider_loading_progress_wrapper.dart';
 import 'package:diohub/common/wrappers/search_scroll_wrapper.dart';
-import 'package:diohub/graphql/queries/issues_pulls/__generated__/issue_templates.data.gql.dart';
+import 'package:diohub/graphql/queries/repositories/__generated__/repo_info.data.gql.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_info.data.gql.dart';
 import 'package:diohub/models/issues/issue_model.dart';
-import 'package:diohub/models/repositories/repository_model.dart';
-import 'package:diohub/providers/repository/issue_templates_provider.dart';
-import 'package:diohub/providers/repository/pinned_issues_provider.dart';
 import 'package:diohub/providers/repository/repository_provider.dart';
 import 'package:diohub/providers/users/current_user_provider.dart';
 import 'package:diohub/routes/router.gr.dart';
@@ -39,7 +36,7 @@ class IssuesList extends StatelessWidget {
             ),
             defaultHiddenFilters: <String>[
               SearchQueries().type.toQueryString('issue'),
-              SearchQueries().repo.toQueryString(repo.data.fullName!),
+              SearchQueries().repo.toQueryString(repo.data.nameWithOwner),
             ],
           ),
           quickFilters: <String, String>{
@@ -65,150 +62,6 @@ class IssuesList extends StatelessWidget {
             return filteredData;
           },
         ),
-        Align(
-          alignment: Alignment.bottomRight,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              ProviderLoadingProgressWrapper<PinnedIssuesProvider>(
-                loadingBuilder: (final BuildContext context) => Container(),
-                childBuilder: (
-                  final BuildContext context,
-                  final PinnedIssuesProvider value,
-                ) {
-                  if (value.data.totalCount > 0) {
-                    return SlideExpandedSection(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: <Widget>[
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: FloatingActionButton.extended(
-                              onPressed: () async {
-                                await showScrollableBottomSheet(
-                                  context,
-                                  headerBuilder: (
-                                    final BuildContext context,
-                                    final StateSetter setState,
-                                  ) =>
-                                      const BottomSheetHeaderText(
-                                    headerText: 'Pinned Issues',
-                                  ),
-                                  scrollableBodyBuilder: (
-                                    final BuildContext context,
-                                    final StateSetter setState,
-                                    final ScrollController scrollController,
-                                  ) =>
-                                      ListView.separated(
-                                    controller: scrollController,
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    itemBuilder: (
-                                      final BuildContext context,
-                                      final int index,
-                                    ) =>
-                                        IssueLoadingCard(
-                                      toRepoAPIResource(
-                                        value.data.nodes![index]!.issue.url
-                                            .toString(),
-                                      ),
-                                      // backgroundColor:
-                                      //     context.palette.secondary,
-                                    ),
-                                    separatorBuilder: (
-                                      final BuildContext context,
-                                      final int index,
-                                    ) =>
-                                        const Divider(),
-                                    itemCount: value.data.nodes!.length,
-                                  ),
-                                );
-                              },
-                              label: Text('${value.data.totalCount} Pinned'),
-                              icon: const Icon(MdiIcons.pin),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  return Container();
-                },
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: ProviderLoadingProgressWrapper<IssueTemplateProvider>(
-                  loadingBuilder: (final BuildContext context) =>
-                      const FloatingActionButton(
-                    onPressed: null,
-                    child: LoadingIndicator(),
-                  ),
-                  childBuilder: (
-                    final BuildContext context,
-                    final IssueTemplateProvider value,
-                  ) =>
-                      FloatingActionButton(
-                    onPressed: () async {
-                      if (value.data.isNotEmpty) {
-                        await showScrollableBottomSheet(
-                          context,
-                          headerBuilder: (
-                            final BuildContext context,
-                            final StateSetter setState,
-                          ) =>
-                              const BottomSheetHeaderText(
-                            headerText: 'New Issue',
-                          ),
-                          scrollableBodyBuilder: (
-                            final BuildContext context,
-                            final StateSetter setState,
-                            final ScrollController scrollController,
-                          ) =>
-                              ListenableProvider<RepositoryProvider>.value(
-                            value: Provider.of<RepositoryProvider>(
-                              context,
-                              listen: false,
-                            ),
-                            child: ListView.separated(
-                              controller: scrollController,
-                              padding: const EdgeInsets.only(bottom: 8),
-                              itemBuilder: (
-                                final BuildContext context,
-                                final int index,
-                              ) {
-                                if (value.data.length == index) {
-                                  return const BlankIssueTemplate();
-                                } else {
-                                  return IssueTemplateCard(value.data[index]);
-                                }
-                              },
-                              separatorBuilder: (
-                                final BuildContext context,
-                                final int index,
-                              ) =>
-                                  const Divider(),
-                              itemCount: value.data.length + 1,
-                            ),
-                          ),
-                        );
-                      } else {
-                        final RepositoryModel repo =
-                            context.read<RepositoryProvider>().data;
-                        await AutoRouter.of(context).push(
-                          NewIssueRoute(
-                            owner: repo.owner!.login!,
-                            repo: repo.name!,
-                          ),
-                        );
-                      }
-                    },
-                    child: const Icon(Icons.add),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -218,7 +71,7 @@ class IssueTemplateCard extends StatelessWidget {
   const IssueTemplateCard(this.template, {super.key, this.isBlank = false});
 
   final bool isBlank;
-  final GissueTemplatesData_repository_issueTemplates template;
+  final GrepositoryInfoData_repository_issueTemplates template;
 
   @override
   Widget build(final BuildContext context) => Padding(
@@ -226,12 +79,15 @@ class IssueTemplateCard extends StatelessWidget {
         child: Card(
           child: InkPot(
             onTap: () async {
-              final RepositoryModel repo =
-                  context.read<RepositoryProvider>().data;
+              final repo = context.read<RepositoryProvider>().data;
               await AutoRouter.of(context).push(
                 NewIssueRoute(
-                  owner: repo.owner!.login!,
-                  repo: repo.name!,
+                  owner: repo.owner.when(
+                    user: (u) => u.login,
+                    organization: (o) => o.login,
+                    orElse: () => '',
+                  ),
+                  repo: repo.name,
                   template: isBlank ? null : template,
                 ),
               );
@@ -263,8 +119,8 @@ class BlankIssueTemplate extends StatelessWidget {
 
   @override
   Widget build(final BuildContext context) => IssueTemplateCard(
-        GissueTemplatesData_repository_issueTemplates(
-          (final GissueTemplatesData_repository_issueTemplatesBuilder b) => b
+        GrepositoryInfoData_repository_issueTemplates(
+          (final GrepositoryInfoData_repository_issueTemplatesBuilder b) => b
             ..name = 'Don’t see your issue here?'
             ..about = 'Open a blank issue.',
         ),

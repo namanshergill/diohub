@@ -70,7 +70,7 @@ class BrowserListTile extends StatelessWidget {
                 repoName:
                     Provider.of<RepositoryProvider>(context, listen: false)
                         .data
-                        .fullName,
+                        .name ,
               ),
             );
           }

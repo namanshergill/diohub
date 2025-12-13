@@ -4,7 +4,7 @@ import 'package:diohub/common/markdown_view/markdown_body.dart';
 import 'package:diohub/common/misc/custom_expand_tile.dart';
 import 'package:diohub/common/misc/loading_indicator.dart';
 import 'package:diohub/common/wrappers/loading_wrapper.dart';
-import 'package:diohub/graphql/queries/issues_pulls/__generated__/issue_templates.data.gql.dart';
+import 'package:diohub/graphql/queries/repositories/__generated__/repo_info.data.gql.dart';
 import 'package:diohub/models/issues/issue_model.dart';
 import 'package:diohub/routes/router.dart';
 import 'package:diohub/services/issues/issues_service.dart';
@@ -23,7 +23,7 @@ class NewIssueScreen extends StatefulWidget {
     this.template,
   });
 
-  final GissueTemplatesData_repository_issueTemplates? template;
+  final GrepositoryInfoData_repository_issueTemplates? template;
   final String owner;
   final String repo;
 

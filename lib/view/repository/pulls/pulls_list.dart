@@ -23,9 +23,11 @@ class PullsList extends StatelessWidget {
         ),
         defaultHiddenFilters: <String>[
           SearchQueries().type.toQueryString('pr'),
-          SearchQueries().repo.toQueryString(repo.data.fullName!),
+          SearchQueries().repo.toQueryString(repo.data.nameWithOwner),
         ],
       ),
+      showRepoNameOnIssues: false,
+
       quickFilters: <String, String>{
         SearchQueries().assignee.toQueryString(user.login!): 'Assigned to you',
         SearchQueries().author.toQueryString(user.login!): 'Your pull requests',
