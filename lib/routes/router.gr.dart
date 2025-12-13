@@ -12,7 +12,7 @@
 import 'package:auto_route/auto_route.dart' as _i15;
 import 'package:diohub/adapters/deep_linking_handler.dart' as _i17;
 import 'package:diohub/common/search_overlay/search_overlay.dart' as _i13;
-import 'package:diohub/graphql/queries/issues_pulls/__generated__/issue_templates.data.gql.dart'
+import 'package:diohub/graphql/queries/repositories/__generated__/repo_info.data.gql.dart'
     as _i18;
 import 'package:diohub/view/authentication/auth_screen.dart' as _i1;
 import 'package:diohub/view/home/home.dart' as _i5;
@@ -503,7 +503,7 @@ class NewIssueRoute extends _i15.PageRouteInfo<NewIssueRouteArgs> {
     required String repo,
     required String owner,
     _i16.Key? key,
-    _i18.GissueTemplatesData_repository_issueTemplates? template,
+    _i18.GrepositoryInfoData_repository_issueTemplates? template,
     List<_i15.PageRouteInfo>? children,
   }) : super(
           NewIssueRoute.name,
@@ -546,7 +546,7 @@ class NewIssueRouteArgs {
 
   final _i16.Key? key;
 
-  final _i18.GissueTemplatesData_repository_issueTemplates? template;
+  final _i18.GrepositoryInfoData_repository_issueTemplates? template;
 
   @override
   String toString() {
