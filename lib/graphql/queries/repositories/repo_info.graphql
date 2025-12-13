@@ -14,3 +14,177 @@ query hasWatched($name:String!, $owner:String!) {
         }
     }
 }
+
+query repositoryInfo($owner: String!, $name: String!) {
+  repository(name: $name, owner: $owner) {
+    id
+    databaseId
+    name
+    nameWithOwner
+    description
+    descriptionHTML
+    url
+    resourcePath
+    homepageUrl
+    
+    # Status
+    isPrivate
+    isArchived
+    isDisabled
+    isLocked
+    isFork
+    isMirror
+    isTemplate
+    isEmpty
+    archivedAt
+    
+    # Dates
+    createdAt
+    updatedAt
+    pushedAt
+    
+    # Owner
+    owner {
+      __typename
+      ... on User {
+        id
+        login
+        avatarUrl
+        url
+        resourcePath
+      }
+      ... on Organization {
+        id
+        login
+        avatarUrl
+        url
+        resourcePath
+      }
+    }
+    isInOrganization
+    
+    # Statistics
+    forkCount
+    stargazerCount
+    watchers {
+      totalCount
+    }
+    diskUsage
+    
+    # Features
+    hasIssuesEnabled
+    hasProjectsEnabled
+    hasWikiEnabled
+    hasDiscussionsEnabled
+    hasSponsorshipsEnabled
+    hasVulnerabilityAlertsEnabled
+    isBlankIssuesEnabled
+    isSecurityPolicyEnabled
+    
+    # Code
+    defaultBranchRef {
+      name
+    }
+    primaryLanguage {
+      name
+      color
+      
+    }
+    languages(first: 10, orderBy: {field: SIZE, direction: DESC}) {
+      edges {
+        node {
+          name
+          color
+        }
+        size
+      }
+      totalSize
+      totalCount
+    }
+    
+    # Topics
+    repositoryTopics(first: 20) {
+      edges {
+        node {
+          topic {
+            name
+            id
+          }
+        }
+      }
+      totalCount
+    }
+    
+    
+    # License
+    licenseInfo {
+      name
+      spdxId
+      key
+      url
+      id
+    }
+    
+    # Viewer-specific
+    viewerHasStarred
+    viewerSubscription
+    viewerCanSubscribe
+    viewerPermission
+    
+    # Counts
+    issues(states: [OPEN]) {
+      totalCount
+    }
+    pullRequests(states: [OPEN]) {
+      totalCount
+    }
+    
+    # Latest release
+    latestRelease {
+      id
+      name
+      tagName
+      publishedAt
+      url
+      description
+      isPrerelease
+      isDraft
+    }
+    
+    # Pinned issues
+    pinnedIssues(first: 3) {
+      totalCount
+      nodes {
+        id
+        issue {
+          number
+          title
+          url
+          state
+          author {
+            avatarUrl
+            login
+          }
+          labels(first: 10) {
+            nodes {
+              name
+              color
+            }
+          }
+        }
+      }
+    }
+    
+    # Issue templates
+    issueTemplates {
+      name
+      title
+      body
+      about
+    }
+    
+    # Additional
+    openGraphImageUrl
+    mirrorUrl
+  }
+}

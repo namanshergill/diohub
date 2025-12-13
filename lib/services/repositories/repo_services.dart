@@ -55,6 +55,25 @@ class RepositoryServices {
     return RepositoryModel.fromJson(response.data!);
   }
 
+  // Fetch repository using GraphQL
+  // Note: Requires running GraphQL code generator: flutter pub run build_runner build
+  Future<GrepositoryInfoData_repository> fetchRepositoryGraphQL({
+    required final String owner,
+    required final String repo,
+    final bool refresh = false,
+  }) async {
+    final GQLResponse response = await _gqlHandler.query(
+      GrepositoryInfoReq(
+        (final GrepositoryInfoReqBuilder b) => b
+          ..vars.owner = owner
+          ..vars.name = repo,
+      ),
+      refreshCache: refresh,
+    );
+    final data = GrepositoryInfoData.fromJson(response.data!)!.repository!;
+    return data;
+  }
+
   // Ref: https://docs.github.com/en/rest/reference/repos#get-a-repository-readme
   static Future<RepositoryReadmeModel> fetchReadme(
     final String repoUrl, {
