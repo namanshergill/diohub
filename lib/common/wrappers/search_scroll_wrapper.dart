@@ -44,6 +44,7 @@ class SearchScrollWrapper extends StatefulWidget {
     this.filterFn,
     this.showRepoNameOnIssues = true,
     super.key,
+    this.onButtonDataReady,
   }) : _searchBarPadding = searchBarPadding ?? padding.copyWith(top: 8);
 
   /// Search Data this search wrapper would be attached to.
@@ -77,9 +78,36 @@ class SearchScrollWrapper extends StatefulWidget {
   /// Callback for when search data is changed.
   final ValueChanged<SearchData>? onChanged;
 
+  /// Callback that provides button data when state is ready.
+  /// Called after the state is initialized and whenever relevant data changes.
+  final void Function(SearchScrollWrapperButtonData)? onButtonDataReady;
+
   final bool showRepoNameOnIssues;
   @override
   SearchScrollWrapperState createState() => SearchScrollWrapperState();
+}
+
+/// Data class containing all information needed to build action buttons
+class SearchScrollWrapperButtonData {
+  const SearchScrollWrapperButtonData({
+    required this.searchWrapperState,
+    required this.currentSearchData,
+    required this.quickFilters,
+    required this.quickOptions,
+    required this.sortOptions,
+    required this.currentSort,
+    required this.searchBarMessage,
+    required this.searchHeroTag,
+  });
+
+  final SearchScrollWrapperState searchWrapperState;
+  final SearchData currentSearchData;
+  final Map<String, String>? quickFilters;
+  final Map<String, String>? quickOptions;
+  final Map<String, String>? sortOptions;
+  final String currentSort;
+  final String? searchBarMessage;
+  final String searchHeroTag;
 }
 
 class SearchScrollWrapperState extends State<SearchScrollWrapper> {
@@ -89,12 +117,75 @@ class SearchScrollWrapperState extends State<SearchScrollWrapper> {
   void initState() {
     searchData = widget.searchData;
     super.initState();
+    // Notify that state is ready after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.onButtonDataReady != null) {
+        widget.onButtonDataReady!(_getButtonData());
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(SearchScrollWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Notify when data changes
+    if (widget.onButtonDataReady != null) {
+      widget.onButtonDataReady!(_getButtonData());
+    }
+  }
+
+  /// Creates button data from current state
+  SearchScrollWrapperButtonData _getButtonData() {
+    return SearchScrollWrapperButtonData(
+      searchWrapperState: this,
+      currentSearchData: searchData,
+      quickFilters: widget.quickFilters,
+      quickOptions: widget.quickOptions,
+      sortOptions: searchData.searchFilters?.sortOptions,
+      currentSort: searchData.sort,
+      searchBarMessage: widget.searchBarMessage,
+      searchHeroTag: widget.searchHeroTag,
+    );
   }
 
   bool searchBarHidden = false;
   Size? size;
   InfiniteScrollWrapperController controller =
       InfiniteScrollWrapperController();
+
+  /// Updates the search data and refreshes the results
+  void updateSearchData(SearchData newSearchData) {
+    setState(() {
+      searchData = newSearchData;
+    });
+    widget.onChanged?.call(newSearchData);
+    controller.refresh();
+    // Notify button data changed
+    if (widget.onButtonDataReady != null) {
+      widget.onButtonDataReady!(_getButtonData());
+    }
+  }
+
+  /// Gets the current search data
+  SearchData get currentSearchData => searchData;
+
+  /// Gets the quick filters map
+  Map<String, String>? get quickFilters => widget.quickFilters;
+
+  /// Gets the quick options map
+  Map<String, String>? get quickOptions => widget.quickOptions;
+
+  /// Gets the sort options from search filters
+  Map<String, String>? get sortOptions => searchData.searchFilters?.sortOptions;
+
+  /// Gets the current sort value
+  String get currentSort => searchData.sort;
+
+  /// Gets the search bar message
+  String? get searchBarMessage => widget.searchBarMessage;
+
+  /// Gets the search hero tag
+  String get searchHeroTag => widget.searchHeroTag;
 
   @override
   Widget build(final BuildContext context) {
@@ -264,6 +355,7 @@ class _InfiniteWrapper<T> extends StatelessWidget {
   Widget build(final BuildContext context) => InfiniteScrollWrapper<T>(
         pageSize: 20,
         controller: controller,
+        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 80),
         header: header,
         filterFn: filterFn,
         future: searchFuture,
