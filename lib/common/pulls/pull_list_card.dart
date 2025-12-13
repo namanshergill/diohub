@@ -44,7 +44,8 @@ class PullListCard extends StatelessWidget {
         }
       },
       child: NestedCardWithHeader(
-        flipColors: isNested,
+        isNested: isNested,
+        
         header: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,

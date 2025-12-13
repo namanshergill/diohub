@@ -19,6 +19,7 @@ class PullLoadingCard extends StatelessWidget {
     this.url, {
     this.compact = false,
     this.issueModel,
+    this.showRepoName = true,
     this.isNested = false,
     // this.disableMaterial = false,
     super.key,
@@ -27,6 +28,7 @@ class PullLoadingCard extends StatelessWidget {
   final String url;
   final bool compact;
   final IssueModel? issueModel;
+  final bool showRepoName;
   final bool isNested;
 
   // final bool disableMaterial;
@@ -47,8 +49,6 @@ class PullLoadingCard extends StatelessWidget {
                     .join('/')
                 : null;
 
-            final bool showRepoName = !compact;
-
             // Get the date to display
             final DateTime? dateToUse = issueModel!.state == IssueState.CLOSED
                 ? (issueModel!.closedAt ?? issueModel!.createdAt)
@@ -61,7 +61,7 @@ class PullLoadingCard extends StatelessWidget {
                 );
               },
               child: NestedCardWithHeader(
-                flipColors: isNested,
+                isNested: isNested,
                 header: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
@@ -260,7 +260,7 @@ class PullLoadingCard extends StatelessWidget {
           }
           // Show shimmer effect matching the HeaderCard structure
           return NestedCardWithHeader(
-            flipColors: isNested,
+            isNested: isNested,
             header: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
@@ -325,7 +325,7 @@ class PullLoadingCard extends StatelessWidget {
         builder: (final BuildContext context, final PullRequestModel data) {
           return PullListCard(
             data,
-            showRepoName: !compact,
+            showRepoName: showRepoName,
             isNested: isNested,
           );
         },
