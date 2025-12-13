@@ -4,8 +4,9 @@ import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/wrappers/infinite_scroll_wrapper.dart';
 import 'package:diohub/common/wrappers/provider_loading_progress_wrapper.dart';
 import 'package:diohub/models/repositories/branch_list_model.dart';
-import 'package:diohub/models/repositories/repository_model.dart';
+import 'package:diohub/graphql/queries/repositories/__generated__/repo_info.data.gql.dart';
 import 'package:diohub/providers/repository/branch_provider.dart';
+import 'package:diohub/providers/repository/repository_provider.dart';
 import 'package:diohub/services/repositories/repo_services.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:flutter/material.dart';
@@ -13,8 +14,7 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:provider/provider.dart';
 
 class BranchButton extends StatelessWidget {
-  const BranchButton({final RepositoryModel? repo, super.key}) : _repo = repo;
-  final RepositoryModel? _repo;
+  const BranchButton({super.key});
 
   double get height => 55;
 
@@ -29,11 +29,11 @@ class BranchButton extends StatelessWidget {
           final RepoBranchProvider value,
         ) =>
             HighlightedContainer(
-              highlightColor: context.colorScheme.primary,
-              child: Material(
-                        color: context.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
+          highlightColor: context.colorScheme.primary,
+          child: Material(
+            color: context.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
               onTap: () async {
                 try {
                   final String currentBranch =
@@ -44,11 +44,12 @@ class BranchButton extends StatelessWidget {
                       listen: false,
                     ).setBranch(branch);
                   }
-              
+
                   await BottomSheetPagination<RepoBranchListItemModel>(
                     paginatedListItemBuilder: (
                       final BuildContext context,
-                      final ScrollWrapperBuilderData<RepoBranchListItemModel> data,
+                      final ScrollWrapperBuilderData<RepoBranchListItemModel>
+                          data,
                     ) =>
                         Padding(
                       padding: const EdgeInsets.symmetric(
@@ -66,28 +67,46 @@ class BranchButton extends StatelessWidget {
                               Navigator.pop(context);
                             }
                           },
-                          child: _buildListBranchItem(data, currentBranch, context),
+                          child: _buildListBranchItem(
+                              data, currentBranch, context),
                         ),
                       ),
                     ),
                     paginationFuture: (
                       data,
-                    ) async =>
-                        RepositoryServices.fetchBranchList(
-                      _repo!.url!,
-                      data.pageNumber,
-                      data.pageSize,
-                      refresh: data.refresh,
-                    ),
-                  title: 'Branches in ${_repo?.owner?.login!}/${_repo?.name}',
-                ).openSheet(context);
-              } on Exception {
-                rethrow;
-              }
+                    ) async {
+                      final repo = Provider.of<RepositoryProvider>(
+                        context,
+                        listen: false,
+                      ).data;
+                      return RepositoryServices.fetchBranchList(
+                        repo.url.toString(),
+                        data.pageNumber,
+                        data.pageSize,
+                        refresh: data.refresh,
+                      );
+                    },
+                    title: () {
+                      final repo = Provider.of<RepositoryProvider>(
+                        context,
+                        listen: false,
+                      ).data;
+                      final ownerLogin = repo.owner.when(
+                        user: (u) => u.login,
+                        organization: (o) => o.login,
+                        orElse: () => '',
+                      );
+                      return 'Branches in $ownerLogin/${repo.name}';
+                    }(),
+                  ).openSheet(context);
+                } on Exception {
+                  rethrow;
+                }
               },
               borderRadius: BorderRadius.circular(12),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Row(
                   children: <Widget>[
                     Icon(
@@ -109,14 +128,15 @@ class BranchButton extends StatelessWidget {
                     Icon(
                       Icons.arrow_drop_down_rounded,
                       size: 20,
-                      color: context.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                      color:
+                          context.colorScheme.onSurfaceVariant.withOpacity(0.6),
                     ),
                   ],
                 ),
               ),
-                        ),
-                      ),
             ),
+          ),
+        ),
       );
 
   Padding _buildListBranchItem(
@@ -149,13 +169,22 @@ class BranchButton extends StatelessWidget {
                 ],
               ),
             ),
-            Visibility(
-              visible: _repo!.defaultBranch == data.item.name,
-              replacement: Container(),
-              child: Text(
-                'Default',
-                style: context.textTheme.bodySmall,
-              ),
+            Builder(
+              builder: (context) {
+                final repo = Provider.of<RepositoryProvider>(
+                  context,
+                  listen: false,
+                ).data;
+                final isDefault = repo.defaultBranchRef?.name == data.item.name;
+                return Visibility(
+                  visible: isDefault,
+                  replacement: Container(),
+                  child: Text(
+                    'Default',
+                    style: context.textTheme.bodySmall,
+                  ),
+                );
+              },
             ),
           ],
         ),
