@@ -9,9 +9,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class IssuesTab extends StatefulWidget {
-  const IssuesTab({this.deepLinkData, super.key});
+  const IssuesTab({
+    this.deepLinkData,
+    this.searchWrapperKey,
+    this.onButtonDataReady,
+    super.key,
+  });
 
   final PathData? deepLinkData;
+  final GlobalKey<SearchScrollWrapperState>? searchWrapperKey;
+  final void Function(SearchScrollWrapperButtonData)? onButtonDataReady;
 
   @override
   IssuesTabState createState() => IssuesTabState();
@@ -54,6 +61,8 @@ class IssuesTabState extends State<IssuesTab>
       searchBarMessage: 'Search in your issues',
       searchHeroTag: '${user.login}issueSearch',
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      key: widget.searchWrapperKey,
+      onButtonDataReady: widget.onButtonDataReady,
       filterFn: (final List<dynamic> data) {
         final List<IssueModel> filteredData = <IssueModel>[];
         for (final IssueModel item in data) {

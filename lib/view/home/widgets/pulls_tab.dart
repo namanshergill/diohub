@@ -8,9 +8,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class PullsTab extends StatefulWidget {
-  const PullsTab({this.deepLinkData, super.key});
+  const PullsTab({
+    this.deepLinkData,
+    this.searchWrapperKey,
+    this.onButtonDataReady,
+    super.key,
+  });
 
   final PathData? deepLinkData;
+  final GlobalKey<SearchScrollWrapperState>? searchWrapperKey;
+  final void Function(SearchScrollWrapperButtonData)? onButtonDataReady;
 
   @override
   PullsTabState createState() => PullsTabState();
@@ -52,6 +59,8 @@ class PullsTabState extends State<PullsTab> with AutomaticKeepAliveClientMixin {
       searchBarMessage: 'Search in your pull requests',
       searchHeroTag: '${user.login}issueSearch',
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      key: widget.searchWrapperKey,
+      onButtonDataReady: widget.onButtonDataReady,
     );
   }
 }

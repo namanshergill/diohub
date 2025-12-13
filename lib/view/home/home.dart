@@ -1,4 +1,5 @@
 import 'package:auto_route/annotations.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:diohub/adapters/deep_linking_handler.dart';
 import 'package:diohub/common/events/events.dart';
@@ -10,11 +11,14 @@ import 'package:diohub/common/misc/floating_action_toolbar.dart';
 import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/misc/profile_banner.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
+import 'package:diohub/common/search_overlay/search_overlay.dart';
 import 'package:diohub/common/wrappers/dynamic_tabs_parent.dart';
 import 'package:diohub/common/wrappers/infinite_scroll_wrapper.dart';
+import 'package:diohub/common/wrappers/search_scroll_wrapper.dart';
 import 'package:diohub/graphql/queries/viewer/__generated__/viewer.query.data.gql.dart';
 import 'package:diohub/providers/base_provider.dart';
 import 'package:diohub/providers/users/current_user_provider.dart';
+import 'package:diohub/routes/router.gr.dart';
 import 'package:diohub/services/users/user_info_service.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:diohub/view/home/widgets/issues_tab.dart';
@@ -56,6 +60,12 @@ class HomeScreenState extends State<HomeScreen>
     tabs: _buildTabs(),
   );
 
+  // GlobalKeys for accessing SearchScrollWrapperState
+  final GlobalKey<SearchScrollWrapperState> _issuesSearchKey =
+      GlobalKey<SearchScrollWrapperState>();
+  final GlobalKey<SearchScrollWrapperState> _pullsSearchKey =
+      GlobalKey<SearchScrollWrapperState>();
+
   List<DynamicTab> _buildTabs() => <DynamicTab>[
         DynamicTab(
           identifier: 'Events',
@@ -70,6 +80,7 @@ class HomeScreenState extends State<HomeScreen>
             deepLinkData: widget.deepLinkData?.components.first == 'issues'
                 ? widget.deepLinkData
                 : null,
+            searchWrapperKey: _issuesSearchKey,
           ),
         ),
         DynamicTab(
@@ -79,6 +90,7 @@ class HomeScreenState extends State<HomeScreen>
             deepLinkData: widget.deepLinkData?.components.first == 'pulls'
                 ? widget.deepLinkData
                 : null,
+            searchWrapperKey: _pullsSearchKey,
           ),
         ),
         DynamicTab(
@@ -177,74 +189,188 @@ class HomeScreenState extends State<HomeScreen>
           ValueListenableBuilder<String>(
             valueListenable: tabsController.activeIdentifierNotifier,
             builder: (context, currentTab, _) {
+              final isIssuesTab = currentTab == 'Issues';
+              final isPullsTab = currentTab == 'Pulls';
+              final hasSearchTab = isIssuesTab || isPullsTab;
+
+              // Build all actions in a single list - they'll be automatically split by type
+              final List<ActionButtonData> allActions = [];
+
+              // Prominent actions (will appear above the row)
+              if (hasSearchTab) {
+                final searchWrapperState = isIssuesTab
+                    ? _issuesSearchKey.currentState
+                    : _pullsSearchKey.currentState;
+
+                // Search bar as major action
+                allActions.add(
+                  MinorActionButton(
+                    icon: Icons.search_rounded,
+                    label: 'Search',
+                    onTap: () async {
+                      if (searchWrapperState != null) {
+                        await AutoRouter.of(context).push(
+                          SearchOverlayRoute(
+                            message: searchWrapperState.searchBarMessage ??
+                                (isIssuesTab
+                                    ? 'Search in your issues'
+                                    : 'Search in your pull requests'),
+                            multiHero: true,
+                            searchData: searchWrapperState.currentSearchData,
+                            heroTag: searchWrapperState.searchHeroTag,
+                            onSubmit: (final SearchData data) {
+                              searchWrapperState.updateSearchData(data);
+                            },
+                          ),
+                        );
+                      }
+                    },
+                    visibilityState: ActionButtonVisibilityState.both,
+                  ),
+                );
+
+                // Quick Filters expandable widget
+                final filters = searchWrapperState?.quickFilters;
+                if (filters != null && filters.isNotEmpty) {
+                  allActions.add(
+                    ExpandableActionButton(
+                      icon: Icons.filter_list_rounded,
+                      label: 'Quick Filters',
+                      expandableWidgetBuilder: (onCollapse) {
+                        return _buildQuickFiltersWidget(
+                          context,
+                          searchWrapperState!,
+                          filters,
+                          onCollapse,
+                        );
+                      },
+                      visibilityState: ActionButtonVisibilityState.both,
+                    ),
+                  );
+                }
+
+                // Sort expandable widget
+                if (searchWrapperState != null) {
+                  allActions.add(
+                    ExpandableActionButton(
+                      icon: Icons.sort_rounded,
+                      label: 'Sort',
+                      expandableWidgetBuilder: (onCollapse) {
+                        return _buildSortWidget(
+                          context,
+                          searchWrapperState,
+                          onCollapse,
+                        );
+                      },
+                      visibilityState: ActionButtonVisibilityState.both,
+                    ),
+                  );
+                }
+
+                // Quick options as CheckboxActionButton widgets
+                final options = searchWrapperState?.quickOptions;
+                if (options != null && options.isNotEmpty) {
+                  final currentSearchData =
+                      searchWrapperState!.currentSearchData;
+                  for (final entry in options.entries) {
+                    final isSelected =
+                        currentSearchData.filterStrings.contains(entry.key);
+                    allActions.add(
+                      CheckboxActionButton(
+                        icon: isSelected
+                            ? Icons.check_box_rounded
+                            : Icons.check_box_outline_blank_rounded,
+                        label: entry.value,
+                        value: isSelected,
+                        onChanged: (bool? value) {
+                          final filters =
+                              currentSearchData.visibleStrings.toList();
+                          if (value == true) {
+                            filters.add(entry.key);
+                          } else {
+                            filters.remove(entry.key);
+                          }
+                          final newSearchData = currentSearchData.copyWith(
+                            filterStrings: filters,
+                          );
+                          searchWrapperState.updateSearchData(newSearchData);
+                        },
+                        visibilityState: ActionButtonVisibilityState.both,
+                      ),
+                    );
+                  }
+                }
+              }
+
+              // Minor actions (will appear in the row)
+              allActions.addAll([
+                MinorActionButton(
+                  icon: Octicons.issue_opened,
+                  label: 'Issues',
+                  trailing: buildActionButtonTrailingCount(
+                    context,
+                    context.viewer.issues.totalCount,
+                  ),
+                  actionType: ActionButtonActionType.tab,
+                  visibilityState: currentTab == 'Issues'
+                      ? ActionButtonVisibilityState.none
+                      : ActionButtonVisibilityState.both,
+                  onTap: () => tabsController.openTab('Issues'),
+                ),
+                MinorActionButton(
+                  icon: Octicons.git_pull_request,
+                  label: 'Pull Requests',
+                  trailing: buildActionButtonTrailingCount(
+                    context,
+                    context.viewer.pullRequests.totalCount,
+                  ),
+                  actionType: ActionButtonActionType.tab,
+                  visibilityState: currentTab == 'Pulls'
+                      ? ActionButtonVisibilityState.none
+                      : ActionButtonVisibilityState.both,
+                  onTap: () => tabsController.openTab('Pulls'),
+                ),
+                MinorActionButton(
+                  icon: Icons.settings_rounded,
+                  label: 'App Settings',
+                  onTap: () {
+                    // Navigate to settings
+                  },
+                ),
+                MinorActionButton(
+                  icon: Octicons.organization,
+                  label: 'Organizations',
+                  trailing: buildActionButtonTrailingCount(
+                    context,
+                    context.viewer.organizations.totalCount,
+                  ),
+                  actionType: ActionButtonActionType.tab,
+                  visibilityState: currentTab == 'orgs'
+                      ? ActionButtonVisibilityState.none
+                      : ActionButtonVisibilityState.expandedOnly,
+                  onTap: () => tabsController.openTab('orgs'),
+                ),
+                MinorActionButton(
+                  icon: Octicons.repo,
+                  label: 'Repositories',
+                  trailing: buildActionButtonTrailingCount(
+                    context,
+                    context.viewer.repositories.totalCount,
+                  ),
+                  visibilityState: currentTab == 'repos'
+                      ? ActionButtonVisibilityState.none
+                      : ActionButtonVisibilityState.expandedOnly,
+                  onTap: () {
+                    // tabsController.openTab('repos');
+                  },
+                ),
+              ]);
+
               return FloatingActionToolbar(
                 key: const ValueKey('home_toolbar'),
-                actions: [
-                  ActionButtonData(
-                    icon: Octicons.issue_opened,
-                    label: 'Issues',
-                    trailing: buildActionButtonTrailingCount(
-                      context,
-                      context.viewer.issues.totalCount,
-                    ),
-                    actionType: ActionButtonActionType.tab,
-                    visibilityState: currentTab == 'Issues'
-                        ? ActionButtonVisibilityState.none
-                        : ActionButtonVisibilityState.both,
-                    onTap: () => tabsController.openTab('Issues'),
-                  ),
-                  ActionButtonData(
-                    icon: Octicons.git_pull_request,
-                    label: 'Pull Requests',
-                    trailing: buildActionButtonTrailingCount(
-                      context,
-                      context.viewer.pullRequests.totalCount,
-                    ),
-                    actionType: ActionButtonActionType.tab,
-                    visibilityState: currentTab == 'Pulls'
-                        ? ActionButtonVisibilityState.none
-                        : ActionButtonVisibilityState.both,
-                    onTap: () => tabsController.openTab('Pulls'),
-                  ),
-                  ActionButtonData(
-                    icon: Icons.settings_rounded,
-                    label: 'App Settings',
-                    onTap: () {
-                      // Navigate to settings
-                    },
-                  ),
-                  ActionButtonData(
-                    icon: Octicons.organization,
-                    label: 'Organizations',
-                    trailing: buildActionButtonTrailingCount(
-                      context,
-                      context.viewer.organizations.totalCount,
-                    ),
-                    actionType: ActionButtonActionType.tab,
-                    visibilityState: currentTab == 'orgs'
-                        ? ActionButtonVisibilityState.none
-                        : ActionButtonVisibilityState.expandedOnly,
-                    onTap: () => tabsController.openTab('orgs'),
-                  ),
-                  ActionButtonData(
-                    icon: Octicons.repo,
-                    label: 'Repositories',
-                    trailing: buildActionButtonTrailingCount(
-                      context,
-                      context.viewer.repositories.totalCount,
-                    ),
-                    visibilityState: currentTab == 'repos'
-                        ? ActionButtonVisibilityState.none
-                        : ActionButtonVisibilityState.expandedOnly,
-                    onTap: () {
-                      // tabsController.openTab('repos');
-                    },
-                  ),
-                ],
+                actions: allActions,
                 actionCardBuilder: (context, action) =>
                     buildStandardActionCard(context, action),
-                defaultVisibleCount:
-                    3, // Show Issues, PRs, and App Settings in compact mode
                 position: FloatingPosition.bottom,
                 // Default alignment for bottom is right (set in FloatingActionToolbar)
                 // alignment: null,
@@ -349,4 +475,104 @@ class HomeScreenState extends State<HomeScreen>
           ),
         ],
       );
+
+  /// Builds the quick filters widget
+  Widget _buildQuickFiltersWidget(
+    BuildContext context,
+    SearchScrollWrapperState searchWrapperState,
+    Map<String, String> quickFilters,
+    VoidCallback onCollapse,
+  ) {
+    final currentSearchData = searchWrapperState.currentSearchData;
+    final activeQuickFilter = currentSearchData.activeQuickFilter;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: quickFilters.entries.map((entry) {
+        final isSelected = activeQuickFilter == entry.key;
+        return ListTile(
+          dense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+          selected: isSelected,
+          selectedTileColor: isSelected ? context.colorScheme.primary : null,
+          title: Text(
+            entry.value,
+            style: context.textTheme.labelMedium?.copyWith(
+              color: isSelected
+                  ? context.colorScheme.onPrimary
+                  : context.colorScheme.onSurface,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+          trailing: isSelected
+              ? Icon(
+                  Icons.check_rounded,
+                  size: 18,
+                  color: context.colorScheme.onPrimary,
+                )
+              : null,
+          onTap: () {
+            final newSearchData = currentSearchData.copyWith(
+              quickFilter: isSelected ? null : entry.key,
+            );
+            searchWrapperState.updateSearchData(newSearchData);
+            onCollapse();
+          },
+        );
+      }).toList(),
+    );
+  }
+
+  /// Builds the sort widget
+  Widget _buildSortWidget(
+    BuildContext context,
+    SearchScrollWrapperState searchWrapperState,
+    VoidCallback onCollapse,
+  ) {
+    final currentSearchData = searchWrapperState.currentSearchData;
+    final sortOptions = searchWrapperState.sortOptions;
+    if (sortOptions == null) return const SizedBox.shrink();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: sortOptions.entries.map((entry) {
+        final isSelected = currentSearchData.sort == entry.key;
+        return ListTile(
+          dense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+          selected: isSelected,
+          selectedTileColor: isSelected ? context.colorScheme.primary : null,
+          title: Text(
+            entry.value,
+            style: context.textTheme.labelMedium?.copyWith(
+              color: isSelected
+                  ? context.colorScheme.onPrimary
+                  : context.colorScheme.onSurface,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+          trailing: isSelected
+              ? Icon(
+                  Icons.check_rounded,
+                  size: 18,
+                  color: context.colorScheme.onPrimary,
+                )
+              : null,
+          onTap: () {
+            final newSearchData = currentSearchData.copyWith(sort: entry.key);
+            searchWrapperState.updateSearchData(newSearchData);
+            onCollapse();
+          },
+        );
+      }).toList(),
+    );
+  }
 }
