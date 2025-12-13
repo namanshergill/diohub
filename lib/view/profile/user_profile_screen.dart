@@ -260,7 +260,7 @@ class UserProfileScreenState<T extends UserInfoModel>
     // Follow/Unfollow button (only for other users)
     if (isUser && !isCurrentUserProfile) {
       primaryActions.add(
-        ActionButtonData(
+        MinorActionButton(
           icon: Octicons.person_add,
           label: 'Follow',
           trailing: data.followers != null
@@ -277,7 +277,7 @@ class UserProfileScreenState<T extends UserInfoModel>
     // Repositories count
     if (data.publicRepos != null) {
       primaryActions.add(
-        ActionButtonData(
+        MinorActionButton(
           icon: Octicons.repo,
           label: 'Repositories',
           trailing: buildActionButtonTrailingCount(
@@ -293,7 +293,7 @@ class UserProfileScreenState<T extends UserInfoModel>
     // Followers count (for users)
     if (isUser && data.followers != null) {
       primaryActions.add(
-        ActionButtonData(
+        MinorActionButton(
           icon: Octicons.people,
           label: 'Followers',
           trailing: buildActionButtonTrailingCount(context, data.followers!),
@@ -307,7 +307,7 @@ class UserProfileScreenState<T extends UserInfoModel>
     // Following count (for users)
     if (isUser && data.following != null) {
       primaryActions.add(
-        ActionButtonData(
+        MinorActionButton(
           icon: Octicons.person,
           label: 'Following',
           trailing: buildActionButtonTrailingCount(context, data.following!),
@@ -323,7 +323,7 @@ class UserProfileScreenState<T extends UserInfoModel>
     // More actions can go here
     if (data.publicGists != null) {
       secondaryActions.add(
-        ActionButtonData(
+        MinorActionButton(
           icon: Octicons.code_square,
           label: 'Gists',
           trailing: buildActionButtonTrailingCount(context, data.publicGists!),

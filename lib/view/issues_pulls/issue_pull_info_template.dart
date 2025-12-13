@@ -428,7 +428,7 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
   Widget _buildActionButtons(BuildContext context) {
     // Primary actions - always visible when enabled
     final primaryActions = <ActionButtonData>[
-      ActionButtonData(
+      MinorActionButton(
         icon: (widget.state.state == GIssueState.OPEN ||
                 widget.state.state == GPullRequestState.OPEN)
             ? Octicons.issue_closed
@@ -444,7 +444,7 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
             widget.state.state != GPullRequestState.OPEN),
         onTap: () {},
       ),
-      ActionButtonData(
+      MinorActionButton(
         icon: Octicons.pencil,
         label: 'Edit',
         enabled: widget.viewerCanReact,
@@ -454,13 +454,13 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
 
     // Secondary actions - only visible when expanded
     final secondaryActions = <ActionButtonData>[
-      ActionButtonData(
+      MinorActionButton(
         icon: Octicons.lock,
         label: 'Lock',
         enabled: widget.viewerCanReact,
         onTap: () {},
       ),
-      ActionButtonData(
+      MinorActionButton(
         icon: Octicons.pin,
         label: widget.isPinned ? 'Unpin' : 'Pin',
         enabled: widget.viewerCanReact,

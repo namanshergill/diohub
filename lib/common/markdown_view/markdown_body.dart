@@ -17,6 +17,9 @@ class MarkdownRenderAPI extends StatelessWidget {
     this.branch,
     this.style,
     this.buildAsync,
+    this.onHeadingsExtracted,
+    this.onScrollToAnchor,
+    this.markdownBodyKey,
   });
 
   final String data;
@@ -24,6 +27,10 @@ class MarkdownRenderAPI extends StatelessWidget {
   final String? branch;
   final bool? buildAsync;
   final MarkdownBodyStyle? style;
+  final void Function(List<({String text, String id, int level})> headings)?
+      onHeadingsExtracted;
+  final void Function(String anchorId)? onScrollToAnchor;
+  final Key? markdownBodyKey;
 
   List<MarkdownImgSrcModifiers> get _repoMarkdownImgSrcModifiers =>
       <MarkdownImgSrcModifiers>[
@@ -54,9 +61,12 @@ class MarkdownRenderAPI extends StatelessWidget {
         builder: (final BuildContext context, final String data) =>
             MarkdownBody(
           data,
+          key: markdownBodyKey,
           buildAsync: buildAsync,
           imgSrcModifiers: _repoMarkdownImgSrcModifiers,
           style: style,
+          onHeadingsExtracted: onHeadingsExtracted,
+          onScrollToAnchor: onScrollToAnchor,
         ),
       );
 }
@@ -69,6 +79,8 @@ class MarkdownBody extends StatefulWidget {
     this.style,
     this.buildAsync,
     this.textStyle,
+    this.onHeadingsExtracted,
+    this.onScrollToAnchor,
     // this.defaultBodyStyle,
   });
 
@@ -77,6 +89,9 @@ class MarkdownBody extends StatefulWidget {
   final String content;
   final List<MarkdownImgSrcModifiers>? imgSrcModifiers;
   final TextStyle? textStyle;
+  final void Function(List<({String text, String id, int level})> headings)?
+      onHeadingsExtracted;
+  final void Function(String anchorId)? onScrollToAnchor;
 
   // final Style? defaultBodyStyle;
 
@@ -91,6 +106,7 @@ class MarkdownBodyState extends State<MarkdownBody> {
   @override
   void initState() {
     updateData(widget.content);
+    _scrollCallback = widget.onScrollToAnchor;
     super.initState();
   }
 
@@ -98,11 +114,36 @@ class MarkdownBodyState extends State<MarkdownBody> {
     final dom.Document document = parse(data);
     // The list of tags to perform modifications on.
     final List<String> tags = <String>['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+    final headings = <({String text, String id, int level})>[];
+
     for (final String element in tags) {
       final List<dom.Element> elements = document.getElementsByTagName(element);
       performModifications(elements);
+
+      // Extract level from tag name (h1 = 1, h2 = 2, etc.)
+      final level = int.parse(element.substring(1));
+
+      // Extract headings for callback
+      for (final dom.Element headingElement in elements) {
+        final text = headingElement.text.trim();
+        if (text.isNotEmpty) {
+          final id = headingElement.attributes['id'] ?? '';
+          print(
+              '[MarkdownBody] Extracted heading: text="$text", id="$id", level=$level');
+          print(
+              '[MarkdownBody] Heading element attributes: ${headingElement.attributes}');
+
+          headings.add((text: text, id: id, level: level));
+        }
+      }
     }
+
     doc = document;
+
+    // Notify about extracted headings - defer to avoid setState during build
+    if (widget.onHeadingsExtracted != null && headings.isNotEmpty) {
+      widget.onHeadingsExtracted!(headings);
+    }
   }
 
   @override
@@ -110,8 +151,15 @@ class MarkdownBodyState extends State<MarkdownBody> {
     if (oldWidget.content != widget.content) {
       updateData(widget.content);
     }
+    // Update scroll callback if changed
+    if (oldWidget.onScrollToAnchor != widget.onScrollToAnchor) {
+      // Store scroll callback for later use
+      _scrollCallback = widget.onScrollToAnchor;
+    }
     super.didUpdateWidget(oldWidget);
   }
+
+  void Function(String anchorId)? _scrollCallback;
 
   void performModifications(final List<dom.Element> elements) {
     for (final dom.Element node in elements) {
@@ -129,6 +177,42 @@ class MarkdownBodyState extends State<MarkdownBody> {
   final GlobalKey<HtmlWidgetState> htmlWidgetKey = GlobalKey<HtmlWidgetState>();
 
   HtmlWidgetState? get currentMarkdownState => htmlWidgetKey.currentState;
+
+  void scrollToAnchor(String anchorId) {
+    print('[MarkdownBodyState] ====== scrollToAnchor CALLED ======');
+    print('[MarkdownBodyState] anchorId: "$anchorId"');
+    print('[MarkdownBodyState] htmlWidgetKey: ${htmlWidgetKey.toString()}');
+    print(
+        '[MarkdownBodyState] currentMarkdownState (HtmlWidgetState) is ${currentMarkdownState != null ? "not null" : "null"}');
+    if (currentMarkdownState != null) {
+      print('[MarkdownBodyState] ✓ HtmlWidgetState found');
+      print(
+          '[MarkdownBodyState] HtmlWidgetState type: ${currentMarkdownState.runtimeType}');
+      print(
+          '[MarkdownBodyState] Calling currentMarkdownState.scrollToAnchor("$anchorId")');
+      try {
+        currentMarkdownState!.scrollToAnchor(anchorId);
+        print(
+            '[MarkdownBodyState] ✓ scrollToAnchor call to HtmlWidgetState completed successfully');
+      } catch (e, stackTrace) {
+        print('[MarkdownBodyState] ✗ ERROR calling scrollToAnchor: $e');
+        print('[MarkdownBodyState] Stack trace: $stackTrace');
+      }
+    } else {
+      print(
+          '[MarkdownBodyState] ✗ ERROR: currentMarkdownState is null, cannot scroll');
+      print(
+          '[MarkdownBodyState] This means HtmlWidget may not be mounted yet or htmlWidgetKey is not attached');
+    }
+    // Also call callback if provided
+    if (_scrollCallback != null) {
+      print(
+          '[MarkdownBodyState] Calling _scrollCallback with anchorId: "$anchorId"');
+      _scrollCallback!.call(anchorId);
+    } else {
+      print('[MarkdownBodyState] No _scrollCallback provided');
+    }
+  }
 
   @override
   Widget build(final BuildContext context) => HtmlWidget(
@@ -172,25 +256,6 @@ class MarkdownBodyState extends State<MarkdownBody> {
               },
             _ => null,
           };
-          if (element.isTag('a')) {
-            return <String, String>{
-              'text-decoration': 'none',
-            };
-          } else if (element.isTag('blockquote')) {
-            return <String, String>{
-              'margin': '0',
-              // 'padding': '0',
-            };
-          }
-          // if (element.isTag('code')) {
-          //   return <String, String>{
-          //     'background-color':
-          //         '#${context.colorScheme.surfaceVariant.value.toRadixString(16)}',
-          //     'border-radius': '50px',
-          //     'padding': '10px',
-          //   };
-          // }
-          return null;
         },
         // rende
         // rMode: RenderMode.sliverList,
