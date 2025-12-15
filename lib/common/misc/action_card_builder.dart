@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 // These ensure consistent sizing across MajorActionButton, ExpandableActionButton, and CheckboxActionButton
 // This padding applies ONLY to the buttons themselves, not to the expanded widget content
 const EdgeInsets _kProminentActionButtonPadding =
-    EdgeInsets.symmetric(horizontal: 16, vertical: 14);
+    EdgeInsets.symmetric(horizontal: 12, vertical: 8);
 
 /// Formats size in KB to human-readable format (KB, MB, GB)
 String formatSize(int? sizeInKB) {
@@ -406,7 +406,7 @@ Widget buildProminentActionCard(
 Widget buildExpandableProminentActionCard(
   BuildContext context,
   ActionButtonData action, {
-  double iconSize = 20,
+  double iconSize = 16,
   double borderRadius = 14,
   EdgeInsets? padding,
   VoidCallback? onOptionSelected,
@@ -554,15 +554,23 @@ class _ExpandableProminentActionCardState
               }
             },
             borderRadius: BorderRadius.circular(widget.borderRadius),
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
               width: double.infinity,
               padding: widget.padding,
               decoration: BoxDecoration(
-                color: backgroundColor,
+                color: _isExpanded
+                    ? (effectiveSeedColor ?? context.colorScheme.primary)
+                        .withOpacity(0.15)
+                    : backgroundColor,
                 borderRadius: BorderRadius.circular(widget.borderRadius),
                 border: Border.all(
-                  color: context.colorScheme.outline.withOpacity(0.1),
-                  width: 0.5,
+                  color: _isExpanded
+                      ? (effectiveSeedColor ?? context.colorScheme.primary)
+                          .withOpacity(0.4)
+                      : context.colorScheme.outline.withOpacity(0.1),
+                  width: _isExpanded ? 1.5 : 0.5,
                 ),
               ),
               child: Row(
@@ -571,62 +579,68 @@ class _ExpandableProminentActionCardState
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Icon
-                Expanded(
-                  child: Row(children: [  Icon(
-                      action.icon,
-                      size: widget.iconSize,
-                      color: iconColor,
-                    ),
-                    const SizedBox(width: 10),
-                    // Label
-                    Flexible(
-                      child: Text(
-                        action.label,
-                        style: context.textTheme.bodyMedium?.copyWith(
-                          color: textColor,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Icon(
+                          action.icon,
+                          size: widget.iconSize,
+                          color: iconColor,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    // Badge or trailing widget (moved to the right side, before expand indicator)
-                    if (trailingWidget != null) ...[
-                      const SizedBox(width: 8),
-                      trailingWidget,
-                    ] else if (badgeText != null && badgeText.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: badgeColor,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: Theme.of(context).scaffoldBackgroundColor,
-                            width: 1.5,
-                          ),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 14,
-                          minHeight: 14,
-                        ),
-                        child: Center(
+                        const SizedBox(width: 8),
+                        // Label
+                        Flexible(
                           child: Text(
-                            badgeText,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: badgeTextColor,
-                              fontSize: 10,
-                              height: 1,
+                            action.label,
+                            style: context.textTheme.bodyMedium?.copyWith(
+                              color: textColor,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
                             ),
-                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                    ],]),
-                ),
+                        // Badge or trailing widget (moved to the right side, before expand indicator)
+                        if (trailingWidget != null) ...[
+                          const SizedBox(width: 8),
+                          trailingWidget,
+                        ] else if (badgeText != null &&
+                            badgeText.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: badgeColor,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color:
+                                    Theme.of(context).scaffoldBackgroundColor,
+                                width: 1.5,
+                              ),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 14,
+                              minHeight: 14,
+                            ),
+                            child: Center(
+                              child: Text(
+                                badgeText,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: badgeTextColor,
+                                  fontSize: 10,
+                                  height: 1,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                   Icon(
                     _isExpanded
                         ? Icons.expand_less_rounded
@@ -645,6 +659,8 @@ class _ExpandableProminentActionCardState
             print(
                 '[buildExpandableProminentActionCard] Rendering SizeExpandedSection, _isExpanded: $_isExpanded, expandableWidgetBuilder is not null');
 
+            final screenHeight = MediaQuery.of(context).size.height;
+            final maxHeight = screenHeight * 0.6;
             final screenWidth = MediaQuery.of(context).size.width;
             final maxWidth = screenWidth * 0.8;
 
@@ -653,7 +669,10 @@ class _ExpandableProminentActionCardState
               curve: Curves.fastOutSlowIn,
               child: _isExpanded
                   ? ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: maxWidth),
+                      constraints: BoxConstraints(
+                        maxWidth: maxWidth,
+                        maxHeight: maxHeight,
+                      ),
                       child: Container(
                         margin: const EdgeInsets.only(top: 4),
                         decoration: BoxDecoration(
@@ -666,7 +685,9 @@ class _ExpandableProminentActionCardState
                             width: 0.5,
                           ),
                         ),
-                        child: expandableWidgetBuilder(_onOptionSelected),
+                        child: SingleChildScrollView(
+                          child: expandableWidgetBuilder(_onOptionSelected),
+                        ),
                       ),
                     )
                   : const SizedBox.shrink(),
