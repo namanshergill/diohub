@@ -367,7 +367,7 @@ class _InfiniteWrapper<T> extends StatelessWidget {
           height: 4,
         ),
         pinnedHeader: pinnedHeader,
-        shrinkWrap: true,
+        // shrinkWrap: true,
         builder: builder,
       );
 }

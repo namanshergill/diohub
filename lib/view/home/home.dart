@@ -197,108 +197,120 @@ class HomeScreenState extends State<HomeScreen>
               final List<ActionButtonData> allActions = [];
 
               // Prominent actions (will appear above the row)
-              if (hasSearchTab) {
-                final searchWrapperState = isIssuesTab
-                    ? _issuesSearchKey.currentState
-                    : _pullsSearchKey.currentState;
+              // Always include these buttons so they can animate out smoothly when switching tabs
+              // Use visibilityState to control visibility instead of conditionally adding
+              final searchWrapperState = hasSearchTab
+                  ? (isIssuesTab
+                      ? _issuesSearchKey.currentState
+                      : _pullsSearchKey.currentState)
+                  : null;
 
-                // Search bar as major action
-                allActions.add(
-                  MinorActionButton(
-                    icon: Icons.search_rounded,
-                    label: 'Search',
-                    onTap: () async {
-                      if (searchWrapperState != null) {
-                        await AutoRouter.of(context).push(
-                          SearchOverlayRoute(
-                            message: searchWrapperState.searchBarMessage ??
-                                (isIssuesTab
-                                    ? 'Search in your issues'
-                                    : 'Search in your pull requests'),
-                            multiHero: true,
-                            searchData: searchWrapperState.currentSearchData,
-                            heroTag: searchWrapperState.searchHeroTag,
-                            onSubmit: (final SearchData data) {
-                              searchWrapperState.updateSearchData(data);
-                            },
-                          ),
-                        );
-                      }
-                    },
-                    visibilityState: ActionButtonVisibilityState.both,
-                  ),
-                );
+              // Search bar as major action - always include, use visibilityState
+              allActions.add(
+                MinorActionButton(
+                  icon: Icons.search_rounded,
+                  label: 'Search',
+                  onTap: () async {
+                    if (searchWrapperState != null) {
+                      await AutoRouter.of(context).push(
+                        SearchOverlayRoute(
+                          message: searchWrapperState.searchBarMessage ??
+                              (isIssuesTab
+                                  ? 'Search in your issues'
+                                  : 'Search in your pull requests'),
+                          multiHero: true,
+                          searchData: searchWrapperState.currentSearchData,
+                          heroTag: searchWrapperState.searchHeroTag,
+                          onSubmit: (final SearchData data) {
+                            searchWrapperState.updateSearchData(data);
+                          },
+                        ),
+                      );
+                    }
+                  },
+                  visibilityState: hasSearchTab
+                      ? ActionButtonVisibilityState.both
+                      : ActionButtonVisibilityState.none,
+                ),
+              );
 
-                // Quick Filters expandable widget
-                final filters = searchWrapperState?.quickFilters;
-                if (filters != null && filters.isNotEmpty) {
-                  allActions.add(
-                    ExpandableActionButton(
-                      icon: Icons.filter_list_rounded,
-                      label: 'Quick Filters',
-                      expandableWidgetBuilder: (onCollapse) {
-                        return _buildQuickFiltersWidget(
-                          context,
-                          searchWrapperState!,
-                          filters,
-                          onCollapse,
-                        );
-                      },
-                      visibilityState: ActionButtonVisibilityState.both,
-                    ),
-                  );
-                }
+              // Quick Filters expandable widget
+              final filters = searchWrapperState?.quickFilters;
+              if (filters != null && filters.isNotEmpty) {
+                // allActions.add(
+                //   ExpandableActionButton(
+                //     icon: Icons.filter_list_rounded,
+                //     label: 'Quick Filters',
+                //     expandableWidgetBuilder: (onCollapse) {
+                //       return _buildQuickFiltersWidget(
+                //         context,
+                //         searchWrapperState!,
+                //         filters,
+                //         onCollapse,
+                //       );
+                //     },
+                //     visibilityState: hasSearchTab
+                //         ? ActionButtonVisibilityState.both
+                //         : ActionButtonVisibilityState.none,
+                //   ),
+                // );
+              }
 
-                // Sort expandable widget
-                if (searchWrapperState != null) {
-                  allActions.add(
-                    ExpandableActionButton(
-                      icon: Icons.sort_rounded,
-                      label: 'Sort',
-                      expandableWidgetBuilder: (onCollapse) {
-                        return _buildSortWidget(
-                          context,
-                          searchWrapperState,
-                          onCollapse,
-                        );
-                      },
-                      visibilityState: ActionButtonVisibilityState.both,
-                    ),
-                  );
-                }
-
-                // Quick options as CheckboxActionButton widgets
-                final options = searchWrapperState?.quickOptions;
-                if (options != null && options.isNotEmpty) {
-                  final currentSearchData =
-                      searchWrapperState!.currentSearchData;
-                  for (final entry in options.entries) {
-                    final isSelected =
-                        currentSearchData.filterStrings.contains(entry.key);
-                    allActions.add(
-                      CheckboxActionButton(
-                        icon: isSelected
-                            ? Icons.check_box_rounded
-                            : Icons.check_box_outline_blank_rounded,
-                        label: entry.value,
-                        value: isSelected,
-                        onChanged: (bool? value) {
-                          final filters =
-                              currentSearchData.visibleStrings.toList();
-                          if (value == true) {
-                            filters.add(entry.key);
-                          } else {
-                            filters.remove(entry.key);
-                          }
-                          final newSearchData = currentSearchData.copyWith(
-                            filterStrings: filters,
-                          );
-                          searchWrapperState.updateSearchData(newSearchData);
-                        },
-                        visibilityState: ActionButtonVisibilityState.both,
-                      ),
+              // Sort expandable widget - always include, use visibilityState
+              allActions.add(
+                ExpandableActionButton(
+                  icon: Icons.sort_rounded,
+                  label: 'Sort',
+                  expandableWidgetBuilder: (onCollapse) {
+                    if (searchWrapperState == null) {
+                      return const SizedBox.shrink();
+                    }
+                    return _buildSortWidget(
+                      context,
+                      searchWrapperState,
+                      onCollapse,
                     );
-                  }
+                  },
+                  visibilityState: (hasSearchTab && searchWrapperState != null)
+                      ? ActionButtonVisibilityState.both
+                      : ActionButtonVisibilityState.none,
+                ),
+              );
+
+              // Quick options as CheckboxActionButton widgets - always include, use visibilityState
+              final options = searchWrapperState?.quickOptions;
+              if (options != null && options.isNotEmpty) {
+                final currentSearchData = searchWrapperState!.currentSearchData;
+                for (final entry in options.entries) {
+                  final isSelected =
+                      currentSearchData.filterStrings.contains(entry.key);
+                  allActions.add(
+                    CheckboxActionButton(
+                      icon: isSelected
+                          ? Icons.check_box_rounded
+                          : Icons.check_box_outline_blank_rounded,
+                      label: entry.value,
+                      value: isSelected,
+                      onChanged: (bool? value) {
+                        if (searchWrapperState == null) return;
+                        final filters =
+                            currentSearchData.visibleStrings.toList();
+                        if (value == true) {
+                          filters.add(entry.key);
+                        } else {
+                          filters.remove(entry.key);
+                        }
+                        final newSearchData = currentSearchData.copyWith(
+                          filterStrings: filters,
+                        );
+                        searchWrapperState.updateSearchData(newSearchData);
+                      },
+                      visibilityState:
+                          (hasSearchTab && searchWrapperState != null)
+                              ? ActionButtonVisibilityState.both
+                              : ActionButtonVisibilityState.none,
+                    ),
+                  );
                 }
               }
 
