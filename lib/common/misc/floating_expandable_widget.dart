@@ -43,6 +43,7 @@ class FloatingExpandableWidget extends StatefulWidget {
     this.bottomPadding = 0.0,
     this.debugLogging = false,
     this.onExpandChanged,
+    this.onMinimizeRequested,
     super.key,
   }) : calculator = null;
 
@@ -51,6 +52,7 @@ class FloatingExpandableWidget extends StatefulWidget {
     required this.contentBuilder,
     this.debugLogging = false,
     this.onExpandChanged,
+    this.onMinimizeRequested,
     super.key,
   })  : position = FloatingPosition.top,
         alignment = null,
@@ -68,6 +70,7 @@ class FloatingExpandableWidget extends StatefulWidget {
   final FloatingWidgetPositionCalculator? calculator;
   final bool debugLogging;
   final void Function(bool isExpanded)? onExpandChanged;
+  final VoidCallback? onMinimizeRequested;
 
   @override
   State<FloatingExpandableWidget> createState() =>
@@ -96,6 +99,11 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
   Size? _widgetSize;
 
   Offset? _dragStartCenterOffset; // Offset from drag start to widget center
+  Offset?
+      _unclampedPosition; // Track unclamped position during drag for off-screen detection
+  Offset? _dragStartPosition; // Track drag start position to detect direction
+  double _totalDragDistance =
+      0.0; // Track total drag distance to distinguish taps from drags
 
   // Animations
   late AnimationController _expandController;
@@ -297,6 +305,9 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     setState(() {
       _isDragging = false;
       _dragStartCenterOffset = null;
+      _unclampedPosition = null; // Clear on unlock
+      _dragStartPosition = null; // Clear on unlock
+      _totalDragDistance = 0.0; // Reset drag distance
     });
     if (widget.debugLogging && kDebugMode) {
       print(
@@ -373,6 +384,8 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     setState(() {
       _isDragging = true;
       _dragStartCenterOffset = centerOffset;
+      _dragStartPosition = _centerPosition ?? details.globalPosition;
+      _totalDragDistance = 0.0; // Reset drag distance on new drag
     });
 
     // Initialize center position if needed
@@ -401,6 +414,15 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
     // This prevents jumps that can occur with delta accumulation
     // New center = current touch position + offset from touch to center
     final newCenter = details.globalPosition + _dragStartCenterOffset!;
+
+    // Track total drag distance to distinguish taps from intentional drags
+    if (_dragStartPosition != null) {
+      final dragDelta = (newCenter - _dragStartPosition!).distance;
+      _totalDragDistance = dragDelta;
+    }
+
+    // Store unclamped position for off-screen detection
+    _unclampedPosition = newCenter;
 
     // Clamp to screen bounds
     final clampedCenter = _calculator.clampPosition(
@@ -640,8 +662,84 @@ class _FloatingExpandableWidgetState extends State<FloatingExpandableWidget>
       return;
     }
 
+    // NEW: Check if widget was dragged very close to edge (only for collapsed state)
+    // This triggers minimize when user drags collapsed toolbar near the bottom/top edge
+    // Only check if user actually dragged (not just tapped) - require minimum 15px drag distance
+    if (!_isExpanded &&
+        !_wasExpandedBeforeDrag &&
+        _centerPosition != null &&
+        _dragStartPosition != null &&
+        _totalDragDistance >
+            15.0 && // Require minimum drag distance to distinguish from taps
+        widget.onMinimizeRequested != null) {
+      // Calculate edge distances to determine proximity to edge
+      final edgeDistances = _calculator.calculateEdgeDistances(
+        currentCenterPosition: _centerPosition!,
+        mediaQuery: mediaQuery,
+        widgetSize: widgetSize,
+        isExpanded: false,
+      );
+
+      // Use a threshold (50px) - if widget is within 50px of edge, minimize
+      // This makes it easier to trigger by dragging down near the bottom edge
+      const double minimizeThreshold = 50.0;
+
+      // Calculate drag direction (positive dy = dragged down, negative = dragged up)
+      final dragDeltaY = _centerPosition!.dy - _dragStartPosition!.dy;
+
+      // Use velocity to detect fast swipes toward edge (more reliable than position delta)
+      final velocityY = details.velocity.pixelsPerSecond.dy;
+      final fastSwipeDown = velocityY > 200.0; // Fast downward swipe
+      final fastSwipeUp = velocityY < -200.0; // Fast upward swipe
+
+      // Check if widget is very close to the edge it's positioned at
+      final isNearBottomEdge = !edgeDistances.isNearTop &&
+          edgeDistances.distanceToNearestEdge <= minimizeThreshold;
+      final isNearTopEdge = edgeDistances.isNearTop &&
+          edgeDistances.distanceToNearestEdge <= minimizeThreshold;
+
+      // Only minimize if:
+      // 1. Widget is near the edge that matches its position
+      // 2. User either:
+      //    - Dragged toward that edge (down for bottom, up for top) with at least 3px movement
+      //    - Made a fast swipe toward that edge (velocity-based)
+      //    - Widget is already very close to edge (within 30px) regardless of drag
+      final draggedTowardBottom =
+          dragDeltaY > 3.0; // Dragged down at least 3px (very lenient)
+      final draggedTowardTop = dragDeltaY < -3.0; // Dragged up at least 3px
+
+      // If already very close to edge (within 30px), minimize regardless of drag direction
+      final isVeryCloseToBottom = !edgeDistances.isNearTop &&
+          edgeDistances.distanceToNearestEdge <= 30.0;
+      final isVeryCloseToTop = edgeDistances.isNearTop &&
+          edgeDistances.distanceToNearestEdge <= 30.0;
+
+      final shouldMinimize = (widget.position == FloatingPosition.bottom &&
+              ((isNearBottomEdge && (draggedTowardBottom || fastSwipeDown)) ||
+                  isVeryCloseToBottom)) ||
+          (widget.position == FloatingPosition.top &&
+              ((isNearTopEdge && (draggedTowardTop || fastSwipeUp)) ||
+                  isVeryCloseToTop));
+
+      if (shouldMinimize) {
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[FloatingExpandableWidget] _onPanEnd: Widget dragged near edge, triggering minimize. distanceToNearestEdge=${edgeDistances.distanceToNearestEdge}, threshold=$minimizeThreshold, isNearTop=${edgeDistances.isNearTop}, dragDeltaY=$dragDeltaY, velocityY=$velocityY, isVeryCloseToBottom=$isVeryCloseToBottom, isVeryCloseToTop=$isVeryCloseToTop');
+        }
+        HapticFeedback.mediumImpact();
+        _unlockSizeAndStopDragging();
+        _unclampedPosition = null;
+        _dragStartPosition = null;
+        widget.onMinimizeRequested?.call();
+        return; // Don't continue with normal snap logic
+      }
+    }
+
     // Unlock size and stop dragging for normal collapsed widgets
     _unlockSizeAndStopDragging();
+
+    // Clear unclamped position
+    _unclampedPosition = null;
 
     // Check position - use shouldAutoExpand to determine if near center
     // Don't auto-expand if we just collapsed (prevent immediate re-expansion)

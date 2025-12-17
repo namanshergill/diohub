@@ -270,7 +270,7 @@ class ExpandableActionButton extends ActionButtonData {
   /// Whether this button is expandable (always true for ExpandableActionButton)
   bool get isExpandable => true;
 
-  /// Creates a copy of this ExpandableActionButton with updated properties
+  /// Creates a copy` of this ExpandableActionButton with updated properties
   ExpandableActionButton copyWith({
     IconData? icon,
     String? label,

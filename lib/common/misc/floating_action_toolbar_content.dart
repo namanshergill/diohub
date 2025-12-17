@@ -67,6 +67,7 @@ Widget buildToolbarContent({
               .surfaceContainerHighest
               .withOpacity(0.2),
           thickness: 2,
+          // refractiveIndex: 1.5,
         ),
         child: child!,
       );
@@ -289,6 +290,8 @@ Widget buildToolbarContent({
                                                   _isVisibleInExpanded(a))
                                               .toList();
                                       return Column(
+                                        key: const ValueKey(
+                                            'prominent_actions_column'),
                                         mainAxisSize: MainAxisSize.min,
                                         crossAxisAlignment:
                                             CrossAxisAlignment.stretch,
@@ -1361,11 +1364,32 @@ class _AnimatedProminentActionState extends State<_AnimatedProminentAction>
       parent: _visibilityController,
       curve: Curves.easeInOut,
     );
-    if (_wasVisible) {
-      _visibilityController.value = 1.0;
-    } else {
-      _visibilityController.value = 0.0;
+
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[_AnimatedProminentAction] initState: action=${widget.action.label}, _wasVisible=$_wasVisible, visibilityState=${widget.action.visibilityState}, isExpanded=${widget.callbacks.isExpanded}');
     }
+
+    // Always start at 0.0, then animate to target state after first frame
+    // This ensures newly created visible widgets animate in smoothly
+    _visibilityController.value = 0.0;
+
+    // Animate to target state after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[_AnimatedProminentAction] postFrameCallback: action=${widget.action.label}, _wasVisible=$_wasVisible, mounted=$mounted');
+        }
+        if (_wasVisible) {
+          if (widget.debugLogging && kDebugMode) {
+            print(
+                '[_AnimatedProminentAction] postFrameCallback: calling forward() for ${widget.action.label}');
+          }
+          _visibilityController.forward();
+        }
+      }
+    });
   }
 
   @override
@@ -1376,6 +1400,11 @@ class _AnimatedProminentActionState extends State<_AnimatedProminentAction>
         oldWidget.action.visibilityState != widget.action.visibilityState ||
         oldWidget.callbacks.isExpanded != widget.callbacks.isExpanded;
 
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[_AnimatedProminentAction] didUpdateWidget: action=${widget.action.label}, oldVisibilityState=${oldWidget.action.visibilityState}, newVisibilityState=${widget.action.visibilityState}, oldWasVisible=$_wasVisible, isNowVisible=$isNowVisible, visibilityChanged=$visibilityChanged, controllerValue=${_visibilityController.value}');
+    }
+
     if (visibilityChanged) {
       // Remove old listener if exists
       if (_statusListener != null) {
@@ -1383,16 +1412,52 @@ class _AnimatedProminentActionState extends State<_AnimatedProminentAction>
         _statusListener = null;
       }
 
-      // Always animate - don't check current value, just animate
+      // Stop any ongoing animation and ensure controller is in correct state
+      if (_visibilityController.isAnimating) {
+        _visibilityController.stop();
+      }
+
+      // Only animate if transitioning from opposite state
+      // Don't animate if already at target state (prevents unnecessary animations for buttons that stay visible/hidden)
       if (isNowVisible) {
-        _visibilityController.forward();
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[_AnimatedProminentAction] didUpdateWidget: calling forward() for ${widget.action.label}, currentValue=${_visibilityController.value}, wasVisible=$_wasVisible');
+        }
+        // Only animate if we're transitioning from hidden to visible
+        // If already visible (value >= 1.0), skip animation
+        if (_visibilityController.value < 1.0) {
+          _visibilityController.forward();
+        } else {
+          if (widget.debugLogging && kDebugMode) {
+            print(
+                '[_AnimatedProminentAction] didUpdateWidget: skipping forward() for ${widget.action.label} - already at 1.0');
+          }
+        }
       } else {
-        _visibilityController.reverse();
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[_AnimatedProminentAction] didUpdateWidget: calling reverse() for ${widget.action.label}, currentValue=${_visibilityController.value}, wasVisible=$_wasVisible');
+        }
+        // Only animate if we're transitioning from visible to hidden
+        // If already hidden (value <= 0.0), skip animation
+        if (_visibilityController.value > 0.0) {
+          _visibilityController.reverse();
+        } else {
+          if (widget.debugLogging && kDebugMode) {
+            print(
+                '[_AnimatedProminentAction] didUpdateWidget: skipping reverse() for ${widget.action.label} - already at 0.0');
+          }
+        }
       }
       _wasVisible = isNowVisible;
 
       // Trigger size recalculation after visibility animation completes
       _statusListener = (status) {
+        if (widget.debugLogging && kDebugMode) {
+          print(
+              '[_AnimatedProminentAction] animationStatusListener: action=${widget.action.label}, status=$status');
+        }
         if (status == AnimationStatus.completed ||
             status == AnimationStatus.dismissed) {
           _visibilityController.removeStatusListener(_statusListener!);
@@ -1402,11 +1467,20 @@ class _AnimatedProminentActionState extends State<_AnimatedProminentAction>
         }
       };
       _visibilityController.addStatusListener(_statusListener!);
+    } else {
+      if (widget.debugLogging && kDebugMode) {
+        print(
+            '[_AnimatedProminentAction] didUpdateWidget: visibility NOT changed for ${widget.action.label}, skipping animation');
+      }
     }
   }
 
   @override
   void dispose() {
+    if (widget.debugLogging && kDebugMode) {
+      print(
+          '[_AnimatedProminentAction] dispose: action=${widget.action.label}, controllerValue=${_visibilityController.value}, _wasVisible=$_wasVisible');
+    }
     if (_statusListener != null) {
       _visibilityController.removeStatusListener(_statusListener!);
     }
@@ -1425,7 +1499,7 @@ class _AnimatedProminentActionState extends State<_AnimatedProminentAction>
     final isExpandable = widget.action is ExpandableActionButton;
     if (widget.debugLogging && kDebugMode) {
       print(
-          '[FloatingActionToolbarContent] _AnimatedProminentAction build: action=${widget.action.label}, isExpandable=$isExpandable, debugLogging=${widget.debugLogging}');
+          '[_AnimatedProminentAction] build: action=${widget.action.label}, fadeAnimationValue=${_fadeAnimation.value}, controllerValue=${_visibilityController.value}, isFullyHidden=$isFullyHidden, _wasVisible=$_wasVisible, isExpanded=${widget.callbacks.isExpanded}');
     }
     if (isExpandable) {
       if (widget.debugLogging && kDebugMode) {
