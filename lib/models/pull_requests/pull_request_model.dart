@@ -261,7 +261,8 @@ class PullRequestModel {
         authorAssociation: json["author_association"] == null
             ? null
             : authorAssociationValues.map[json["author_association"]],
-        autoMerge: json["auto_merge"],
+        autoMerge:
+            json["auto_merge"] is bool ? json["auto_merge"] as bool? : null,
         activeLockReason: json["active_lock_reason"],
         merged: json["merged"] == null ? null : json["merged"],
         mergeable: json["mergeable"],
