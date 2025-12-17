@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 /// - Header row with header content (left) and trailing (right)
 /// - Spacing
 /// - Direct child content (no nested card)
+/// - Optional footer row with footer content (left) and footerTrailing (right)
 ///
 /// This is the base widget. For nested card behavior, use NestedCardWithHeader.
 class HeaderCard extends StatelessWidget {
@@ -12,6 +13,8 @@ class HeaderCard extends StatelessWidget {
     required this.child,
     this.header,
     this.trailing,
+    this.footer,
+    this.footerTrailing,
     this.padding,
     this.headerPadding,
     this.spacing,
@@ -28,6 +31,12 @@ class HeaderCard extends StatelessWidget {
 
   /// Trailing content displayed on the right side (e.g., timestamp)
   final Widget? trailing;
+
+  /// Footer content displayed on the left side
+  final Widget? footer;
+
+  /// Footer trailing content displayed on the right side
+  final Widget? footerTrailing;
 
   /// Padding around the entire card (default: EdgeInsets.symmetric(horizontal: 8, vertical: 8))
   final EdgeInsetsGeometry? padding;
@@ -87,6 +96,31 @@ class HeaderCard extends StatelessWidget {
             ],
             // Content rendered directly
             child,
+            // Footer row with footer (left) and footerTrailing (right)
+            if (footer != null || footerTrailing != null) ...[
+              SizedBox(height: spacing ?? 8),
+              Padding(
+                padding: headerPadding ??
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // Footer content in nested row
+                    if (footer != null)
+                      Expanded(
+                        child: footer!,
+                      ),
+                    // Footer trailing content on the right
+                    if (footerTrailing != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: footerTrailing!,
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

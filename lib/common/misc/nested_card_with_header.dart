@@ -12,6 +12,8 @@ class NestedCardWithHeader extends StatelessWidget {
     required this.child,
     this.header,
     this.trailing,
+    this.footer,
+    this.footerTrailing,
     this.padding,
     this.headerPadding,
     this.childPadding,
@@ -29,6 +31,12 @@ class NestedCardWithHeader extends StatelessWidget {
 
   /// Trailing content displayed on the right side (e.g., timestamp)
   final Widget? trailing;
+
+  /// Footer content displayed on the left side
+  final Widget? footer;
+
+  /// Footer trailing content displayed on the right side
+  final Widget? footerTrailing;
 
   /// Padding around the entire card (default: EdgeInsets.symmetric(horizontal: 8, vertical: 8))
   final EdgeInsetsGeometry? padding;
@@ -66,15 +74,20 @@ class NestedCardWithHeader extends StatelessWidget {
 
     final cardWidget = HeaderCard(
       padding: padding,
-      headerPadding: headerPadding??(isNested ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 4, vertical: 2)),
+      headerPadding: headerPadding ??
+          (isNested
+              ? EdgeInsets.zero
+              : const EdgeInsets.symmetric(horizontal: 4, vertical: 2)),
       spacing: spacing,
       color: headerCardColor,
       margin: isNested ? EdgeInsets.zero : null,
       header: header,
-      
       trailing: trailing,
+      footer: footer,
+      footerTrailing: footerTrailing,
       child: NestedCard(
-        padding: childPadding ?? (isNested ? EdgeInsets.zero : const EdgeInsets.all(8)),
+        padding: childPadding ??
+            (isNested ? EdgeInsets.zero : const EdgeInsets.all(8)),
         // swapColors: isN,
         child: child,
       ),

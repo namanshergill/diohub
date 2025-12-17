@@ -671,7 +671,7 @@ class _ExpandableProminentActionCardState
                   ? ConstrainedBox(
                       constraints: BoxConstraints(
                         maxWidth: maxWidth,
-                        maxHeight: maxHeight,
+                        maxHeight: maxHeight,  
                       ),
                       child: Container(
                         margin: const EdgeInsets.only(top: 4),
@@ -685,9 +685,7 @@ class _ExpandableProminentActionCardState
                             width: 0.5,
                           ),
                         ),
-                        child: SingleChildScrollView(
-                          child: expandableWidgetBuilder(_onOptionSelected),
-                        ),
+                        child: expandableWidgetBuilder(_onOptionSelected),
                       ),
                     )
                   : const SizedBox.shrink(),
