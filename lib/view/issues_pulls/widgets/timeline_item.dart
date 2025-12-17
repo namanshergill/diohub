@@ -1,7 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:diohub/common/issues/issue_list_card.dart';
 import 'package:diohub/common/misc/button.dart';
-import 'package:diohub/common/misc/profile_banner.dart';
 import 'package:diohub/common/misc/profile_card.dart';
 import 'package:diohub/common/pulls/pull_loading_card.dart';
 import 'package:diohub/graphql/__generated__/schema.schema.gql.dart';
@@ -15,22 +14,6 @@ import 'package:diohub/view/repository/code/commit_browser_tiles.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_material_design_icons/flutter_material_design_icons.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
-
-class PaddingWrap extends StatelessWidget {
-  const PaddingWrap({
-    required this.child,
-    super.key,
-  });
-
-  final Widget child;
-
-  // final double? elevation;
-  @override
-  Widget build(final BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: child,
-      );
-}
 
 class TimelineItem extends StatelessWidget {
   const TimelineItem(
@@ -92,24 +75,13 @@ class TimelineItem extends StatelessWidget {
       _ => const Text('Unimplemented.'),
     };
 
-    if (item is! GissueComment) {
-      child = Card(
-        margin: EdgeInsets.zero,
-        elevation: 0.7,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: child,
-        ),
-      );
-    }
-
-    return PaddingWrap(child: child);
+    return child;
   }
 
   BasicEventTextCard _buildUnpinnedCard(final Gunpinned item) =>
       BasicEventTextCard(
         user: item.actor,
-        leading: const Icon(MdiIcons.pinOff),
+        leading: MdiIcons.pinOff,
         date: item.createdAt,
         textContent: 'Unpinned this.',
       );
@@ -138,7 +110,7 @@ class TimelineItem extends StatelessWidget {
           GunmarkedAsDuplicate() => null,
         },
         user: item.actor,
-        leading: const Icon(Octicons.link_external),
+        leading: Octicons.link_external,
         date: item.createdAt,
       );
 
@@ -147,7 +119,7 @@ class TimelineItem extends StatelessWidget {
         textContent: 'Unlocked this.',
         user: item.actor,
         date: item.createdAt,
-        leading: const Icon(MdiIcons.lockOff),
+        leading: MdiIcons.lockOff,
       );
 
   BasicEventLabeledCard _buildUnlabeledCard(final Gunlabeled item) =>
@@ -169,40 +141,22 @@ class TimelineItem extends StatelessWidget {
   BasicEventCard _buildReviewRequestedCard(
       final GgetTimelineData_repository_issueOrPullRequest__asPullRequest_timelineItems_edges_node__asReviewRequestedEvent
           item) {
-    print(item
-        is GgetTimelineData_repository_issueOrPullRequest__asPullRequest_timelineItems_edges_node__asReviewRequestedEvent);
-    print(item.requestedReviewer.runtimeType);
     return BasicEventCard(
       user: item.actor,
       date: item.createdAt,
-      leading: const Icon(Icons.remove_red_eye_rounded),
-      content: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: <Widget>[
-          const Text('Requested a review from'),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: ProfileTile.login(
-              avatarUrl: item.requestedReviewer!.when<String>(
-                user: actorAvatarStringUri,
-                team: (final p0) => p0.avatar.toString(),
-                orElse: unimplementedString,
-              ),
-              size: 20,
-              padding: EdgeInsets.zero,
-              // textStyle: cont,
-              userLogin: item.requestedReviewer!.when<String>(
-                user: actorLogin,
-                team: (
-                  final p0,
-                ) =>
-                    p0.name,
-                orElse: unimplementedString,
-              ),
-            ),
+      leading: Icons.remove_red_eye_rounded,
+      headerText: <TextSpan>[
+        const TextSpan(text: 'Requested a review from '),
+        TextSpan(
+          text: item.requestedReviewer!.when<String>(
+            user: actorLogin,
+            team: (final p0) => p0.name,
+            orElse: unimplementedString,
           ),
-        ],
-      ),
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ],
+      content: const SizedBox.shrink(),
     );
   }
 
@@ -210,7 +164,8 @@ class TimelineItem extends StatelessWidget {
       BasicEventTextCard(
         textContent: 'Reopened this.',
         user: item.actor,
-        leading: const Icon(Octicons.issue_reopened, color: Colors.green),
+        leading: Octicons.issue_reopened,
+        iconColor: Colors.green,
         date: item.createdAt,
       );
 
@@ -220,12 +175,14 @@ class TimelineItem extends StatelessWidget {
   ) =>
       BasicEventCard(
         user: item.actor,
-        leading: const Icon(Octicons.pencil),
+        leading: Octicons.pencil,
         date: item.createdAt,
+        headerText: <TextSpan>[
+          const TextSpan(text: 'Renamed this.'),
+        ],
         content: Text.rich(
           TextSpan(
             children: <InlineSpan>[
-              const TextSpan(text: 'Renamed this.\n'),
               TextSpan(
                 text: '${item.previousTitle}\n',
                 style: const TextStyle(
@@ -235,7 +192,6 @@ class TimelineItem extends StatelessWidget {
               TextSpan(text: item.currentTitle),
             ],
           ),
-          // style: Theme.of(context).textTheme.b,
         ),
       );
 
@@ -243,7 +199,7 @@ class TimelineItem extends StatelessWidget {
       BasicEventTextCard(
         user: item.actor,
         date: item.createdAt,
-        leading: const Icon(Icons.mark_chat_read_rounded),
+        leading: Icons.mark_chat_read_rounded,
         textContent: 'Marked this as ready for review.',
       );
 
@@ -295,19 +251,16 @@ class TimelineItem extends StatelessWidget {
       BasicEventTextCard(
         user: item.commit.author?.user,
         date: item.commit.authoredDate,
-        leading: const Icon(Octicons.git_commit),
+        leading: Octicons.git_commit,
         footer: CommitTilesGQL(
           item: item.commit,
-          // backgroundColor: Provider.of<PaletteSettings>(context)
-          //     .currentSetting
-          //     .primary,
         ),
         textContent: 'Made a commit.',
       );
 
   BasicEventTextCard _buildPinned(final Gpinned item) => BasicEventTextCard(
         user: item.actor,
-        leading: const Icon(MdiIcons.pin),
+        leading: MdiIcons.pin,
         date: item.createdAt,
         textContent: 'Pinned this.',
       );
@@ -316,16 +269,15 @@ class TimelineItem extends StatelessWidget {
       BasicEventTextCard(
         textContent: 'Added this to milestone ${item.milestoneTitle}.',
         user: item.actor,
-        leading: const Icon(Icons.delete_rounded),
+        leading: Icons.delete_rounded,
         date: item.createdAt,
       );
 
   BasicEventTextCard _buildMergedCard(final Gmerged item) => BasicEventTextCard(
         user: item.actor,
         date: item.createdAt,
-
-        leading: const Icon(Octicons.git_merge, color: Colors.green),
-        // iconColor: deepPurple,
+        leading: Octicons.git_merge,
+        iconColor: Colors.green,
         textContent: 'Merged this.',
       );
 
@@ -356,7 +308,7 @@ class TimelineItem extends StatelessWidget {
           ),
         ),
         user: item.actor,
-        leading: const Icon(Octicons.link_external),
+        leading: Octicons.link_external,
         date: item.createdAt,
       );
 
@@ -365,7 +317,7 @@ class TimelineItem extends StatelessWidget {
             'Locked this ${item.lockReason != null ? 'as ${item.lockReason} ' : ''}and limited conversation to collaborators',
         user: item.actor,
         date: item.createdAt,
-        leading: const Icon(MdiIcons.lock),
+        leading: MdiIcons.lock,
       );
 
   BasicEventLabeledCard _buildLabeledItem(final Glabeled item) =>
@@ -382,7 +334,7 @@ class TimelineItem extends StatelessWidget {
       BasicEventTextCard(
         textContent: 'Restored head ref.',
         user: item.actor,
-        leading: const Icon(Icons.delete_rounded),
+        leading: Icons.delete_rounded,
         date: item.createdAt,
       );
 
@@ -393,7 +345,7 @@ class TimelineItem extends StatelessWidget {
         textContent:
             'Force pushed to head ref ${item.ref?.name}, from ${item.beforeCommit?.abbreviatedOid} to ${item.afterCommit?.abbreviatedOid}.',
         user: item.actor,
-        leading: const Icon(Octicons.repo_push),
+        leading: Octicons.repo_push,
         date: item.createdAt,
       );
 
@@ -401,7 +353,7 @@ class TimelineItem extends StatelessWidget {
       BasicEventTextCard(
         textContent: 'Deleted head ref ${item.headRefName}.',
         user: item.actor,
-        leading: const Icon(Icons.delete_rounded),
+        leading: Icons.delete_rounded,
         date: item.createdAt,
       );
 
@@ -409,7 +361,7 @@ class TimelineItem extends StatelessWidget {
       BasicEventTextCard(
         textContent: 'Removed this from milestone ${item.milestoneTitle}.',
         user: item.actor,
-        leading: const Icon(Icons.delete_rounded),
+        leading: Icons.delete_rounded,
         date: item.createdAt,
       );
 
@@ -419,17 +371,15 @@ class TimelineItem extends StatelessWidget {
       BasicEventTextCard(
         textContent: 'Marked this as draft.',
         user: item.actor,
-        leading: const Icon(MdiIcons.pencilCircle),
+        leading: MdiIcons.pencilCircle,
         date: item.createdAt,
       );
 
   BasicEventTextCard _buildClosedCard(final Gclosed item) => BasicEventTextCard(
         textContent: 'Closed this.',
         user: item.actor,
-        leading: const Icon(
-          Octicons.issue_closed,
-          color: Colors.red,
-        ),
+        leading: Octicons.issue_closed,
+        iconColor: Colors.red,
         date: item.createdAt,
       );
 
@@ -440,7 +390,7 @@ class TimelineItem extends StatelessWidget {
         textContent:
             'Force pushed to base ref ${item.ref?.name}, from ${item.beforeCommit?.abbreviatedOid} to ${item.afterCommit?.abbreviatedOid}.',
         user: item.actor,
-        leading: const Icon(Octicons.repo_push),
+        leading: Octicons.repo_push,
         date: item.createdAt,
       );
 
@@ -448,7 +398,7 @@ class TimelineItem extends StatelessWidget {
       BasicEventTextCard(
         textContent: 'Deleted base ref ${item.baseRefName}.',
         user: item.actor,
-        leading: const Icon(Octicons.repo_push),
+        leading: Octicons.repo_push,
         date: item.createdAt,
       );
 
@@ -457,7 +407,7 @@ class TimelineItem extends StatelessWidget {
         textContent:
             'Changed base ref from ${item.previousRefName} to ${item.currentRefName}.',
         user: item.actor,
-        leading: const Icon(Octicons.repo_push),
+        leading: Octicons.repo_push,
         date: item.createdAt,
       );
 
@@ -521,7 +471,7 @@ class TimelineItem extends StatelessWidget {
           },
         ),
         user: item.actor,
-        leading: const Icon(Octicons.link_external),
+        leading: Octicons.link_external,
         date: item.createdAt,
       );
     }

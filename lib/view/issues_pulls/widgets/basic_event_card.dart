@@ -1,5 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:diohub/common/issues/issue_label.dart';
-import 'package:diohub/common/misc/profile_banner.dart';
+import 'package:diohub/common/misc/nested_card_with_header.dart';
+import 'package:diohub/common/misc/shimmer_widget.dart';
 import 'package:diohub/graphql/queries/issues_pulls/__generated__/timeline.data.gql.dart';
 import 'package:diohub/models/events/events_model.dart' hide Key;
 import 'package:diohub/models/issues/issue_timeline_event_model.dart';
@@ -15,68 +17,108 @@ class BasicEventCard extends StatelessWidget {
     required this.content,
     required this.date,
     required this.leading,
-    // this.iconColor,
-    this.name,
+    required this.headerText,
+    this.iconColor,
     super.key,
   });
   final Gactor? user;
-  final Widget leading;
-  final String? name;
-  // final Color? iconColor;
+  final IconData leading;
+  final Color? iconColor;
   final DateTime date;
   final Widget content;
+  final List<TextSpan> headerText;
   @override
-  Widget build(final BuildContext context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              IconTheme(
-                data: IconThemeData(
-                  size: 16,
-                  color: context.colorScheme.onSurface.asHint(),
-                ),
+  Widget build(final BuildContext context) {
+    final Color effectiveIconColor =
+        iconColor ?? context.colorScheme.onSurfaceVariant;
 
-                child: leading,
-                // color: iconColor,
-              ),
-              const SizedBox(
-                width: 4,
-              ),
-              ProfileTile.login(
-                avatarUrl: user?.avatarUrl.toString(),
-                size: 20,
-                textStyle: context.textTheme.bodyMedium?.asHint(),
-                padding: const EdgeInsets.all(4),
-                userLogin: user?.login,
-              ),
-              if (name != null)
-                Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Text(
-                    name!,
-                    // style: context.textTheme.titleSmall?.asHint(),
-                  ),
+    final Widget headerRow = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        // Icon in colored container like BaseEventCard
+        Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: effectiveIconColor.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(
+            leading,
+            size: 12,
+            color: effectiveIconColor,
+          ),
+        ),
+        const SizedBox(width: 6),
+        // Actor avatar
+        if (user?.avatarUrl != null)
+          ClipOval(
+            child: CachedNetworkImage(
+              imageUrl: user!.avatarUrl.toString(),
+              width: 18,
+              height: 18,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => ShimmerWidget(
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  color: context.colorScheme.surfaceVariant,
                 ),
-              Text(
-                getDate(date.toString()),
-                style: context.textTheme.bodyMedium?.asHint(),
               ),
-            ],
-          ),
-          const SizedBox(
-            height: 8,
-          ),
-          Flexible(
-            child: DefaultTextStyle(
-              style: Theme.of(context).textTheme.bodyMedium!.asHint(),
-              // .merge(AppThemeTextStyles.basicIssueEventCardText(context)),
-              child: content,
+              errorWidget: (context, url, error) => Container(
+                width: 18,
+                height: 18,
+                color: context.colorScheme.surfaceVariant,
+                child: Icon(
+                  Icons.person,
+                  size: 10,
+                  color: context.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
           ),
-        ],
-      );
+        if (user?.avatarUrl != null) const SizedBox(width: 4),
+        // Actor name and action text
+        Flexible(
+          child: Text.rich(
+            TextSpan(
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: context.colorScheme.onSurface.withOpacity(0.7),
+                    fontSize: 12,
+                  ),
+              children: <TextSpan>[
+                if (user?.login != null)
+                  TextSpan(
+                    text: user!.login,
+                  ),
+                if (user?.login != null) const TextSpan(text: ' '),
+                ...headerText,
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    return NestedCardWithHeader(
+      header: headerRow,
+      trailing: Text(
+        getDate(date.toString()),
+        style: context.textTheme.bodySmall?.copyWith(
+          color: context.colorScheme.onSurfaceVariant.withOpacity(0.7),
+          fontSize: 11,
+        ),
+      ),
+      headerPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      childPadding: const EdgeInsets.all(8),
+      child: DefaultTextStyle(
+        style: Theme.of(context).textTheme.bodyMedium!.asHint(),
+        child: content,
+      ),
+    );
+  }
 }
 
 class BasicEventTextCard extends StatelessWidget {
@@ -86,32 +128,27 @@ class BasicEventTextCard extends StatelessWidget {
     required this.date,
     required this.leading,
     this.footer,
-    // this.iconColor,
+    this.iconColor,
     super.key,
   });
   final Gactor? user;
-  final Widget leading;
-  // final Color? iconColor;
+  final IconData leading;
+  final Color? iconColor;
   final DateTime date;
   final Widget? footer;
   final String textContent;
   @override
   Widget build(final BuildContext context) => BasicEventCard(
-        // iconColor: iconColor,
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              textContent,
-              style: context.textTheme.bodyMedium?.asHint(),
-            ),
-            if (footer != null)
-              Padding(
+        iconColor: iconColor,
+        headerText: <TextSpan>[
+          TextSpan(text: textContent),
+        ],
+        content: footer != null
+            ? Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: footer,
-              ),
-          ],
-        ),
+                child: footer!,
+              )
+            : const SizedBox.shrink(),
         date: date,
         user: user,
         leading: leading,
@@ -132,38 +169,22 @@ class BasicEventAssignedCard extends StatelessWidget {
   final bool isAssigned;
   @override
   Widget build(final BuildContext context) => BasicEventCard(
-        content: Row(
-          children: <Widget>[
-            Text(
-              isAssigned ? 'Assigned' : 'Unassigned',
-              // style: AppThemeTextStyles.basicIssueEventCardText(context),
+        headerText: <TextSpan>[
+          TextSpan(text: isAssigned ? 'Assigned' : 'Unassigned'),
+          if (actor?.login != null && actor?.login != assignee?.login) ...[
+            const TextSpan(text: ' '),
+            TextSpan(
+              text: assignee?.login ?? 'themselves',
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(
-              width: 4,
-            ),
-            if (actor?.login != null && actor?.login != assignee?.login)
-              ProfileTile.login(
-                avatarUrl: assignee?.avatarUrl.toString(),
-                padding: const EdgeInsets.all(4),
-                userLogin: assignee?.login,
-              )
-            else
-              const Text(
-                'themselves',
-                // style: AppThemeTextStyles.basicIssueEventCardText(context),
-              ),
-            const SizedBox(
-              width: 4,
-            ),
-            Text(
-              '${isAssigned ? 'to' : 'from'} the issue.',
-              // style: AppThemeTextStyles.basicIssueEventCardText(context),
-            ),
-          ],
-        ),
+          ] else
+            const TextSpan(text: ' themselves'),
+          TextSpan(text: ' ${isAssigned ? 'to' : 'from'} the issue.'),
+        ],
+        content: const SizedBox.shrink(),
         date: createdAt,
         user: actor,
-        leading: const Icon(MdiIcons.account),
+        leading: MdiIcons.account,
       );
 }
 
@@ -183,31 +204,14 @@ class BasicEventLabeledCard extends StatelessWidget {
   final bool added;
   @override
   Widget build(final BuildContext context) => BasicEventCard(
-        // iconColor: iconColor,
-        content: Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: <Widget>[
-            Text(
-              '${added ? 'Added' : 'Removed'} the',
-              // style: AppThemeTextStyles.basicIssueEventCardText(context),
-            ),
-            const SizedBox(
-              width: 8,
-            ),
-            IssueLabel.gql(content),
-            const SizedBox(
-              width: 8,
-            ),
-            Text(
-              'label ${added ? 'to' : 'from'} this.',
-              // style: AppThemeTextStyles.basicIssueEventCardText(context),
-            ),
-          ],
-        ),
+        headerText: <TextSpan>[
+          TextSpan(text: '${added ? 'Added' : 'Removed'} the '),
+          TextSpan(text: 'label ${added ? 'to' : 'from'} this.'),
+        ],
+        content: IssueLabel.gql(content),
         user: actor,
         date: date,
-        // user: user,
-        leading: Icon(added ? Icons.label_rounded : Icons.label_off_rounded),
+        leading: added ? Icons.label_rounded : Icons.label_off_rounded,
       );
 }
 

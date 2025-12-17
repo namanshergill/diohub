@@ -5,7 +5,6 @@ import 'package:diohub/providers/issue_pulls/comment_provider.dart';
 import 'package:diohub/services/issues/issues_service.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:diohub/view/issues_pulls/widgets/comment_box.dart';
-import 'package:diohub/view/issues_pulls/widgets/discussion_comment.dart';
 import 'package:diohub/view/issues_pulls/widgets/timeline_item.dart';
 import 'package:flutter/material.dart' hide DatePickerTheme;
 import 'package:flutter_datetime_picker_plus/flutter_datetime_picker_plus.dart';
@@ -121,18 +120,18 @@ class IssuePullTimelineState extends State<IssuePullTimeline> {
                         'Load the whole timeline?',
                         textAlign: TextAlign.center,
                         style: context.textTheme.labelSmall,
-                        ),
+                      ),
                     ],
                   ),
                 ),
               ),
-                //if (widget.initComment.createdAt.isAfter(
-                // commentsSince!.subtract(const Duration(seconds: 30)),
+              //if (widget.initComment.createdAt.isAfter(
+              // commentsSince!.subtract(const Duration(seconds: 30)),
               //))
-                // PaddingWrap(
-                //   // child: widget.initComment,
-                //   child: Container(),
-                // ),
+              // PaddingWrap(
+              //   // child: widget.initComment,
+              //   child: Container(),
+              // ),
             ],
           )
         : Column(
@@ -185,12 +184,12 @@ class IssuePullTimelineState extends State<IssuePullTimeline> {
               // const SizedBox(
               //   height: 16,
               // ),
-            
             ],
           );
     return Stack(
       children: <Widget>[
         InfiniteScrollWrapper<dynamic>(
+          padding: const EdgeInsets.only(top: 4),
           future: (
             data,
           ) async =>
@@ -216,12 +215,16 @@ class IssuePullTimelineState extends State<IssuePullTimeline> {
           builder: (
             final BuildContext context,
             final data,
-          ) =>
-              TimelineItem(
-            data.item.node,
-            pullNodeID: widget.pullNodeID,
-            onQuote: openCommentSheet,
-          ),
+          ) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: TimelineItem(
+                data.item.node,
+                pullNodeID: widget.pullNodeID,
+                onQuote: openCommentSheet,
+              ),
+            );
+          },
         ),
         Align(
           alignment: Alignment.bottomRight,

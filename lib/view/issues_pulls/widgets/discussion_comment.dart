@@ -1,11 +1,10 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:diohub/common/markdown_view/markdown_body.dart';
-import 'package:diohub/common/misc/info_card.dart';
 import 'package:diohub/common/misc/menu_button.dart';
+import 'package:diohub/common/misc/nested_card_with_header.dart';
 import 'package:diohub/common/misc/profile_banner.dart';
 import 'package:diohub/common/misc/reaction_bar.dart';
-import 'package:diohub/common/misc/tappable_card.dart';
 import 'package:diohub/graphql/__generated__/schema.schema.gql.dart';
 import 'package:diohub/graphql/queries/issues_pulls/__generated__/timeline.data.gql.dart';
 import 'package:diohub/providers/issue_pulls/comment_provider.dart';
@@ -89,22 +88,6 @@ class BaseCommentState extends State<BaseComment> {
         itemBuilder: (final BuildContext context) => <PullDownMenuEntry>[
           PullDownMenuActionsRow.medium(
             items: <PullDownMenuItem>[
-              // PullDownMenuItem(
-              //   onTap: () {
-              //     // addQuote(widget.body);
-              //     // widget.onQuote();
-              //   },
-              //   title: 'Edit',
-              //   icon: Icons.edit_rounded,
-              // ),
-              // PullDownMenuItem(
-              //   onTap: () {
-              //     // addQuote(widget.body);
-              //     // widget.onQuote();
-              //   },
-              //   title: 'History',
-              //   icon: Icons.history_rounded,
-              // ),
               PullDownMenuItem(
                 onTap: () {},
                 title: 'React (Placeholder)',
@@ -113,23 +96,6 @@ class BaseCommentState extends State<BaseComment> {
                   loading: false,
                 ),
               ),
-              // PullDownMenuItem(
-              //   onTap: () async => showDialog(
-              //     context: context,
-              //     builder: (final BuildContext cxt) =>
-              //     ListenableProvider<CommentProvider>.value(
-              //       value: Provider.of<CommentProvider>(context),
-              //       builder: (final BuildContext context,
-              //           final Widget? child) =>
-              //           _SelectAndCopy(
-              //             widget.body,
-              //             onQuote: widget.onQuote,
-              //           ),
-              //     ),
-              //   ),
-              //   title: 'Select',
-              //   icon: MdiIcons.clipboardSearch,
-              // ),
             ],
           ),
           PullDownMenuActionsRow.medium(
@@ -187,74 +153,56 @@ class BaseCommentState extends State<BaseComment> {
           final Widget button,
           final Future<void> Function() showMenu,
         ) =>
-            Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            CardHeader(
-              child: _buildHeader(context, button),
-            ),
-            // const SizedBox(height: 8),
-
-            BasicCard.linked(
-              cardLinkType:
-                  _reactionsNotEmpty() ? CardLinkType.both : CardLinkType.atTop,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8)
-                    .copyWith(bottom: 8),
-                child: Column(
-                  children: <Widget>[
-                    if (widget.description != null)
-                      Text(
-                        widget.description!,
-                        // style: AppThemeTextStyles.basicIssueEventCardText(context)
-                        //     .copyWith(
-                        //   fontWeight: FontWeight.bold,
-                        //   fontStyle: FontStyle.italic,
-                        // ),
-                      ),
-                    if (widget.bodyHTML?.isNotEmpty ?? false)
-                      Padding(
-                        padding: const EdgeInsets.all(4.0),
-                        child: MarkdownBody(
-                          widget.bodyHTML!,
-                          buildAsync: false,
-                          style: MarkdownBodyStyle(
-                            codeBlockStyle: MarkdownBodyCodeBlockStyle(
-                              elevation: 3,
-                              headerColor:
-                                  context.colorScheme.surfaceVariant.asHint(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (widget.footer != null)
-                      Padding(
-                        padding: widget.footerPadding,
-                        child: widget.footer,
-                      ),
-                    if (widget.footer == null &&
-                        (widget.bodyHTML?.isEmpty ?? false))
-                      const SizedBox(
-                        height: 8,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            if (_reactionsNotEmpty())
-              CardHeader(
-                // elevation: 0,
-                cardLinkType: CardLinkType.atTop,
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
+            NestedCardWithHeader(
+          header: _buildHeaderContent(context),
+          trailing: button,
+          headerPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          childPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          spacing: 0,
+          footer: _reactionsNotEmpty()
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
                   child: ReactionBar(
                     widget.reactions,
                     viewerCanReact: widget.viewerCanReact,
                   ),
+                )
+              : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (widget.description != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    widget.description!,
+                    style: context.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: context.colorScheme.onSurface,
+                    ),
+                  ),
                 ),
-              ),
-          ],
+              if (widget.bodyHTML?.isNotEmpty ?? false)
+                MarkdownBody(
+                  widget.bodyHTML!,
+                  buildAsync: false,
+                  style: MarkdownBodyStyle(
+                    codeBlockStyle: MarkdownBodyCodeBlockStyle(
+                      elevation: 3,
+                      headerColor: context.colorScheme.surfaceVariant.asHint(),
+                    ),
+                  ),
+                ),
+              if (widget.footer != null)
+                Padding(
+                  padding: widget.footerPadding.copyWith(top: 8),
+                  child: widget.footer,
+                ),
+            ],
+          ),
         ),
       );
 
@@ -264,47 +212,47 @@ class BaseCommentState extends State<BaseComment> {
       )
       .isNotEmpty;
 
-  Widget _buildHeader(
-    final BuildContext context,
-    final Widget button,
-  ) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8).copyWith(top: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
-            Row(
+  Widget _buildHeaderContent(final BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          // Leading icon
+          if (widget.leading != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(
+                widget.leading,
+                size: 16,
+                color: context.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+
+          // Avatar
+          ProfileTile.avatar(
+            avatarUrl: widget.author?.avatarUrl.toString(),
+            userLogin: widget.author?.login,
+            padding: EdgeInsets.zero,
+            size: 32,
+          ),
+
+          const SizedBox(width: 10),
+
+          // Author info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                if (widget.leading != null)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Icon(
-                      widget.leading,
-                      size: 16,
-                      // color: Provider.of<PaletteSettings>(context)
-                      //     .currentSetting
-                      //     .faded3,
-                    ),
-                  ),
-                const SizedBox(
-                  width: 4,
-                ),
-                ProfileTile.avatar(
-                  avatarUrl: widget.author?.avatarUrl.toString(),
-                  userLogin: widget.author?.login,
-                  padding: EdgeInsets.zero,
-                  size: 32,
-                ),
-                const SizedBox(
-                  width: 8,
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Row(
                   children: <Widget>[
-                    Text(
-                      widget.author?.login ?? 'N/A',
-                      style: context.textTheme.bodyMedium,
+                    Flexible(
+                      child: Text(
+                        widget.author?.login ?? 'N/A',
+                        style: context.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: context.colorScheme.onSurface,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     if (widget.authorAssociation !=
                             GCommentAuthorAssociation.MEMBER &&
@@ -313,51 +261,70 @@ class BaseCommentState extends State<BaseComment> {
                       Builder(
                         builder: (final BuildContext context) {
                           String? str;
+                          Color? badgeColor;
                           if (widget.authorAssociation ==
                               GCommentAuthorAssociation.COLLABORATOR) {
                             str = 'Collaborator';
+                            badgeColor = context.colorScheme.secondaryContainer;
                           } else if (widget.authorAssociation ==
                               GCommentAuthorAssociation.CONTRIBUTOR) {
                             str = 'Contributor';
+                            badgeColor = context.colorScheme.tertiaryContainer;
                           } else if (widget.authorAssociation ==
                               GCommentAuthorAssociation.OWNER) {
                             str = 'Owner';
+                            badgeColor = context.colorScheme.primaryContainer;
                           }
-                          return Text(
-                            str ?? '',
-                            style: context.textTheme.bodySmall?.asHint(),
+                          return Container(
+                            margin: const EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: badgeColor?.withOpacity(0.6),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Text(
+                              str ?? '',
+                              style: context.textTheme.labelSmall?.copyWith(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w500,
+                                color: context.colorScheme.onPrimaryContainer,
+                              ),
+                            ),
                           );
                         },
                       ),
                   ],
                 ),
-              ],
-            ),
-            Row(
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Text.rich(
-                      TextSpan(
-                        text: getDate(widget.createdAt.toString()),
-                        style: context.textTheme.bodySmall?.asHint(),
-                        children: <InlineSpan>[
-                          if (widget.lastEditedAt != null)
-                            TextSpan(
-                              text:
-                                  ' • Edited ${getDate(widget.lastEditedAt.toString())}',
-                              // style: context.textTheme.bodySmall?.asHint(),
-                            ),
-                        ],
-                      ),
+                const SizedBox(height: 2),
+                Text.rich(
+                  TextSpan(
+                    text: getDate(widget.createdAt.toString()),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      fontSize: 11,
+                      color: context.colorScheme.onSurface.withOpacity(0.6),
                     ),
-                  ],
+                    children: <InlineSpan>[
+                      if (widget.lastEditedAt != null)
+                        TextSpan(
+                          text:
+                              ' • Edited ${getDate(widget.lastEditedAt.toString())}',
+                          style: context.textTheme.bodySmall?.copyWith(
+                            fontSize: 11,
+                            color:
+                                context.colorScheme.onSurface.withOpacity(0.5),
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-                button,
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       );
 }
 

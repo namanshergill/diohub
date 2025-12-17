@@ -12,7 +12,6 @@ import 'package:diohub/services/pulls/pulls_service.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:diohub/view/issues_pulls/widgets/comment_box.dart';
 import 'package:diohub/view/issues_pulls/widgets/discussion_comment.dart';
-import 'package:diohub/view/issues_pulls/widgets/timeline_item.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -191,7 +190,9 @@ class PRReviewScreen extends StatelessWidget {
                           fileType: comment.path.split('.').last,
                           waitBeforeLoad: false,
                         ),
-                        PaddingWrap(
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           child: BaseComment(
                             resourceUri: Uri.parse('uri'),
                             isMinimized: comment.isMinimized,
@@ -343,7 +344,9 @@ class PRReviewScreen extends StatelessWidget {
                   ) {
                     final GreviewThreadCommentsQueryData_node__asPullRequestReviewThread_comments_edges_node
                         reply = data.item!.node!;
-                    return PaddingWrap(
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       child: BaseComment(
                         resourceUri: Uri.parse('uri'),
                         isMinimized: reply.isMinimized,
