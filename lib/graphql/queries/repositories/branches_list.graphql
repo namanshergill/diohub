@@ -1,0 +1,33 @@
+query branchesList($owner: String!, $repo: String!, $first: Int!, $after: String) {
+  repository(name: $repo, owner: $owner) {
+    refs(
+      first: $first
+      after: $after
+      refPrefix: "refs/heads/"
+      orderBy: {field: ALPHABETICAL, direction: ASC}
+    ) {
+      edges {
+        cursor
+        node {
+          name
+          id
+          target {
+            ... on Commit {
+              oid
+              abbreviatedOid
+              commitUrl
+              url
+            }
+          }
+          branchProtectionRule {
+            isAdminEnforced
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}

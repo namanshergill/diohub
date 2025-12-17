@@ -122,7 +122,7 @@ class CommitBrowserState extends State<CommitBrowser> {
             Expanded(
               child: InfiniteScrollWrapper<CommitListModel>(
                 controller: controller,
-                shrinkWrap: true,
+                // shrinkWrap: true,
                 scrollController: widget.controller,
                 future: (
                   data,
