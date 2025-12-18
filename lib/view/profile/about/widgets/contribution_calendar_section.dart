@@ -2,6 +2,7 @@ import 'package:diohub/common/animations/fade_animation_widget.dart';
 import 'package:diohub/common/charts/contribution_calendar_widget.dart';
 import 'package:diohub/common/misc/nested_card_with_header.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// A section widget that displays the contribution calendar with statistics.
@@ -59,6 +60,12 @@ class ContributionCalendarSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[ContributionCalendarSection] Building with ${weeks.length} weeks, totalContributions=$totalContributions');
+    if (weeks.isNotEmpty) {
+      debugPrint('[ContributionCalendarSection] First week: ${weeks.first.length} days, first day: ${weeks.first.first.date}');
+      debugPrint('[ContributionCalendarSection] Last week: ${weeks.last.length} days, first day: ${weeks.last.first.date}');
+    }
+    
     final theme = Theme.of(context);
 
     // Use GitHub's default green colors

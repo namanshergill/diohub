@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -99,6 +100,14 @@ class ContributionCalendarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[ContributionCalendarWidget] Building with ${weeks.length} weeks');
+    if (weeks.isNotEmpty) {
+      final totalDays = weeks.fold<int>(0, (sum, week) => sum + week.length);
+      debugPrint('[ContributionCalendarWidget] Total days: $totalDays (${weeks.length} weeks × ~7 days)');
+      debugPrint('[ContributionCalendarWidget] First week: ${weeks.first.length} days, first day: ${weeks.first.first.date}');
+      debugPrint('[ContributionCalendarWidget] Last week: ${weeks.last.length} days, first day: ${weeks.last.first.date}');
+    }
+    
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -115,35 +124,48 @@ class ContributionCalendarWidget extends StatelessWidget {
     // Extract months from weeks for labels
     final months = _extractMonths(weeks);
 
+    // Calculate calendar grid width for proper month label positioning
+    final calendarWidth = weeks.length * (cellSize + cellSpacing);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Month labels
-        if (showMonthLabels && months.isNotEmpty)
-          SizedBox(
-            height: monthLabelHeight,
-            child: _buildMonthLabels(context, months),
-          ),
-
-        // Calendar grid
+        // Calendar grid with month labels and scrollable content
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Day labels (Mon, Tue, etc.)
+            // Day labels (Mon, Tue, etc.) - fixed, doesn't scroll
             if (showDayLabels)
               SizedBox(
                 width: dayLabelWidth,
                 child: _buildDayLabels(context),
               ),
 
-            // Calendar grid - make scrollable for long date ranges
+            // Scrollable calendar with month labels
             Expanded(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: _buildCalendarGrid(
-                  context,
-                  defaultColors,
-                  colorScheme,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Month labels - scrolls with calendar
+                    if (showMonthLabels && months.isNotEmpty)
+                      SizedBox(
+                        height: monthLabelHeight,
+                        width: calendarWidth,
+                        child: _buildMonthLabels(context, months, weeks),
+                      ),
+
+                    // Calendar grid
+                    SizedBox(
+                      width: calendarWidth,
+                      child: _buildCalendarGrid(
+                        context,
+                        defaultColors,
+                        colorScheme,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -160,18 +182,49 @@ class ContributionCalendarWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildMonthLabels(BuildContext context, List<DateTime> months) {
+  Widget _buildMonthLabels(
+    BuildContext context,
+    List<DateTime> months,
+    List<List<ContributionDay>> weeks,
+  ) {
     final theme = Theme.of(context);
     final textStyle = theme.textTheme.labelSmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
       fontSize: 10,
     );
 
-    // Calculate positions for month labels
-    // This is a simplified version - you may want to improve positioning
-    return Row(
-      children: months.map((month) {
-        return Expanded(
+    // Calculate month positions based on actual week positions
+    // Each week takes (cellSize + cellSpacing) width
+    final weekWidth = cellSize + cellSpacing;
+    final monthPositions = <DateTime, double>{};
+    
+    // Track which month each week belongs to
+    for (int weekIndex = 0; weekIndex < weeks.length; weekIndex++) {
+      final week = weeks[weekIndex];
+      if (week.isEmpty) continue;
+      
+      // Get the first day of the week to determine the month
+      final firstDay = week.first.date;
+      final month = DateTime(firstDay.year, firstDay.month, 1);
+      
+      // Calculate the x position of this week
+      final weekX = weekIndex * weekWidth;
+      
+      // Only set position if this is the first week of the month or if we haven't set it yet
+      if (!monthPositions.containsKey(month) || 
+          weekX < monthPositions[month]!) {
+        monthPositions[month] = weekX;
+      }
+    }
+
+    // Build positioned month labels
+    return Stack(
+      children: monthPositions.entries.map((entry) {
+        final month = entry.key;
+        final x = entry.value;
+        
+        return Positioned(
+          left: x,
           child: Text(
             DateFormat('MMM').format(month),
             style: textStyle,
