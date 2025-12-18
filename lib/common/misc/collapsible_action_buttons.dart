@@ -1,6 +1,24 @@
 import 'package:diohub/common/misc/compact_expand_button.dart';
 import 'package:flex_list/flex_list.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_vector_icons/flutter_vector_icons.dart';
+
+/// Color set for action buttons
+class ActionButtonColors {
+  const ActionButtonColors({
+    required this.backgroundColor,
+    required this.iconColor,
+    required this.textColor,
+    required this.badgeColor,
+    required this.badgeTextColor,
+  });
+
+  final Color backgroundColor;
+  final Color iconColor;
+  final Color textColor;
+  final Color badgeColor;
+  final Color badgeTextColor;
+}
 
 /// Configuration for determining how many action buttons should be visible
 /// based on available width.
@@ -108,6 +126,7 @@ sealed class ActionButtonData {
   const ActionButtonData({
     required this.icon,
     required this.label,
+    this.subtitle,
     this.leading,
     this.trailing,
     this.iconColor,
@@ -121,6 +140,9 @@ sealed class ActionButtonData {
 
   final IconData icon;
   final String label;
+
+  /// Optional subtitle text to display below the label
+  final String? subtitle;
 
   /// Optional widget to display on the leading side (left) of the card
   final Widget? leading;
@@ -142,6 +164,171 @@ sealed class ActionButtonData {
   /// Optional seed color used to determine button colors (for prominent action cards)
   /// When provided, this color is used as the base for generating icon, text, and background colors
   final Color? seedColor;
+
+  /// Gets the display icon for this action button
+  /// For CheckboxActionButton, returns checked icon when value is true
+  IconData get displayIcon {
+    if (this is CheckboxActionButton && (this as CheckboxActionButton).value) {
+      return Icons.check_box_rounded;
+    }
+    return icon;
+  }
+
+  /// Gets the badge text from the trailing widget if it's a Text widget
+  /// Returns null if trailing is null or not a Text widget
+  String? get badgeText {
+    if (trailing != null && trailing is Text) {
+      return (trailing as Text).data;
+    }
+    return null;
+  }
+
+  /// Checks if this is a selected checkbox action button
+  bool get isSelectedCheckbox {
+    return this is CheckboxActionButton && (this as CheckboxActionButton).value;
+  }
+
+  /// Checks if this action button should be visible in expanded state
+  bool get isVisibleInExpanded {
+    return visibilityState == ActionButtonVisibilityState.expandedOnly ||
+        visibilityState == ActionButtonVisibilityState.both;
+  }
+
+  /// Checks if this action button should be visible in collapsed state
+  bool get isVisibleInCollapsed {
+    return visibilityState == ActionButtonVisibilityState.collapsedOnly ||
+        visibilityState == ActionButtonVisibilityState.both;
+  }
+
+  /// Checks if this action button should be visible based on toolbar state
+  ///
+  /// [isExpanded] - whether the toolbar is currently expanded
+  bool isVisibleWhen(bool isExpanded) {
+    if (isExpanded) {
+      return isVisibleInExpanded;
+    } else {
+      return isVisibleInCollapsed;
+    }
+  }
+
+  /// Handles the tap action and returns whether the toolbar should collapse
+  ///
+  /// Returns `true` if the toolbar should collapse after this action,
+  /// `false` if it should remain open (e.g., for toggle actions like checkboxes)
+  bool handleTapAndShouldCollapse() {
+    switch (this) {
+      case MinorActionButton(:final onTap):
+      case MajorActionButton(:final onTap):
+        onTap?.call();
+        return true; // Should collapse
+      case CheckboxActionButton(:final onChanged, :final value):
+        onChanged?.call(!value);
+        return false; // Don't collapse for checkbox - it's a toggle
+      case ExpandableActionButton():
+        // Expandable buttons handle their own expansion
+        return false;
+    }
+  }
+
+  /// Gets the icon color for this action based on its state and type
+  /// Used for simple icon buttons in collapsed toolbar
+  Color getIconColor(BuildContext context) {
+    if (!enabled) {
+      return Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3);
+    } else if (icon == Octicons.issue_opened) {
+      return Colors.green.shade600;
+    } else if (icon == Octicons.git_pull_request) {
+      return Colors.purple.shade600;
+    } else {
+      return iconColor ?? Theme.of(context).colorScheme.onSurfaceVariant;
+    }
+  }
+
+  /// Calculates colors for this action button based on its state and type
+  /// Returns an ActionButtonColors object with all color values
+  ActionButtonColors getColors(
+    BuildContext context, {
+    bool forProminentButton = false,
+    Color? seedColor,
+  }) {
+    // Use seedColor from action if provided, otherwise use parameter
+    final effectiveSeedColor = this.seedColor ?? seedColor;
+
+    Color backgroundColor;
+    Color iconColor;
+    Color textColor;
+    Color badgeColor;
+    Color badgeTextColor;
+
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (!enabled) {
+      final baseOpacity = forProminentButton ? 0.2 : 0.3;
+      backgroundColor =
+          colorScheme.surfaceContainerHighest.withOpacity(baseOpacity);
+      iconColor = colorScheme.onSurfaceVariant.withOpacity(0.3);
+      textColor = colorScheme.onSurfaceVariant
+          .withOpacity(forProminentButton ? 0.4 : 0.3);
+      badgeColor = Colors.transparent;
+      badgeTextColor = colorScheme.onSurfaceVariant.withOpacity(0.4);
+    } else if (isDestructive) {
+      backgroundColor = colorScheme.errorContainer
+          .withOpacity(forProminentButton ? 0.2 : 1.0);
+      iconColor = colorScheme.error;
+      textColor =
+          forProminentButton ? colorScheme.error : colorScheme.onErrorContainer;
+      badgeColor = colorScheme.error;
+      badgeTextColor = Colors.white;
+    } else if (isPositive) {
+      backgroundColor =
+          Colors.green.withOpacity(forProminentButton ? 0.15 : 0.12);
+      iconColor =
+          forProminentButton ? Colors.green.shade600 : Colors.green.shade700;
+      textColor =
+          forProminentButton ? Colors.green.shade700 : Colors.green.shade900;
+      badgeColor =
+          forProminentButton ? Colors.green.shade600 : Colors.green.shade500;
+      badgeTextColor = Colors.white;
+    } else if (isSelectedCheckbox) {
+      // Highlight selected checkboxes with primary color
+      backgroundColor = colorScheme.primaryContainer.withOpacity(0.3);
+      iconColor = colorScheme.primary;
+      textColor = forProminentButton
+          ? colorScheme.onPrimaryContainer
+          : colorScheme.primary;
+      badgeColor = colorScheme.primary;
+      badgeTextColor = Colors.white;
+    } else if (effectiveSeedColor != null) {
+      // Use seedColor to generate colors
+      backgroundColor = effectiveSeedColor.withOpacity(0.15);
+      iconColor = effectiveSeedColor;
+      textColor = effectiveSeedColor;
+      badgeColor = effectiveSeedColor;
+      badgeTextColor = Colors.white;
+    } else if (forProminentButton) {
+      // Prominent actions get a subtle background
+      backgroundColor = colorScheme.surfaceContainerHighest.withOpacity(0.25);
+      iconColor = this.iconColor ?? colorScheme.primary;
+      textColor = colorScheme.onSurface;
+      badgeColor = colorScheme.primary;
+      badgeTextColor = Colors.white;
+    } else {
+      // Standard actions
+      backgroundColor = colorScheme.surfaceContainerHigh;
+      iconColor = this.iconColor ?? colorScheme.primary;
+      textColor = colorScheme.onSurface;
+      badgeColor = colorScheme.primary;
+      badgeTextColor = Colors.white;
+    }
+
+    return ActionButtonColors(
+      backgroundColor: backgroundColor,
+      iconColor: iconColor,
+      textColor: textColor,
+      badgeColor: badgeColor,
+      badgeTextColor: badgeTextColor,
+    );
+  }
 }
 
 /// Small action button (replaces the previous ActionButtonData for minor actions)
@@ -150,6 +337,7 @@ class MinorActionButton extends ActionButtonData {
     required super.icon,
     required super.label,
     required this.onTap,
+    super.subtitle,
     super.leading,
     super.trailing,
     super.iconColor,
@@ -168,6 +356,7 @@ class MinorActionButton extends ActionButtonData {
     IconData? icon,
     String? label,
     VoidCallback? onTap,
+    String? subtitle,
     Widget? leading,
     Widget? trailing,
     Color? iconColor,
@@ -182,6 +371,7 @@ class MinorActionButton extends ActionButtonData {
       icon: icon ?? this.icon,
       label: label ?? this.label,
       onTap: onTap ?? this.onTap,
+      subtitle: subtitle ?? this.subtitle,
       leading: leading ?? this.leading,
       trailing: trailing ?? this.trailing,
       iconColor: iconColor ?? this.iconColor,
@@ -201,6 +391,7 @@ class MajorActionButton extends ActionButtonData {
     required super.icon,
     required super.label,
     required this.onTap,
+    super.subtitle,
     super.leading,
     super.trailing,
     super.iconColor,
@@ -219,6 +410,7 @@ class MajorActionButton extends ActionButtonData {
     IconData? icon,
     String? label,
     VoidCallback? onTap,
+    String? subtitle,
     Widget? leading,
     Widget? trailing,
     Color? iconColor,
@@ -233,6 +425,7 @@ class MajorActionButton extends ActionButtonData {
       icon: icon ?? this.icon,
       label: label ?? this.label,
       onTap: onTap ?? this.onTap,
+      subtitle: subtitle ?? this.subtitle,
       leading: leading ?? this.leading,
       trailing: trailing ?? this.trailing,
       iconColor: iconColor ?? this.iconColor,
@@ -252,6 +445,7 @@ class ExpandableActionButton extends ActionButtonData {
     required super.icon,
     required super.label,
     required this.expandableWidgetBuilder,
+    super.subtitle,
     super.leading,
     super.trailing,
     super.iconColor,
@@ -275,6 +469,7 @@ class ExpandableActionButton extends ActionButtonData {
     IconData? icon,
     String? label,
     Widget Function(VoidCallback onCollapse)? expandableWidgetBuilder,
+    String? subtitle,
     Widget? leading,
     Widget? trailing,
     Color? iconColor,
@@ -290,6 +485,7 @@ class ExpandableActionButton extends ActionButtonData {
       label: label ?? this.label,
       expandableWidgetBuilder:
           expandableWidgetBuilder ?? this.expandableWidgetBuilder,
+      subtitle: subtitle ?? this.subtitle,
       leading: leading ?? this.leading,
       trailing: trailing ?? this.trailing,
       iconColor: iconColor ?? this.iconColor,
@@ -310,6 +506,7 @@ class CheckboxActionButton extends ActionButtonData {
     required super.label,
     required this.value,
     required this.onChanged,
+    super.subtitle,
     super.leading,
     super.trailing,
     super.iconColor,
@@ -333,6 +530,7 @@ class CheckboxActionButton extends ActionButtonData {
     String? label,
     bool? value,
     ValueChanged<bool>? onChanged,
+    String? subtitle,
     Widget? leading,
     Widget? trailing,
     Color? iconColor,
@@ -348,6 +546,7 @@ class CheckboxActionButton extends ActionButtonData {
       label: label ?? this.label,
       value: value ?? this.value,
       onChanged: onChanged ?? this.onChanged,
+      subtitle: subtitle ?? this.subtitle,
       leading: leading ?? this.leading,
       trailing: trailing ?? this.trailing,
       iconColor: iconColor ?? this.iconColor,

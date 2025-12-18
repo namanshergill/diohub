@@ -35,7 +35,8 @@ class DynamicScroll extends StatefulWidget {
 
 class _DynamicScrollState extends State<DynamicScroll> {
   final GlobalKey _expandedWidgetKey = GlobalKey();
-  final GlobalKey<AnimatedDynamicSliverAppBarState> _appBarKey = GlobalKey<AnimatedDynamicSliverAppBarState>();
+  final GlobalKey<AnimatedDynamicSliverAppBarState> _appBarKey =
+      GlobalKey<AnimatedDynamicSliverAppBarState>();
   final ScrollController _appBarContentScrollController = ScrollController();
   final ScrollController _scrollController = ScrollController();
 
@@ -93,10 +94,12 @@ class _DynamicScrollState extends State<DynamicScroll> {
                             bottom: Radius.circular(20),
                           ),
                         ),
-                        child: NotificationListener<SizeChangedLayoutNotification>(
+                        child:
+                            NotificationListener<SizeChangedLayoutNotification>(
                           onNotification: (notification) {
                             // When size changes, trigger remeasurement after animation completes
-                            Future.delayed(const Duration(milliseconds: 350), () {
+                            Future.delayed(const Duration(milliseconds: 350),
+                                () {
                               if (mounted) {
                                 setState(() {});
                               }
@@ -122,8 +125,10 @@ class _DynamicScrollState extends State<DynamicScroll> {
                                         width: 40,
                                         height: 5,
                                         decoration: BoxDecoration(
-                                          color: context.colorScheme.onInverseSurface,
-                                          borderRadius: BorderRadius.circular(10),
+                                          color: context
+                                              .colorScheme.onInverseSurface,
+                                          borderRadius:
+                                              BorderRadius.circular(10),
                                         ),
                                       ),
                                     ),
@@ -213,13 +218,16 @@ class _AppBarStateListenerState extends State<_AppBarStateListener> {
   Widget build(BuildContext context) {
     return Builder(
       builder: (context) {
-        final settings = context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+        final settings = context
+            .dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
         if (settings != null) {
           // Check if fully collapsed (within 5px of minExtent)
-          final isFullyCollapsed = (settings.currentExtent - settings.minExtent).abs() < 5;
+          final isFullyCollapsed =
+              (settings.currentExtent - settings.minExtent).abs() < 5;
           // Check if fully expanded (within 5px of maxExtent)
-          final isFullyExpanded = (settings.currentExtent - settings.maxExtent).abs() < 5;
-          
+          final isFullyExpanded =
+              (settings.currentExtent - settings.maxExtent).abs() < 5;
+
           // Trigger haptic feedback when transitioning between fully collapsed and fully expanded
           if (isFullyCollapsed && !_wasFullyCollapsed) {
             // Just became fully collapsed
@@ -263,7 +271,7 @@ class _ScrollableAppBarContent extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMeasuring = constraints.maxHeight.isInfinite;
-        
+
         // During display, ensure content fills space and aligns to bottom
         if (!isMeasuring && constraints.maxHeight.isFinite) {
           return Align(
@@ -281,7 +289,7 @@ class _ScrollableAppBarContent extends StatelessWidget {
             ),
           );
         }
-        
+
         // During measurement, just use SingleChildScrollView
         return SingleChildScrollView(
           controller: scrollController,
