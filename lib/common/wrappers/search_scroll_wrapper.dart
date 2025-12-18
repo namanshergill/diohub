@@ -262,6 +262,7 @@ class SearchScrollWrapperState extends State<SearchScrollWrapper> {
               padding: widget.padding,
               child: RepositoryCard(
               RepoCardDataModel.fromRepositoryModel(data.item),
+              withBackground: true,
                 // padding: EdgeInsets.zero,
               ),
             ),

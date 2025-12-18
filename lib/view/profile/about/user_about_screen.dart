@@ -80,6 +80,7 @@ class UserAboutScreen extends StatelessWidget {
                   ),
                   child: RepositoryCard(
                     RepoCardDataModel.fromGraphQL(repo),
+                    // withBackgroundr: true,
                   ),
                 );
               },

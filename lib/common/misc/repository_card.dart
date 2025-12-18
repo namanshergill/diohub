@@ -69,7 +69,6 @@ class RepositoryCard extends StatelessWidget {
                   repo!.name,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
-
                         color: context.colorScheme.onSurface,
                       ),
                   maxLines: 1,
@@ -157,9 +156,8 @@ class RepositoryCard extends StatelessWidget {
         onTap: () async {
           await pushToRepo(context);
         },
-        backgroundColor: withBackground
-            ? context.colorScheme.surfaceContainerHigh
-            : null,
+        backgroundColor:
+            withBackground ? context.colorScheme.surfaceContainerHigh : null,
         child: withBackground
             ? Padding(
                 padding: const EdgeInsets.all(12),
