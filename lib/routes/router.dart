@@ -100,6 +100,12 @@ class AppRouter extends RootStackRouter {
             authGuard,
           ],
         ),
+        AutoRoute(
+          page: SearchRoute.page,
+          guards: <AutoRouteGuard>[
+            authGuard,
+          ],
+        ),
       ];
 }
 
