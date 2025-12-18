@@ -1,9 +1,8 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:diohub/common/events/cards/base_card.dart';
-import 'package:diohub/common/misc/branch_label.dart';
+import 'package:diohub/common/misc/repository_card.dart';
 import 'package:diohub/models/events/events_model.dart' hide Key;
 import 'package:diohub/routes/router.gr.dart';
-import 'package:diohub/utils/utils.dart';
 import 'package:flutter/material.dart';
 
 class PushEventCard extends StatelessWidget {
@@ -43,23 +42,10 @@ class PushEventCard extends StatelessWidget {
           ),
         ],
         avatarUrl: event.actor!.avatarUrl,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          child: Row(
-            children: <Widget>[
-              Text(
-                'Branch: ',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: context.colorScheme.onSurfaceVariant,
-                    ),
-              ),
-              Flexible(
-                child: BranchLabel(
-                  data.ref?.split('/').last ?? '',
-                ),
-              ),
-            ],
-          ),
+        child: RepoCardLoading(
+          event.repo?.url,
+          event.repo?.name,
+          branch: data.ref?.split('/').last,
         ),
       );
 }

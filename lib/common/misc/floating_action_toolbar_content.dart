@@ -320,94 +320,78 @@ Widget buildToolbarContent({
                                 },
                               ),
                               // Prominent actions using Column (only when expanded)
+                              // Always include the section so widgets can animate out smoothly
                               // Use SizeExpandedSection to collapse padding when all actions are hidden
-                              // This keeps all actions in tree while preventing empty padding
                               if (callbacks.isExpanded &&
                                   visibleProminentActionsExpanded.isNotEmpty)
                                 SizeExpandedSection(
                                   expand: visibleProminentActionsExpanded
                                       .any((a) => a.isVisibleInExpanded),
                                   axis: Axis.vertical,
-                                  child: Builder(
-                                    builder: (context) {
-                                      // Check if there are actually any visible prominent actions
-                                      // This prevents padding from showing when all actions are hidden
-                                      final hasVisibleProminentActions =
-                                          visibleProminentActionsExpanded.any(
-                                              (a) => a.isVisibleInExpanded);
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(top: 10),
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        // Ensure we have bounded constraints
+                                        if (!constraints.hasBoundedWidth ||
+                                            constraints.maxWidth.isInfinite ||
+                                            constraints.maxWidth <= 0) {
+                                          return const SizedBox.shrink();
+                                        }
 
-                                      if (!hasVisibleProminentActions) {
-                                        return const SizedBox.shrink();
-                                      }
+                                        // Map over ALL actions (not just visible ones) so animations work properly
+                                        // The _AnimatedProminentAction widget handles visibility internally
+                                        // Filter to only visible actions for determining last item spacing
+                                        final actuallyVisibleExpanded =
+                                            visibleProminentActionsExpanded
+                                                .where((a) =>
+                                                    a.isVisibleInExpanded)
+                                                .toList();
 
-                                      return Padding(
-                                        padding: const EdgeInsets.only(top: 10),
-                                        child: LayoutBuilder(
-                                          builder: (context, constraints) {
-                                            // Ensure we have bounded constraints
-                                            if (!constraints.hasBoundedWidth ||
-                                                constraints
-                                                    .maxWidth.isInfinite ||
-                                                constraints.maxWidth <= 0) {
-                                              return const SizedBox.shrink();
-                                            }
-
-                                            // Map over ALL actions (not just visible ones) so animations work properly
-                                            // The _AnimatedProminentAction widget handles visibility internally
-                                            // Filter to only visible actions for determining last item spacing
-                                            final actuallyVisibleExpanded =
-                                                visibleProminentActionsExpanded
-                                                    .where((a) =>
-                                                        a.isVisibleInExpanded)
-                                                    .toList();
-
-                                            return Column(
-                                              key: const ValueKey(
-                                                  'prominent_actions_column'),
-                                              mainAxisSize: MainAxisSize.min,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.stretch,
-                                              children:
-                                                  visibleProminentActionsExpanded
-                                                      .asMap()
-                                                      .entries
-                                                      .map((entry) {
-                                                final action = entry.value;
-                                                // Check if this is the last VISIBLE action for spacing
-                                                final isLastVisible =
-                                                    actuallyVisibleExpanded
-                                                            .isNotEmpty &&
-                                                        action ==
-                                                            actuallyVisibleExpanded[
-                                                                actuallyVisibleExpanded
-                                                                        .length -
-                                                                    1];
-                                                // Pass bottomPadding to _AnimatedProminentAction so it's inside SizeTransition
-                                                return SizedBox(
-                                                  width: double.infinity,
-                                                  child:
-                                                      _AnimatedProminentAction(
-                                                    key: ValueKey(
-                                                        'prominent_expanded_${action.label}_${action.icon}'),
-                                                    action: action,
-                                                    prominentActionBuilder:
-                                                        prominentActionBuilder ??
-                                                            buildProminentActionCard,
-                                                    expandAnimation:
-                                                        expandAnimation,
-                                                    callbacks: callbacks,
-                                                    toolbarKey: toolbarKey,
-                                                    bottomPadding:
-                                                        isLastVisible ? 0 : 8.0,
-                                                    debugLogging: debugLogging,
-                                                  ),
-                                                );
-                                              }).toList(),
+                                        return Column(
+                                          key: const ValueKey(
+                                              'prominent_actions_column'),
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children:
+                                              visibleProminentActionsExpanded
+                                                  .asMap()
+                                                  .entries
+                                                  .map((entry) {
+                                            final action = entry.value;
+                                            // Check if this is the last VISIBLE action for spacing
+                                            final isLastVisible =
+                                                actuallyVisibleExpanded
+                                                        .isNotEmpty &&
+                                                    action ==
+                                                        actuallyVisibleExpanded[
+                                                            actuallyVisibleExpanded
+                                                                    .length -
+                                                                1];
+                                            // Pass bottomPadding to _AnimatedProminentAction so it's inside SizeTransition
+                                            return SizedBox(
+                                              width: double.infinity,
+                                              child: _AnimatedProminentAction(
+                                                key: ValueKey(
+                                                    'prominent_expanded_${action.label}'),
+                                                action: action,
+                                                prominentActionBuilder:
+                                                    prominentActionBuilder ??
+                                                        buildProminentActionCard,
+                                                expandAnimation:
+                                                    expandAnimation,
+                                                callbacks: callbacks,
+                                                toolbarKey: toolbarKey,
+                                                bottomPadding:
+                                                    isLastVisible ? 0 : 8.0,
+                                                debugLogging: debugLogging,
+                                              ),
                                             );
-                                          },
-                                        ),
-                                      );
-                                    },
+                                          }).toList(),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                               SizedBox(height: callbacks.isExpanded ? 4 : 4),
@@ -935,8 +919,7 @@ class _AnimatedCollapsedActionsRowState
                       // Use _AnimatedActionButton for non-expandable actions
                       if (action is ExpandableActionButton) {
                         return _AnimatedProminentAction(
-                          key: ValueKey(
-                              'prominent_collapsed_${action.label}_${action.icon}'),
+                          key: ValueKey('prominent_collapsed_${action.label}'),
                           action: action,
                           prominentActionBuilder:
                               widget.prominentActionBuilder ??
@@ -948,26 +931,21 @@ class _AnimatedCollapsedActionsRowState
                           debugLogging: widget.debugLogging,
                         );
                       } else {
-                        // Padding is inside the animated widget so it collapses with hidden actions
-                        return _AnimatedActionButton(
-                          key: ValueKey(
-                              'prominent_${action.label}_${action.icon}'),
+                        // Use _AnimatedProminentAction for all prominent actions (same as expanded state)
+                        // This ensures consistent rebuild behavior for checkbox animations
+                        return _AnimatedProminentAction(
+                          key: ValueKey('prominent_collapsed_${action.label}'),
                           action: action,
-                          spacing:
-                              0, // No spacing for vertical layout (triggers SizeTransition)
-                          buildCompactIconButton:
-                              (context, action, callbacks, onCollapse) =>
-                                  widget.buildCompactProminentButton(
+                          prominentActionBuilder: (context, action) =>
+                              widget.buildCompactProminentButton(
                             context,
                             action,
-                            callbacks,
-                            onCollapse,
+                            widget.callbacks,
+                            widget.onCollapseRequested,
                           ),
-                          callbacks: widget.callbacks,
-                          onCollapseRequested: widget.onCollapseRequested,
-                          context: widget.context,
-                          showDivider: false,
                           expandAnimation: widget.expandAnimation,
+                          callbacks: widget.callbacks,
+                          toolbarKey: widget.toolbarKey,
                           bottomPadding: isLastVisible ? 0 : widget.spacing,
                           debugLogging: widget.debugLogging,
                         );
@@ -1187,9 +1165,17 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
   void didUpdateWidget(_AnimatedActionButton oldWidget) {
     super.didUpdateWidget(oldWidget);
     final isNowVisible = _isActionVisible();
+
+    // Check if checkbox value changed (for AnimatedContainer color animation in collapsed state)
+    final checkboxValueChanged = oldWidget.action is CheckboxActionButton &&
+        widget.action is CheckboxActionButton &&
+        (oldWidget.action as CheckboxActionButton).value !=
+            (widget.action as CheckboxActionButton).value;
+
     if (_wasVisible != isNowVisible ||
         oldWidget.action.visibilityState != widget.action.visibilityState ||
-        oldWidget.callbacks.isExpanded != widget.callbacks.isExpanded) {
+        oldWidget.callbacks.isExpanded != widget.callbacks.isExpanded ||
+        checkboxValueChanged) {
       // Remove old listener if exists
       if (_statusListener != null) {
         _visibilityController.removeStatusListener(_statusListener!);
@@ -1214,6 +1200,12 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
       };
       _visibilityController.addStatusListener(_statusListener!);
     }
+
+    // Force rebuild if checkbox value changed (even if visibility didn't change)
+    // This ensures AnimatedContainer in buildCompactProminentButton sees the color change and animates
+    if (checkboxValueChanged) {
+      setState(() {});
+    }
   }
 
   @override
@@ -1228,9 +1220,29 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
   @override
   Widget build(BuildContext context) {
     // Use AnimatedBuilder to listen to animation without causing rebuild loops
+    // For checkbox actions, we need to rebuild when the value changes
+    // Create a ValueNotifier that tracks checkbox value changes
+    final checkboxValueNotifier = widget.action is CheckboxActionButton
+        ? ValueNotifier((widget.action as CheckboxActionButton).value)
+        : null;
+
     return AnimatedBuilder(
-      animation: Listenable.merge([widget.expandAnimation, _fadeAnimation]),
+      animation: Listenable.merge([
+        widget.expandAnimation,
+        _fadeAnimation,
+        if (checkboxValueNotifier != null) checkboxValueNotifier,
+      ]),
       builder: (context, child) {
+        // Update checkbox value notifier if it changed
+        if (checkboxValueNotifier != null &&
+            widget.action is CheckboxActionButton) {
+          final currentValue = (widget.action as CheckboxActionButton).value;
+          if (checkboxValueNotifier.value != currentValue) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              checkboxValueNotifier.value = currentValue;
+            });
+          }
+        }
         // When collapsing (expanding -> collapsed), expandAnimation goes from 1 to 0
         // We want buttons to animate in (from 0 to 1) as the toolbar collapses
         // So we use the inverse: 1 - expandAnimation.value

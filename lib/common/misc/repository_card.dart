@@ -29,6 +29,7 @@ class RepositoryCard extends StatelessWidget {
     this.repo, {
     // this.isThemed = true,
     this.branch,
+    this.contributionCount,
     this.withBackground = false,
     // this.padding = const EdgeInsets.symmetric(vertical: 8),
     super.key,
@@ -38,6 +39,7 @@ class RepositoryCard extends StatelessWidget {
 
   // final bool isThemed;
   final String? branch;
+  final int? contributionCount;
   final bool withBackground;
 
   // final EdgeInsets padding;
@@ -105,6 +107,44 @@ class RepositoryCard extends StatelessWidget {
                 ),
             ],
           ),
+          // Branch display - styled to match fork indicator but more prominent
+          if (branch != null) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: context.colorScheme.surfaceVariant.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: context.colorScheme.primary.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    Octicons.git_branch,
+                    size: 13,
+                    color: context.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      branch!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           // Description
           if (repo?.description != null) ...[
             const SizedBox(height: 8),
@@ -118,7 +158,7 @@ class RepositoryCard extends StatelessWidget {
                   ),
             ),
           ],
-          // Footer: Language, Stars
+          // Footer: Language, Stars, Contributions
           const SizedBox(height: 12),
           Wrap(
             spacing: 12,
@@ -146,6 +186,42 @@ class RepositoryCard extends StatelessWidget {
                     ),
                   ],
                 ),
+              Builder(
+                builder: (context) {
+                  final count =
+                      contributionCount ?? repo?.contributionCount ?? 0;
+                  if (count <= 0) return const SizedBox.shrink();
+                  // Styled to match existing footer items but more prominent
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color:
+                          context.colorScheme.surfaceVariant.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Octicons.git_commit,
+                          size: 12,
+                          color: context.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$count ${count == 1 ? 'contribution' : 'contributions'}',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: context.colorScheme.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ],
           ),
         ],

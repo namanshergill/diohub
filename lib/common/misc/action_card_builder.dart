@@ -587,19 +587,33 @@ class _ExpandableProminentActionCardState
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              if (action.subtitle != null) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  action.subtitle!,
-                                  style: context.textTheme.bodySmall?.copyWith(
-                                    color: colors.textColor.withOpacity(0.7),
-                                    fontWeight: FontWeight.w400,
-                                    fontSize: 11,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
+                              // Animate subtitle size changes smoothly
+                              AnimatedSize(
+                                duration: const Duration(milliseconds: 200),
+                                curve: Curves.easeInOut,
+                                child: action.subtitle != null
+                                    ? Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            action.subtitle!,
+                                            style: context.textTheme.bodySmall
+                                                ?.copyWith(
+                                              color: colors.textColor
+                                                  .withOpacity(0.7),
+                                              fontWeight: FontWeight.w400,
+                                              fontSize: 11,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
                             ],
                           ),
                         ),
