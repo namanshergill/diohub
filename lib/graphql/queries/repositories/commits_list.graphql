@@ -4,23 +4,7 @@ query commitsList($owner: String!, $repo: String!, $first: Int!, $after: String,
     defaultBranchRef {
       target {
         ... on Commit {
-          history(
-            first: $first
-            after: $after
-            path: $path
-            author: $author
-          ) {
-            edges {
-              cursor
-              node {
-                ...commitListItem
-              }
-            }
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-          }
+          ...commitHistory
         }
       }
     }
@@ -33,23 +17,7 @@ query commitsListByRef($owner: String!, $repo: String!, $ref: String!, $first: I
     ref(qualifiedName: $ref) {
       target {
         ... on Commit {
-          history(
-            first: $first
-            after: $after
-            path: $path
-            author: $author
-          ) {
-            edges {
-              cursor
-              node {
-                ...commitListItem
-              }
-            }
-            pageInfo {
-              hasNextPage
-              endCursor
-            }
-          }
+          ...commitHistory
         }
       }
     }
@@ -61,25 +29,33 @@ query commitsListByOid($owner: String!, $repo: String!, $oid: GitObjectID!, $fir
   repository(name: $repo, owner: $owner) {
     object(oid: $oid) {
       ... on Commit {
-        history(
-          first: $first
-          after: $after
-          path: $path
-          author: $author
-        ) {
-          edges {
-            cursor
-            node {
-              ...commitListItem
-            }
-          }
-          pageInfo {
-            hasNextPage
-            endCursor
-          }
-        }
+        ...commitHistory
       }
     }
+  }
+}
+
+fragment commitHistory on Commit {
+  history(
+    first: $first
+    after: $after
+    path: $path
+    author: $author
+  ) {
+    ...commitHistoryConnection
+  }
+}
+
+fragment commitHistoryConnection on CommitHistoryConnection {
+  edges {
+    cursor
+    node {
+      ...commitListItem
+    }
+  }
+  pageInfo {
+    hasNextPage
+    endCursor
   }
 }
 

@@ -144,16 +144,30 @@ fragment issueInfo on Issue{
 
     trackedInIssues(first: 10){
         totalCount
-        edges {
-            node {
-                title
+        nodes {
+            title
+            number
+            url
+            state
+            repository {
+                name
+                owner {
+                    login
+                }
             }
         }
     }    trackedIssues(first: 10){
         totalCount
-        edges {
-            node {
-                title
+        nodes {
+            title
+            number
+            url
+            state
+            repository {
+                name
+                owner {
+                    login
+                }
             }
         }
     }
@@ -283,8 +297,20 @@ fragment pullInfo on PullRequest{
         }
     }
     changedFiles
-    closingIssuesReferences{
+    closingIssuesReferences(first: 10){
         totalCount
+        nodes {
+            title
+            number
+            url
+            state
+            repository {
+                name
+                owner {
+                    login
+                }
+            }
+        }
     }
     commits{
         totalCount

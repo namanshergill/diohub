@@ -22,21 +22,7 @@ query getUserPinnedRepos($user: String!){
             edges {
                 node {
                     __typename ... on Repository {
-                        name
-                        description
-                        stargazerCount
-                        updatedAt
-                        url
-                        owner{
-                            login
-                        }
-                        languages(orderBy: {direction:DESC, field: SIZE}, first:1) {
-                            edges {
-                                node {
-                                    name
-                                }
-                            }
-                        }
+                        ...repositoryFields
                     }
                 }
             }
@@ -52,6 +38,69 @@ query followStatusInfo($user:String!){
         viewerCanFollow
         followers {
             totalCount
+        }
+        pinnedItems(first: 6, types:[REPOSITORY]){
+            edges {
+                node {
+                    __typename ... on Repository {
+                        ...repositoryFields
+                    }
+                }
+            }
+        }
+    }
+}
+
+query userInfo($user: String!) {
+    user(login: $user) {
+        __typename
+        id
+        login
+        name
+        avatarUrl
+        bio
+        location
+        websiteUrl
+        twitterUsername
+        createdAt
+        updatedAt
+        isViewer
+        viewerIsFollowing
+        viewerCanFollow
+        followers {
+            totalCount
+        }
+        repositories {
+            totalCount
+        }
+        pinnedItems(first: 6, types:[REPOSITORY,]){
+            edges {
+                node {
+                    __typename ... on Repository {
+                        ...repositoryFields
+                    }
+                }
+            }
+        }
+        ... on User {
+            company
+            email
+            pronouns
+            isHireable
+            status {
+                message
+                emoji
+                indicatesLimitedAvailability
+            }
+            following {
+                totalCount
+            }
+            organizations {
+                totalCount
+            }
+            gists {
+                totalCount
+            }
         }
     }
 }
@@ -91,6 +140,61 @@ mutation  unfollowUser($user:ID!){
     unfollowUser(input: {userId: $user}){
         user{
             login
+        }
+    }
+}
+
+query getUserRepositories($user: String!, $first: Int!, $after: String, $orderBy: RepositoryOrder) {
+    user(login: $user) {
+        repositories(first: $first, after: $after, orderBy: $orderBy, affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
+            edges {
+                cursor
+                node {
+                    id
+                    name
+                    nameWithOwner
+                    description
+                    url
+                    isPrivate
+                    isFork
+                    stargazerCount
+                    updatedAt
+                    createdAt
+                    pushedAt
+                    primaryLanguage {
+                        name
+                        color
+                    }
+                    owner {
+                        login
+                        avatarUrl
+                    }
+                }
+            }
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
+        }
+    }
+}
+
+fragment repositoryFields on Repository {
+    name
+    description
+    stargazerCount
+    updatedAt
+    url
+    isPrivate
+    isFork
+    owner{
+        login
+    }
+    languages(orderBy: {direction:DESC, field: SIZE}, first:1) {
+        edges {
+            node {
+                name
+            }
         }
     }
 }
