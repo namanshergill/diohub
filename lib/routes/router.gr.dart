@@ -28,7 +28,7 @@ import 'package:diohub/view/repository/commits/widgets/changes_viewer.dart'
 import 'package:diohub/view/repository/issues/new_issue_screen.dart' as _i8;
 import 'package:diohub/view/repository/repository_screen.dart' as _i11;
 import 'package:diohub/view/repository/wiki/wiki_viewer.dart' as _i15;
-import 'package:diohub/view/search/search_screen.dart' as _i13;
+import 'package:diohub/view/search/search.dart' as _i13;
 import 'package:flutter/material.dart' as _i17;
 
 /// generated route for
@@ -832,52 +832,18 @@ class SearchOverlayRouteArgs {
 
 /// generated route for
 /// [_i13.SearchScreen]
-class SearchRoute extends _i16.PageRouteInfo<SearchRouteArgs> {
-  SearchRoute({
-    required _i12.SearchData initialSearchData,
-    _i17.Key? key,
-    List<_i16.PageRouteInfo>? children,
-  }) : super(
-          SearchRoute.name,
-          args: SearchRouteArgs(initialSearchData: initialSearchData, key: key),
-          initialChildren: children,
-        );
+class SearchRoute extends _i16.PageRouteInfo<void> {
+  const SearchRoute({List<_i16.PageRouteInfo>? children})
+      : super(SearchRoute.name, initialChildren: children);
 
   static const String name = 'SearchRoute';
 
   static _i16.PageInfo page = _i16.PageInfo(
     name,
     builder: (data) {
-      final args = data.argsAs<SearchRouteArgs>();
-      return _i13.SearchScreen(
-        initialSearchData: args.initialSearchData,
-        key: args.key,
-      );
+      return const _i13.SearchScreen();
     },
   );
-}
-
-class SearchRouteArgs {
-  const SearchRouteArgs({required this.initialSearchData, this.key});
-
-  final _i12.SearchData initialSearchData;
-
-  final _i17.Key? key;
-
-  @override
-  String toString() {
-    return 'SearchRouteArgs{initialSearchData: $initialSearchData, key: $key}';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    if (other is! SearchRouteArgs) return false;
-    return initialSearchData == other.initialSearchData && key == other.key;
-  }
-
-  @override
-  int get hashCode => initialSearchData.hashCode ^ key.hashCode;
 }
 
 /// generated route for

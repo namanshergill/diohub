@@ -1,3 +1,4 @@
+import 'package:auto_route/annotations.dart';
 import 'package:diohub/common/animations/size_expanded_widget.dart';
 import 'package:diohub/common/misc/loading_indicator.dart';
 import 'package:diohub/common/misc/repository_card.dart';
@@ -5,6 +6,7 @@ import 'package:diohub/common/search_overlay/filters.dart';
 import 'package:diohub/common/search_overlay/search_bar.dart';
 import 'package:diohub/common/wrappers/api_wrapper_widget.dart';
 import 'package:diohub/common/wrappers/search_scroll_wrapper.dart';
+import 'package:diohub/models/repositories/repo_card_data_model.dart';
 import 'package:diohub/models/repositories/repository_model.dart';
 import 'package:diohub/providers/search_data_provider.dart';
 import 'package:diohub/services/search/search_service.dart';
@@ -12,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+@RoutePage()
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
   @override
@@ -129,7 +132,9 @@ class SearchScreenState extends State<SearchScreen>
                                       horizontal: 8,
                                     ),
                                     child: RepositoryCard(
-                                      data[index],
+                                      RepoCardDataModel.fromRepositoryModel(
+                                        data[index],
+                                      ),
                                       // isThemed: false,
                                       // padding: const EdgeInsets.symmetric(
                                       //   horizontal: 8,
