@@ -555,6 +555,32 @@ class UserProfileScreenState extends State<UserProfileScreen>
         onTap: () => tabController?.openTab('Overview'),
       ),
       MinorActionButton(
+        icon: Octicons.git_pull_request,
+        label: 'Pull Requests',
+        trailing: buildActionButtonTrailingCount(
+          context,
+          userData.pullRequests.totalCount,
+        ),
+        actionType: ActionButtonActionType.tab,
+        visibilityState: currentTab == 'Pull Requests'
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.expandedOnly,
+        onTap: () => tabController?.openTab('Pull Requests'),
+      ),
+      MinorActionButton(
+        icon: Octicons.issue_opened,
+        label: 'Issues',
+        trailing: buildActionButtonTrailingCount(
+          context,
+          userData.issues.totalCount,
+        ),
+        actionType: ActionButtonActionType.tab,
+        visibilityState: currentTab == 'Issues'
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.expandedOnly,
+        onTap: () => tabController?.openTab('Issues'),
+      ),
+      MinorActionButton(
         icon: Octicons.code_square,
         label: 'Gists',
         trailing: userData.when(
@@ -633,6 +659,25 @@ class UserProfileScreenState extends State<UserProfileScreen>
             ? ActionButtonVisibilityState.none
             : ActionButtonVisibilityState.expandedOnly,
         onTap: () => tabController?.openTab('Packages'),
+      ),
+      // Lower priority - visible in expanded state only
+      MinorActionButton(
+        icon: Octicons.project,
+        label: 'Projects',
+        actionType: ActionButtonActionType.tab,
+        visibilityState: currentTab == 'Projects'
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.expandedOnly,
+        onTap: () => tabController?.openTab('Projects'),
+      ),
+      MinorActionButton(
+        icon: Octicons.heart,
+        label: 'Sponsors',
+        actionType: ActionButtonActionType.tab,
+        visibilityState: currentTab == 'Sponsors'
+            ? ActionButtonVisibilityState.none
+            : ActionButtonVisibilityState.expandedOnly,
+        onTap: () => tabController?.openTab('Sponsors'),
       ),
     ];
   }
@@ -767,6 +812,26 @@ class _UserProfileTabsContentState extends State<_UserProfileTabsContent>
         identifier: 'Packages',
         tabViewBuilder: (context) =>
             const SizedBox.shrink(), // TODO: Implement Packages tab
+      ),
+      DynamicTab(
+        identifier: 'Pull Requests',
+        tabViewBuilder: (context) =>
+            const SizedBox.shrink(), // TODO: Implement Pull Requests tab
+      ),
+      DynamicTab(
+        identifier: 'Issues',
+        tabViewBuilder: (context) =>
+            const SizedBox.shrink(), // TODO: Implement Issues tab
+      ),
+      DynamicTab(
+        identifier: 'Projects',
+        tabViewBuilder: (context) =>
+            const SizedBox.shrink(), // TODO: Implement Projects tab
+      ),
+      DynamicTab(
+        identifier: 'Sponsors',
+        tabViewBuilder: (context) =>
+            const SizedBox.shrink(), // TODO: Implement Sponsors tab
       ),
       DynamicTab(
         identifier: 'Activity',
