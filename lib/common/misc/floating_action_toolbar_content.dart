@@ -2,7 +2,6 @@ import 'package:diohub/common/animations/size_expanded_widget.dart';
 import 'package:diohub/common/misc/action_card_builder.dart';
 import 'package:diohub/common/misc/collapsible_action_buttons.dart';
 import 'package:diohub/common/misc/floating_expandable_widget.dart' as base;
-import 'package:flex_list/flex_list.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
@@ -118,7 +117,7 @@ Widget buildToolbarContent({
                           return Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              SizedBox(height: callbacks.isExpanded ? 4 : 4),
+                              SizedBox(height: callbacks.isExpanded ? 2 : 4),
                               if (!callbacks.isExpanded)
                                 Center(
                                   child: IntrinsicWidth(
@@ -171,37 +170,79 @@ Widget buildToolbarContent({
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.stretch,
                                                 children: [
-                                                  // Title in expanded view
+                                                  // Title and subtitle (minimal, clean)
                                                   if (title != null &&
                                                       title.isNotEmpty)
                                                     Padding(
                                                       padding:
                                                           const EdgeInsets.only(
-                                                        bottom: 12,
-                                                      ),
-                                                      child: Text(
-                                                        title,
-                                                        style: Theme.of(context)
-                                                            .textTheme
-                                                            .titleLarge
-                                                            ?.copyWith(
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              fontSize: 20,
-                                                              color: Theme.of(
-                                                                      context)
-                                                                  .colorScheme
-                                                                  .onSurface
-                                                                  .withOpacity(
-                                                                      0.8),
+                                                              left: 4,
+                                                              bottom: 10),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Text(
+                                                            title,
+                                                            style: Theme.of(
+                                                                    context)
+                                                                .textTheme
+                                                                .titleLarge
+                                                                ?.copyWith(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                  fontSize: 19,
+                                                                  color: Theme.of(
+                                                                          context)
+                                                                      .colorScheme
+                                                                      .onSurface
+                                                                      .withOpacity(
+                                                                          0.87),
+                                                                ),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                          ),
+                                                          if (subtitle !=
+                                                                  null &&
+                                                              subtitle
+                                                                  .isNotEmpty)
+                                                            Padding(
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .only(
+                                                                      top: 2),
+                                                              child: Text(
+                                                                subtitle,
+                                                                style: Theme.of(
+                                                                        context)
+                                                                    .textTheme
+                                                                    .bodyMedium
+                                                                    ?.copyWith(
+                                                                      color: Theme.of(
+                                                                              context)
+                                                                          .colorScheme
+                                                                          .onSurface
+                                                                          .withOpacity(
+                                                                              0.6),
+                                                                      fontSize:
+                                                                          13,
+                                                                    ),
+                                                                maxLines: 1,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                              ),
                                                             ),
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
+                                                        ],
                                                       ),
                                                     ),
-                                                  // Compact FlexList layout for actions
+                                                  // Regular actions in compact wrapping grid
                                                   LayoutBuilder(
                                                     builder:
                                                         (context, constraints) {
@@ -228,36 +269,45 @@ Widget buildToolbarContent({
                                                             .shrink();
                                                       }
 
-                                                      // Use FlexList to show all items with animation support
-                                                      return FlexList(
-                                                        horizontalSpacing: 8.0,
-                                                        verticalSpacing: 8.0,
-                                                        children: allActions
-                                                            .asMap()
-                                                            .entries
-                                                            .map((entry) {
-                                                          final index =
-                                                              entry.key;
-                                                          final action =
-                                                              entry.value;
+                                                      // Compact wrapping grid - tighter spacing for modern look
+                                                      return Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .only(
+                                                                bottom: 8),
+                                                        child: Wrap(
+                                                          spacing: 6.0,
+                                                          runSpacing: 6.0,
+                                                          alignment:
+                                                              WrapAlignment
+                                                                  .start,
+                                                          children: allActions
+                                                              .asMap()
+                                                              .entries
+                                                              .map((entry) {
+                                                            final index =
+                                                                entry.key;
+                                                            final action =
+                                                                entry.value;
 
-                                                          return _AnimatedExpandedAction(
-                                                            key: ValueKey(
-                                                                'expanded_${action.label}_${action.icon}'),
-                                                            action: action,
-                                                            index: index,
-                                                            callbacks:
-                                                                callbacks,
-                                                            onCollapseRequested:
-                                                                onCollapseRequested,
-                                                            expandAnimation:
-                                                                expandAnimation,
-                                                            isNearTop: callbacks
-                                                                    .nearPosition ==
-                                                                base.FloatingPosition
-                                                                    .top,
-                                                          );
-                                                        }).toList(),
+                                                            return _AnimatedExpandedAction(
+                                                              key: ValueKey(
+                                                                  'expanded_${action.label}_${action.icon}'),
+                                                              action: action,
+                                                              index: index,
+                                                              callbacks:
+                                                                  callbacks,
+                                                              onCollapseRequested:
+                                                                  onCollapseRequested,
+                                                              expandAnimation:
+                                                                  expandAnimation,
+                                                              isNearTop: callbacks
+                                                                      .nearPosition ==
+                                                                  base.FloatingPosition
+                                                                      .top,
+                                                            );
+                                                          }).toList(),
+                                                        ),
                                                       );
                                                     },
                                                   ),
@@ -278,70 +328,86 @@ Widget buildToolbarContent({
                                   expand: visibleProminentActionsExpanded
                                       .any((a) => a.isVisibleInExpanded),
                                   axis: Axis.vertical,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(top: 12),
-                                    child: LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        // Ensure we have bounded constraints
-                                        if (!constraints.hasBoundedWidth ||
-                                            constraints.maxWidth.isInfinite ||
-                                            constraints.maxWidth <= 0) {
-                                          return const SizedBox.shrink();
-                                        }
+                                  child: Builder(
+                                    builder: (context) {
+                                      // Check if there are actually any visible prominent actions
+                                      // This prevents padding from showing when all actions are hidden
+                                      final hasVisibleProminentActions =
+                                          visibleProminentActionsExpanded.any(
+                                              (a) => a.isVisibleInExpanded);
 
-                                        // Use Column instead of FlexList for prominent actions
-                                        // FlexList can have issues with zero-sized animated widgets
-                                        // Column with SizeTransition handles animations better
-                                        // Padding wraps the animated widget so it collapses with hidden actions
-                                        // Filter to only visible actions for determining last item
-                                        final actuallyVisibleExpanded =
-                                            visibleProminentActionsExpanded
-                                                .where((a) =>
-                                                    a.isVisibleInExpanded)
-                                                .toList();
-                                        return Column(
-                                          key: const ValueKey(
-                                              'prominent_actions_column'),
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children:
-                                              visibleProminentActionsExpanded
-                                                  .asMap()
-                                                  .entries
-                                                  .map((entry) {
-                                            final action = entry.value;
-                                            // Check if this is the last VISIBLE action
-                                            final isLastVisible =
-                                                actuallyVisibleExpanded
-                                                        .isNotEmpty &&
-                                                    action ==
-                                                        actuallyVisibleExpanded[
-                                                            actuallyVisibleExpanded
-                                                                    .length -
-                                                                1];
-                                            return SizedBox(
-                                              width: double.infinity,
-                                              child: _AnimatedProminentAction(
-                                                key: ValueKey(
-                                                    'prominent_expanded_${action.label}_${action.icon}'),
-                                                action: action,
-                                                prominentActionBuilder:
-                                                    prominentActionBuilder ??
-                                                        buildProminentActionCard,
-                                                expandAnimation:
-                                                    expandAnimation,
-                                                callbacks: callbacks,
-                                                toolbarKey: toolbarKey,
-                                                bottomPadding:
-                                                    isLastVisible ? 0 : 4.0,
-                                                debugLogging: debugLogging,
-                                              ),
+                                      if (!hasVisibleProminentActions) {
+                                        return const SizedBox.shrink();
+                                      }
+
+                                      return Padding(
+                                        padding: const EdgeInsets.only(top: 10),
+                                        child: LayoutBuilder(
+                                          builder: (context, constraints) {
+                                            // Ensure we have bounded constraints
+                                            if (!constraints.hasBoundedWidth ||
+                                                constraints
+                                                    .maxWidth.isInfinite ||
+                                                constraints.maxWidth <= 0) {
+                                              return const SizedBox.shrink();
+                                            }
+
+                                            // Map over ALL actions (not just visible ones) so animations work properly
+                                            // The _AnimatedProminentAction widget handles visibility internally
+                                            // Filter to only visible actions for determining last item spacing
+                                            final actuallyVisibleExpanded =
+                                                visibleProminentActionsExpanded
+                                                    .where((a) =>
+                                                        a.isVisibleInExpanded)
+                                                    .toList();
+
+                                            return Column(
+                                              key: const ValueKey(
+                                                  'prominent_actions_column'),
+                                              mainAxisSize: MainAxisSize.min,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children:
+                                                  visibleProminentActionsExpanded
+                                                      .asMap()
+                                                      .entries
+                                                      .map((entry) {
+                                                final action = entry.value;
+                                                // Check if this is the last VISIBLE action for spacing
+                                                final isLastVisible =
+                                                    actuallyVisibleExpanded
+                                                            .isNotEmpty &&
+                                                        action ==
+                                                            actuallyVisibleExpanded[
+                                                                actuallyVisibleExpanded
+                                                                        .length -
+                                                                    1];
+                                                // Pass bottomPadding to _AnimatedProminentAction so it's inside SizeTransition
+                                                return SizedBox(
+                                                  width: double.infinity,
+                                                  child:
+                                                      _AnimatedProminentAction(
+                                                    key: ValueKey(
+                                                        'prominent_expanded_${action.label}_${action.icon}'),
+                                                    action: action,
+                                                    prominentActionBuilder:
+                                                        prominentActionBuilder ??
+                                                            buildProminentActionCard,
+                                                    expandAnimation:
+                                                        expandAnimation,
+                                                    callbacks: callbacks,
+                                                    toolbarKey: toolbarKey,
+                                                    bottomPadding:
+                                                        isLastVisible ? 0 : 8.0,
+                                                    debugLogging: debugLogging,
+                                                  ),
+                                                );
+                                              }).toList(),
                                             );
-                                          }).toList(),
-                                        );
-                                      },
-                                    ),
+                                          },
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ),
                               SizedBox(height: callbacks.isExpanded ? 4 : 4),
@@ -610,7 +676,7 @@ Widget buildCompactIconButton(
   );
 }
 
-/// Build expanded action matching collapsed tile styling
+/// Build expanded action as pill/chip for horizontal scrollable row
 Widget buildExpandedActionWithLabel(
   BuildContext context,
   ActionButtonData action,
@@ -623,6 +689,7 @@ Widget buildExpandedActionWithLabel(
   // Use same color logic as collapsed tiles
   final iconColor = action.getIconColor(context);
   final badgeText = action.badgeText;
+  final colors = calculateActionButtonColors(context, action);
 
   return base.ExpandedContentItem(
     animation: expandAnimation,
@@ -640,26 +707,34 @@ Widget buildExpandedActionWithLabel(
                 }
               }
             : null,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: colors.backgroundColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.08),
+              width: 0.5,
+            ),
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 action.displayIcon,
-                size: 22,
+                size: 16,
                 color: iconColor,
               ),
               if (action.label.isNotEmpty) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 5),
                 Flexible(
                   child: Text(
                     action.label,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                           fontSize: 12,
                           color: action.enabled
-                              ? Theme.of(context).colorScheme.onSurface
+                              ? colors.textColor
                               : Theme.of(context)
                                   .colorScheme
                                   .onSurfaceVariant
@@ -672,10 +747,10 @@ Widget buildExpandedActionWithLabel(
                 ),
               ],
               if (badgeText != null && badgeText.isNotEmpty) ...[
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                   decoration: BoxDecoration(
                     color: iconColor.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
@@ -683,7 +758,7 @@ Widget buildExpandedActionWithLabel(
                   child: Text(
                     badgeText,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight: FontWeight.w600,
                       color: iconColor,
                     ),
@@ -1009,26 +1084,25 @@ class _AnimatedExpandedActionState extends State<_AnimatedExpandedAction>
   Widget build(BuildContext context) {
     final isFullyHidden = _fadeAnimation.value == 0.0;
 
-    // Use SizeTransition to collapse width, wrapped in IntrinsicWidth for proper measurement
-    // When sizeFactor is 0, the widget takes zero space in FlexList
+    // Use SizeTransition to collapse width when hidden
+    // When sizeFactor is 0, the widget takes zero space in Wrap
     // Keep widget in tree even when hidden to allow smooth re-animation
-    return IntrinsicWidth(
-      child: SizeTransition(
-        sizeFactor: _fadeAnimation,
-        axis: Axis.horizontal,
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: IgnorePointer(
-            ignoring: isFullyHidden,
-            child: buildExpandedActionWithLabel(
-              context,
-              widget.action,
-              widget.index,
-              widget.callbacks,
-              widget.onCollapseRequested,
-              widget.expandAnimation,
-              widget.isNearTop,
-            ),
+    // Wrap widget handles sizing automatically, no need for IntrinsicWidth
+    return SizeTransition(
+      sizeFactor: _fadeAnimation,
+      axis: Axis.horizontal,
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: IgnorePointer(
+          ignoring: isFullyHidden,
+          child: buildExpandedActionWithLabel(
+            context,
+            widget.action,
+            widget.index,
+            widget.callbacks,
+            widget.onCollapseRequested,
+            widget.expandAnimation,
+            widget.isNearTop,
           ),
         ),
       ),
@@ -1479,18 +1553,27 @@ class _AnimatedProminentActionState extends State<_AnimatedProminentAction>
     }
 
     // Padding is inside SizeTransition so it collapses with the widget
+    // Use AnimatedBuilder to make padding reactive to animation changes
     final animatedWidget = SizeTransition(
       sizeFactor: _fadeAnimation,
       axis: Axis.vertical,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: widget.bottomPadding),
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: SizedBox(
-            width: double.infinity,
-            child: actionWidget,
-          ),
-        ),
+      child: AnimatedBuilder(
+        animation: _fadeAnimation,
+        builder: (context, child) {
+          // Only apply bottom padding when widget is visible (sizeFactor > 0)
+          final effectiveBottomPadding =
+              _fadeAnimation.value > 0.01 ? widget.bottomPadding : 0.0;
+          return Padding(
+            padding: EdgeInsets.only(bottom: effectiveBottomPadding),
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SizedBox(
+                width: double.infinity,
+                child: actionWidget,
+              ),
+            ),
+          );
+        },
       ),
     );
 
