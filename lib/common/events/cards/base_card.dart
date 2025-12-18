@@ -70,81 +70,108 @@ class BaseEventCard extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        // Smaller event icon in colored container
-        if (eventType != null)
-          Container(
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              color: _getEventIconColor(context, eventType).withOpacity(0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(
-              _getEventIcon(eventType),
-              size: 12,
-              color: _getEventIconColor(context, eventType),
-            ),
-          ),
-        if (eventType != null) const SizedBox(width: 6),
-        // Actor avatar
+        // Actor avatar with event icon badge
         if (avatarUrl != null && actor != null)
-          ClipOval(
-            child: CachedNetworkImage(
-              imageUrl: avatarUrl!,
-              width: 18,
-              height: 18,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => ShimmerWidget(
-                child: Container(
-                  width: 18,
-                  height: 18,
-                  color: context.colorScheme.surfaceVariant,
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              InkWell(
+                onTap: userLogin != null
+                    ? () {
+                        navigateToProfile(
+                          context: context,
+                          login: userLogin!,
+                        );
+                      }
+                    : null,
+                borderRadius: BorderRadius.circular(16),
+                child: ClipOval(
+                  child: CachedNetworkImage(
+                    imageUrl: avatarUrl!,
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => ShimmerWidget(
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        color: context.colorScheme.surfaceVariant,
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: 32,
+                      height: 32,
+                      color: context.colorScheme.surfaceVariant,
+                      child: Icon(
+                        Icons.person,
+                        size: 18,
+                        color: context.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              errorWidget: (context, url, error) => Container(
-                width: 18,
-                height: 18,
-                color: context.colorScheme.surfaceVariant,
-                child: Icon(
-                  Icons.person,
-                  size: 10,
-                  color: context.colorScheme.onSurfaceVariant,
+              // Event icon badge
+              if (eventType != null)
+                Positioned(
+                  right: -4,
+                  bottom: -4,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: _getEventIconColor(context, eventType)
+                          .withOpacity(0.9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _getEventIcon(eventType),
+                      size: 9,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-              ),
-            ),
+            ],
           ),
-        if (avatarUrl != null && actor != null) const SizedBox(width: 4),
-        // Actor name and action text combined in RichText
+        if (avatarUrl != null && actor != null) const SizedBox(width: 8),
+        // Actor name and action text in title/subtitle layout
         Flexible(
-          child: Text.rich(
-            TextSpan(
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: context.colorScheme.onSurface.withOpacity(0.7),
-                    fontSize: 12,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Title: Actor name
+              if (actor != null)
+                GestureDetector(
+                  onTap: userLogin != null
+                      ? () {
+                          navigateToProfile(
+                            context: context,
+                            login: userLogin!,
+                          );
+                        }
+                      : null,
+                  child: Text(
+                    actor!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: context.colorScheme.onSurface.withOpacity(0.7),
+                          fontSize: 13,
+                        ),
                   ),
-              children: <TextSpan>[
-                // Tappable actor name
-                if (actor != null)
-                  TextSpan(
-                    text: actor!,
-                    recognizer: userLogin != null
-                        ? (TapGestureRecognizer()
-                          ..onTap = () {
-                            navigateToProfile(
-                              context: context,
-                              login: userLogin!,
-                            );
-                          })
-                        : null,
-                    // style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                // Space between actor and action
-                if (actor != null) const TextSpan(text: ' '),
-                // Action description text - children automatically inherit parent style
-                ...headerText,
-              ],
-            ),
+                ),
+              // Subtitle: Action description
+              Text.rich(
+                TextSpan(
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        // fontWeight: FontWeight.w400,
+                        color: context.colorScheme.onSurface.withOpacity(0.6),
+                        fontSize: 12,
+                      ),
+                  children: headerText,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -155,19 +182,19 @@ class BaseEventCard extends StatelessWidget {
             getDate(date.toString()),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: context.colorScheme.onSurfaceVariant.withOpacity(0.7),
-                  fontSize: 11,
+                  fontSize: 10,
                 ),
           )
         : null;
 
     final Widget childWidget = children.isNotEmpty
         ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: List<Widget>.generate(
               children.length,
-              (final int index) => Column(
-                children: <Widget>[
-                  if (index > 0) const SizedBox(height: 8),
-                  children[index],
+              (final int index) => Row(
+                children: [
+                  Flexible(child: children[index]),
                 ],
               ),
             ),

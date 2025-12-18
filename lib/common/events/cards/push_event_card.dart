@@ -1,8 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:diohub/common/events/cards/base_card.dart';
 import 'package:diohub/common/misc/branch_label.dart';
-import 'package:diohub/common/misc/custom_expansion_tile.dart';
-import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/models/events/events_model.dart' hide Key;
 import 'package:diohub/routes/router.gr.dart';
 import 'package:diohub/utils/utils.dart';
@@ -36,7 +34,7 @@ class PushEventCard extends StatelessWidget {
         actor: event.actor!.login,
         headerText: <TextSpan>[
           const TextSpan(
-            text: ' pushed to ',
+            text: 'pushed to ',
             // style: AppThemeTextStyles.eventCardHeaderMed(context),
           ),
           TextSpan(
@@ -45,13 +43,15 @@ class PushEventCard extends StatelessWidget {
           ),
         ],
         avatarUrl: event.actor!.avatarUrl,
-        child: CustomExpansionTile(
-          expanded: false,
-          title: Row(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          child: Row(
             children: <Widget>[
               Text(
-                '${data.size ?? 0} commit${(data.size ?? 0) > 1 ? 's' : ''} to',
-                // style: AppThemeTextStyles.eventCardChildTitleSmall(context),
+                'Branch: ',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: context.colorScheme.onSurfaceVariant,
+                    ),
               ),
               Flexible(
                 child: BranchLabel(
@@ -60,67 +60,6 @@ class PushEventCard extends StatelessWidget {
               ),
             ],
           ),
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: (data.commits ?? []).isEmpty
-                    ? [const SizedBox.shrink()]
-                    : List.generate(
-                        (data.commits ?? []).length,
-                        (final int index) {
-                          final commit = (data.commits ?? [])[index];
-                          return InkPot(
-                            onTap: () async {
-                              if (commit.url != null) {
-                                await AutoRouter.of(context).push(
-                                  CommitInfoRoute(
-                                    commitURL: commit.url!,
-                                  ),
-                                );
-                              }
-                            },
-                            onLongPress: () async {
-                              if (data.ref != null && event.repo?.url != null) {
-                                await AutoRouter.of(context).push(
-                                  RepositoryRoute(
-                                    index: 2,
-                                    branch: data.ref!.split('/').last,
-                                    repositoryURL: event.repo!.url!,
-                                    initSHA: commit.sha,
-                                  ),
-                                );
-                              }
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                                vertical: 8,
-                              ),
-                              child: Text.rich(
-                                TextSpan(
-                                  style: Theme.of(context).textTheme.bodyMedium,
-                                  children: <InlineSpan>[
-                                    if (commit.sha != null)
-                                      TextSpan(
-                                        text:
-                                            '#${commit.sha!.substring(0, commit.sha!.length > 6 ? 6 : commit.sha!.length)}',
-                                        style: TextStyle(
-                                          color: context.colorScheme.primary,
-                                        ),
-                                      ),
-                                    if (commit.message != null)
-                                      TextSpan(text: '  ${commit.message}'),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ),
-          ],
         ),
       );
 }

@@ -1,6 +1,5 @@
 import 'package:diohub/common/events/cards/base_card.dart';
-import 'package:diohub/common/pulls/pull_list_card.dart';
-import 'package:diohub/common/pulls/pull_loading_card.dart';
+import 'package:diohub/common/pulls/simple_pull_card.dart';
 import 'package:diohub/models/events/events_model.dart' hide Key;
 import 'package:flutter/material.dart';
 
@@ -12,27 +11,22 @@ class PullEventCard extends StatelessWidget {
   @override
   Widget build(final BuildContext context) => BaseEventCard.singular(
         isInTimeline: isInTimeline,
-        
+        // useNestedCard: false,
         eventType: event.type,
         actor: event.actor!.login,
-        childPadding: EdgeInsets.zero,
+        // childPadding: EdgeInsets.zero,
         headerText: <TextSpan>[
           TextSpan(text: '${event.payload!.action} a pull request in '),
           TextSpan(
             text: event.repo!.name,
-            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ],
-        
-
         userLogin: event.actor!.login,
         date: event.createdAt,
         avatarUrl: event.actor!.avatarUrl,
-        child: PullLoadingCard(
+        child: SimplePullLoadingCard(
           event.payload!.pullRequest!.url!,
-          isNested:   true,
-          // issueModel: event.payload!.pullRequest!,
-          // showRepoName: false,
+          showRepoName: true,
         ),
       );
 }
