@@ -1,5 +1,5 @@
 import 'package:diohub/common/charts/contribution_calendar_widget.dart';
-import 'package:diohub/graphql/__generated__/schema.schema.gql.dart';
+import 'package:diohub/common/utils/contribution_utils.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_info.data.gql.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_contributions.data.gql.dart';
 import 'package:diohub/view/profile/about/widgets/activity_overview_section.dart';
@@ -29,8 +29,8 @@ class ContributionDataConverter {
                   date: DateTime.parse(day.date.toString()),
                   count: day.contributionCount,
                   // Use GitHub colors from API
-                  color: _parseColor(day.color),
-                  level: _convertContributionLevel(day.contributionLevel),
+                  color: parseContributionColor(day.color),
+                  level: convertContributionLevel(day.contributionLevel),
                 ))
             .toList())
         .toList();
@@ -51,34 +51,7 @@ class ContributionDataConverter {
       ];
     }
 
-    return colors.map(_parseColor).toList();
-  }
-
-  /// Converts contribution level enum from GraphQL
-  static ContributionLevel _convertContributionLevel(GContributionLevel level) {
-    switch (level) {
-      case GContributionLevel.NONE:
-        return ContributionLevel.none;
-      case GContributionLevel.FIRST_QUARTILE:
-        return ContributionLevel.firstQuartile;
-      case GContributionLevel.SECOND_QUARTILE:
-        return ContributionLevel.secondQuartile;
-      case GContributionLevel.THIRD_QUARTILE:
-        return ContributionLevel.thirdQuartile;
-      case GContributionLevel.FOURTH_QUARTILE:
-        return ContributionLevel.fourthQuartile;
-      default:
-        return ContributionLevel.none;
-    }
-  }
-
-  /// Parses hex color string to Color
-  static Color _parseColor(String hexColor) {
-    // Remove # if present and ensure uppercase
-    final hex = hexColor.replaceFirst('#', '').toUpperCase();
-    // Parse as int with alpha channel (FF = fully opaque)
-    final colorValue = int.parse('FF$hex', radix: 16);
-    return Color(colorValue);
+    return parseContributionColors(colors);
   }
 
   /// Extracts months from contribution weeks for labels
