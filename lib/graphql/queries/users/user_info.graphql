@@ -79,6 +79,9 @@ query userInfo($user: String!) {
         issues {
             totalCount
         }
+        starredRepositories {
+            totalCount
+        }
         pinnedItems(first: 6, types:[REPOSITORY,]){
             edges {
                 node {

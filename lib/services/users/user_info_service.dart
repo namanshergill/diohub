@@ -13,7 +13,7 @@ import 'package:diohub/utils/type_cast.dart';
 class UserInfoService {
   UserInfoService(this.login);
 
-  static final GraphqlHandler _gqlHandler = GraphqlHandler(apiLogSettings: APILoggingSettings.comprehensive());
+  static final GraphqlHandler _gqlHandler = GraphqlHandler();
   final String login;
   static final RESTHandler _restHandler = RESTHandler();
 
