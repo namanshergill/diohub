@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:diohub/app/api_handler/dio.dart';
 import 'package:diohub/graphql/__generated__/schema.schema.gql.dart';
+import 'package:diohub/graphql/queries/users/__generated__/user_contributions.data.gql.dart';
+import 'package:diohub/graphql/queries/users/__generated__/user_contributions.req.gql.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_info.data.gql.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_info.req.gql.dart';
 import 'package:diohub/graphql/queries/viewer/__generated__/viewer.query.data.gql.dart';
@@ -11,7 +13,7 @@ import 'package:diohub/utils/type_cast.dart';
 class UserInfoService {
   UserInfoService(this.login);
 
-  static final GraphqlHandler _gqlHandler = GraphqlHandler();
+  static final GraphqlHandler _gqlHandler = GraphqlHandler(apiLogSettings: APILoggingSettings.comprehensive());
   final String login;
   static final RESTHandler _restHandler = RESTHandler();
 
@@ -116,5 +118,41 @@ class UserInfoService {
         ),
       );
     }
+  }
+
+  /// Fetches user contribution data with customizable date range.
+  ///
+  /// This query is separate from getUserInfoGraphQL to allow independent
+  /// updates of contribution data without refetching all user info.
+  ///
+  /// [from] and [to] are optional. If not provided, defaults to last year.
+  static Future<GuserContributionsData_user> getUserContributions(
+    final String login, {
+    final DateTime? from,
+    final DateTime? to,
+    final bool refreshCache = false,
+  }) async {
+    // Default to last year if not specified
+    final defaultTo = to ?? DateTime.now();
+    final defaultFrom = from ??
+        DateTime(
+          defaultTo.year - 1,
+          defaultTo.month,
+          defaultTo.day,
+        );
+
+    return GuserContributionsData.fromJson(
+      (await _gqlHandler.query(
+        GuserContributionsReq(
+          (final GuserContributionsReqBuilder b) => b
+            ..vars.user = login
+            ..vars.from = defaultFrom
+            ..vars.to = defaultTo,
+        ),
+        refreshCache: refreshCache,
+      ))
+          .data!,
+    )!
+        .user!;
   }
 }

@@ -73,6 +73,12 @@ query userInfo($user: String!) {
         repositories {
             totalCount
         }
+        pullRequests {
+            totalCount
+        }
+        issues {
+            totalCount
+        }
         pinnedItems(first: 6, types:[REPOSITORY,]){
             edges {
                 node {
