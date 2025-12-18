@@ -141,12 +141,13 @@ class FloatingActionToolbar extends StatefulWidget {
     this.prominentActionBuilder,
     this.bottomPadding = 0.0,
     this.title,
+    this.subtitle,
     this.debugLogging = false,
     this.enableMinimize = true,
     this.enableScrollMinimize = true,
     this.scrollMinimizeOffset = 200.0,
     this.scrollOffsetUntilMinimize = 150.0,
-    this.scrollOffsetUntilRestore = 150.0,
+    this.scrollOffsetUntilRestore = 100.0,
     this.scrollInitialOffset = 350.0,
     this.scrollNotificationNotifier,
     this.scrollMinimizeController,
@@ -196,6 +197,9 @@ class FloatingActionToolbar extends StatefulWidget {
 
   /// Title to display in expanded view (e.g., username on home, repo name on repo screen)
   final String? title;
+
+  /// Subtitle to display below the title in expanded view
+  final String? subtitle;
 
   /// Enable debug logging for positioning and state changes
   final bool debugLogging;
@@ -741,6 +745,7 @@ class _FloatingActionToolbarState extends State<FloatingActionToolbar>
                               expandAnimation: _expandAnimation,
                               toolbarKey: _toolbarKey,
                               title: widget.title,
+                              subtitle: widget.subtitle,
                               debugLogging: widget.debugLogging,
                             ),
                           ),

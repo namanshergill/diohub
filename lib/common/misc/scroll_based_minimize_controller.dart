@@ -64,6 +64,7 @@ class ScrollBasedMinimizeController extends ChangeNotifier {
   double? _currentScrollReverseOffset;
   double? _initialScrollForwardOffset;
   double? _initialScrollReverseOffset;
+  double? _lastScrollPosition;
   ScrollMinimizeState _state = ScrollMinimizeState.visible;
 
   /// Current state of scroll-based minimize behavior
@@ -99,6 +100,26 @@ class ScrollBasedMinimizeController extends ChangeNotifier {
 
     final pixels = metrics.pixels;
     final scrollDelta = notification.scrollDelta ?? 0.0;
+
+    // Detect large scroll position jumps (common in pagination when new content loads)
+    // If the position changed by more than the scroll delta, it's likely a jump
+    if (_lastScrollPosition != null) {
+      final positionChange = (pixels - _lastScrollPosition!).abs();
+      final expectedChange = scrollDelta.abs();
+      // If position changed significantly more than the delta, it's a jump
+      if (positionChange > expectedChange * 2 && expectedChange > 0) {
+        if (debugLogging && kDebugMode) {
+          print(
+              '[ScrollBasedMinimizeController] Detected scroll position jump (positionChange=$positionChange, expectedChange=$expectedChange), resetting tracking');
+        }
+        // Reset all tracking offsets on jump
+        _currentScrollForwardOffset = null;
+        _currentScrollReverseOffset = null;
+        _initialScrollForwardOffset = null;
+        _initialScrollReverseOffset = null;
+      }
+    }
+    _lastScrollPosition = pixels;
 
     // Determine scroll direction from scrollDelta
     // Positive delta = scrolling down, negative delta = scrolling up
@@ -136,6 +157,13 @@ class ScrollBasedMinimizeController extends ChangeNotifier {
   }
 
   void _handleScrollDown(double pixels) {
+    // Ignore scroll tracking if already minimized or minimizing (same direction)
+    // Allow tracking if restoring (opposite direction) - user might want to cancel restore
+    if (_state == ScrollMinimizeState.minimized ||
+        _state == ScrollMinimizeState.minimizing) {
+      return;
+    }
+
     // Reset reverse direction tracking when scrolling down
     _initialScrollReverseOffset = null;
     _currentScrollReverseOffset = null;
@@ -167,9 +195,8 @@ class ScrollBasedMinimizeController extends ChangeNotifier {
           '[ScrollBasedMinimizeController] Scrolling DOWN - tracking offset=${_currentScrollForwardOffset}, current=$pixels, delta=$delta, required=$scrollOffsetUntilMinimize');
     }
 
-    // Check if scrolled enough to minimize (with small tolerance for floating point precision)
-    const epsilon = 0.01;
-    if (delta >= scrollOffsetUntilMinimize - epsilon) {
+    // Check if scrolled enough to minimize
+    if (delta >= scrollOffsetUntilMinimize) {
       // Only transition if not already minimized or minimizing
       if (_state != ScrollMinimizeState.minimized &&
           _state != ScrollMinimizeState.minimizing) {
@@ -178,13 +205,21 @@ class ScrollBasedMinimizeController extends ChangeNotifier {
               '[ScrollBasedMinimizeController] Scrolled down enough (delta=$delta >= $scrollOffsetUntilMinimize), transitioning to minimizing');
         }
         _transitionToMinimizing();
+        // Reset forward tracking offset after transitioning to prevent continued delta growth
+        _currentScrollForwardOffset = null;
+        _initialScrollForwardOffset = null;
       }
-      _currentScrollReverseOffset = null;
-      _initialScrollReverseOffset = null;
     }
   }
 
   void _handleScrollUp(double pixels) {
+    // Ignore scroll tracking if already visible or restoring (same direction)
+    // Allow tracking if minimizing (opposite direction) - user might want to cancel minimize
+    if (_state == ScrollMinimizeState.visible ||
+        _state == ScrollMinimizeState.restoring) {
+      return;
+    }
+
     // Reset forward direction tracking when scrolling up
     _initialScrollForwardOffset = null;
     _currentScrollForwardOffset = null;
@@ -216,9 +251,8 @@ class ScrollBasedMinimizeController extends ChangeNotifier {
           '[ScrollBasedMinimizeController] Scrolling UP - tracking offset=${_currentScrollReverseOffset}, current=$pixels, delta=$delta, required=$scrollOffsetUntilRestore');
     }
 
-    // Check if scrolled enough to restore (with small tolerance for floating point precision)
-    const epsilon = 0.01;
-    if (delta >= scrollOffsetUntilRestore - epsilon) {
+    // Check if scrolled enough to restore
+    if (delta >= scrollOffsetUntilRestore) {
       // Only restore if currently minimized by scroll
       if (isMinimizedByScroll) {
         if (debugLogging && kDebugMode) {
@@ -226,14 +260,16 @@ class ScrollBasedMinimizeController extends ChangeNotifier {
               '[ScrollBasedMinimizeController] Scrolled up enough (delta=$delta >= $scrollOffsetUntilRestore), transitioning to restoring');
         }
         _transitionToRestoring();
+        // Note: _transitionToRestoring() already resets all offsets, so no need to reset here
       } else {
         if (debugLogging && kDebugMode) {
           print(
               '[ScrollBasedMinimizeController] Not minimized by scroll (state=$_state), skipping restore');
         }
+        // Reset tracking even if not restoring to prevent issues
+        _currentScrollReverseOffset = null;
+        _initialScrollReverseOffset = null;
       }
-      _currentScrollForwardOffset = null;
-      _initialScrollForwardOffset = null;
     }
   }
 
@@ -309,6 +345,7 @@ class ScrollBasedMinimizeController extends ChangeNotifier {
     _currentScrollReverseOffset = null;
     _initialScrollForwardOffset = null;
     _initialScrollReverseOffset = null;
+    _lastScrollPosition = null;
     _state = ScrollMinimizeState.visible;
     notifyListeners();
   }

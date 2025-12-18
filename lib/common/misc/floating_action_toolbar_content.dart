@@ -28,6 +28,7 @@ Widget buildToolbarContent({
   required Animation<double> expandAnimation,
   required GlobalKey toolbarKey,
   String? title,
+  String? subtitle,
   bool debugLogging = false,
 }) {
   // Automatically split actions by type:

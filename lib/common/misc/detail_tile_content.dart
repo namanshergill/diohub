@@ -250,3 +250,87 @@ class DetailTileRepository extends StatelessWidget {
   }
 }
 
+/// Linked issue/PR display for DetailTile
+class DetailTileLinkedIssue extends StatelessWidget {
+  const DetailTileLinkedIssue({
+    required this.title,
+    required this.number,
+    required this.repositoryName,
+    required this.repositoryOwner,
+    super.key,
+  });
+
+  final String title;
+  final int number;
+  final String repositoryName;
+  final String repositoryOwner;
+
+  @override
+  Widget build(BuildContext context) {
+    return DetailTileContent(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '#$number',
+                  style: (context.textTheme.bodyMedium ?? const TextStyle()).copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: ((context.textTheme.bodyMedium?.fontSize ?? 14) * 0.9),
+                    color: context.colorScheme.onSurface.withOpacity(0.9),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: (context.textTheme.bodySmall ?? const TextStyle()).copyWith(
+                    fontSize: ((context.textTheme.bodySmall?.fontSize ?? 12) * 0.9),
+                    color: context.colorScheme.onSurfaceVariant.withOpacity(0.8),
+                  ),
+                ),
+                if (repositoryOwner.isNotEmpty || repositoryName.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '$repositoryOwner/$repositoryName',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: (context.textTheme.bodySmall ?? const TextStyle()).copyWith(
+                      fontSize: ((context.textTheme.bodySmall?.fontSize ?? 12) * 0.85),
+                      color: context.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Multiple linked issues/PRs display for DetailTile
+class DetailTileLinkedIssuesStack extends StatelessWidget {
+  const DetailTileLinkedIssuesStack({
+    required this.totalCount,
+    super.key,
+  });
+
+  final int totalCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return DetailTileContent(
+      child: Text(
+        '$totalCount ${totalCount == 1 ? 'linked issue' : 'linked issues'}',
+      ),
+    );
+  }
+}
+

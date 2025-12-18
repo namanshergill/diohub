@@ -40,7 +40,7 @@ class ProfileCard extends StatelessWidget {
   Widget build(final BuildContext context) => InkPot(
         onTap: () async {
           await AutoRouter.of(context)
-              .push(OtherUserProfileRoute(login: user.login!));
+              .push(UserProfileRoute(login: user.login!));
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),

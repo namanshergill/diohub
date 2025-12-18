@@ -12,7 +12,6 @@ class DynamicScroll extends StatefulWidget {
     required this.body,
     this.bottom,
     this.pinnedWidget,
-    this.contentVersion,
     this.animationController,
     this.actions,
     this.expandedByDefault = false,
@@ -24,7 +23,6 @@ class DynamicScroll extends StatefulWidget {
   final Widget? bottom;
   final Widget? pinnedWidget;
   final Widget body;
-  final int? contentVersion;
   final AnimationController? animationController;
   final List<Widget>? actions;
   final bool expandedByDefault;

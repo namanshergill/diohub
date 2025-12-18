@@ -141,7 +141,7 @@ void navigateToProfile({
 }) =>
     unawaited(
       context.router.push(
-        OtherUserProfileRoute(login: login),
+        UserProfileRoute(login: login),
       ),
     );
 

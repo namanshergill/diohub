@@ -3,6 +3,7 @@ import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/misc/language_indicator.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
 import 'package:diohub/common/wrappers/api_wrapper_widget.dart';
+import 'package:diohub/models/repositories/repo_card_data_model.dart';
 import 'package:diohub/models/repositories/repository_model.dart';
 import 'package:diohub/routes/router.gr.dart';
 import 'package:diohub/services/repositories/repo_services.dart';
@@ -28,14 +29,16 @@ class RepositoryCard extends StatelessWidget {
     this.repo, {
     // this.isThemed = true,
     this.branch,
+    this.withBackground = false,
     // this.padding = const EdgeInsets.symmetric(vertical: 8),
     super.key,
   });
 
-  final RepositoryModel? repo;
+  final RepoCardDataModel? repo;
 
   // final bool isThemed;
   final String? branch;
+  final bool withBackground;
 
   // final EdgeInsets padding;
 
@@ -51,7 +54,7 @@ class RepositoryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               // Lock icon for private repos
-              if (repo!.private!)
+              if (repo!.private == true)
                 Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: Icon(
@@ -63,7 +66,7 @@ class RepositoryCard extends StatelessWidget {
               // Repository name
               Expanded(
                 child: Text(
-                  repo!.name!,
+                  repo!.name,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
 
@@ -74,7 +77,7 @@ class RepositoryCard extends StatelessWidget {
                 ),
               ),
               // Fork indicator
-              if (repo!.fork ?? false)
+              if (repo!.fork == true)
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -154,13 +157,21 @@ class RepositoryCard extends StatelessWidget {
         onTap: () async {
           await pushToRepo(context);
         },
-        child: repoUnthemedWidget(context),
+        backgroundColor: withBackground
+            ? context.colorScheme.surfaceContainerHigh
+            : null,
+        child: withBackground
+            ? Padding(
+                padding: const EdgeInsets.all(12),
+                child: repoUnthemedWidget(context),
+              )
+            : repoUnthemedWidget(context),
       );
 
   Future<void> pushToRepo(final BuildContext context) async {
     await AutoRouter.of(context).push(
       RepositoryRoute(
-        repositoryURL: repo!.url!,
+        repositoryURL: repo!.url,
         branch: branch,
       ),
     );
@@ -191,7 +202,10 @@ class RepoCardLoading extends StatelessWidget {
             RepositoryServices.fetchRepository(repoURL!, refresh: refresh),
         loadingBuilder: (final BuildContext context) => buildLoading(),
         builder: (final BuildContext context, final RepositoryModel repo) =>
-            RepositoryCard(repo, branch: branch),
+            RepositoryCard(
+          RepoCardDataModel.fromRepositoryModel(repo),
+          branch: branch,
+        ),
       );
 
   Widget buildLoading() => RepositoryCard.paddedBuilderData.applyPadding(
