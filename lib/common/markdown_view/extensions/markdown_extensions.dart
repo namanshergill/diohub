@@ -1,4 +1,3 @@
-import 'package:diohub/adapters/deep_linking_handler.dart' show isDeepLink;
 import 'package:diohub/common/bottom_sheet/url_actions.dart';
 import 'package:diohub/common/markdown_view/markdown_body.dart';
 import 'package:diohub/common/misc/code_block_view.dart';
@@ -164,6 +163,7 @@ class MyWidgetFactory extends WidgetFactory {
           final BuildTree tree,
         ) {
           final String link = tree.element.attributes['href'] ?? '';
+          print(link);
           if (link.startsWith('#')) {
             return InkPot(
               onTap: () async => fetchState()?.scrollToAnchor(
@@ -176,23 +176,9 @@ class MyWidgetFactory extends WidgetFactory {
             uri: Uri.parse(link),
           );
           return InkPot(
-            onTap: () async {
-              // Always try to open in-app first if it's a deep link
-              if (isDeepLink(link)) {
-                await urlActions.openInApp();
-              } else {
-                await urlActions.launchURL();
-              }
-            },
+            onTap: () async => urlActions.launchURL(),
             onLongPress: () async => urlActions.showMenu(context),
-            child: DefaultTextStyle.merge(
-              style: TextStyle(
-                color: context.colorScheme.primary,
-                decoration: TextDecoration.underline,
-                decorationColor: context.colorScheme.primary.withOpacity(0.5),
-              ),
-              child: child,
-            ),
+            child: child,
           );
         },
       )
@@ -200,29 +186,19 @@ class MyWidgetFactory extends WidgetFactory {
         tag: 'blockquote',
         newWidgetBuilder: (final BuildContext context, final Widget child,
                 final BuildTree tree) =>
-            Container(
+            DecoratedBox(
           decoration: BoxDecoration(
-            color: context.colorScheme.surfaceVariant.withOpacity(0.3),
+            // color: context.colorScheme.surface.,
             border: Border(
               left: BorderSide(
                 color: context.colorScheme.primary,
-                width: 3,
+                width: 2,
               ),
+
             ),
-            borderRadius: BorderRadius.circular(4),
           ),
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          padding: const EdgeInsets.only(
-            left: 12,
-            top: 8,
-            bottom: 8,
-            right: 8,
-          ),
-          child: DefaultTextStyle.merge(
-            style: TextStyle(
-              fontStyle: FontStyle.italic,
-              color: context.colorScheme.onSurfaceVariant,
-            ),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 8),
             child: child,
           ),
         ),
@@ -443,6 +419,28 @@ class _CodeViewState extends State<CodeView> {
 //   Widget get defaultChild => extensionContext.child;
 // }
 
+class _MarkdownExtension {
+  // _MarkdownExtension({
+  //   required this.tag,
+  //   this.child,
+  //   this.builder,
+  // }) : assert(
+  //         (child != null) || (builder != null),
+  //         'Either child or builder needs to be provided to TagExtension',
+  //       );
+  //
+  // final String tag;
+  // final Widget? child;
+  // final _ExtensionWidget Function(ExtensionContext extensionContext)? builder;
+  //
+  // TagExtension get extension => TagExtension(
+  //       tagsToExtend: <String>{
+  //         tag,
+  //       },
+  //       builder: builder,
+  //       child: child,
+  //     );
+}
 
 // class FixedTagWrap extends TagWrapExtension {
 //   FixedTagWrap({required super.tagsToWrap, required super.builder});
