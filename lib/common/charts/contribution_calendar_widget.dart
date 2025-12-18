@@ -54,6 +54,7 @@ class ContributionCalendarWidget extends StatelessWidget {
     this.legendColors,
     this.showLegend = true,
     this.legendLabels = const ['Less', 'More'],
+    this.shouldScroll = false,
     super.key,
   });
 
@@ -98,16 +99,24 @@ class ContributionCalendarWidget extends StatelessWidget {
   /// Labels for the legend (e.g., ['Less', 'More'])
   final List<String> legendLabels;
 
+  /// Whether the calendar should be horizontally scrollable
+  /// Set to true for multi-year ranges (>1 year)
+  final bool shouldScroll;
+
   @override
   Widget build(BuildContext context) {
-    debugPrint('[ContributionCalendarWidget] Building with ${weeks.length} weeks');
+    debugPrint(
+        '[ContributionCalendarWidget] Building with ${weeks.length} weeks');
     if (weeks.isNotEmpty) {
       final totalDays = weeks.fold<int>(0, (sum, week) => sum + week.length);
-      debugPrint('[ContributionCalendarWidget] Total days: $totalDays (${weeks.length} weeks × ~7 days)');
-      debugPrint('[ContributionCalendarWidget] First week: ${weeks.first.length} days, first day: ${weeks.first.first.date}');
-      debugPrint('[ContributionCalendarWidget] Last week: ${weeks.last.length} days, first day: ${weeks.last.first.date}');
+      debugPrint(
+          '[ContributionCalendarWidget] Total days: $totalDays (${weeks.length} weeks × ~7 days)');
+      debugPrint(
+          '[ContributionCalendarWidget] First week: ${weeks.first.length} days, first day: ${weeks.first.first.date}');
+      debugPrint(
+          '[ContributionCalendarWidget] Last week: ${weeks.last.length} days, first day: ${weeks.last.first.date}');
     }
-    
+
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -141,33 +150,59 @@ class ContributionCalendarWidget extends StatelessWidget {
                 child: _buildDayLabels(context),
               ),
 
-            // Scrollable calendar with month labels
+            // Calendar with month labels (scrollable only if shouldScroll is true)
             Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Month labels - scrolls with calendar
-                    if (showMonthLabels && months.isNotEmpty)
-                      SizedBox(
-                        height: monthLabelHeight,
-                        width: calendarWidth,
-                        child: _buildMonthLabels(context, months, weeks),
-                      ),
+              child: shouldScroll
+                  ? SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Year labels row (above month labels)
+                          if (showMonthLabels && months.isNotEmpty)
+                            SizedBox(
+                              height: 16.0,
+                              width: calendarWidth,
+                              child: _buildYearLabels(context, weeks),
+                            ),
+                          // Month labels - scrolls with calendar
+                          if (showMonthLabels && months.isNotEmpty)
+                            SizedBox(
+                              height: monthLabelHeight,
+                              width: calendarWidth,
+                              child: _buildMonthLabels(context, months, weeks),
+                            ),
 
-                    // Calendar grid
-                    SizedBox(
-                      width: calendarWidth,
-                      child: _buildCalendarGrid(
-                        context,
-                        defaultColors,
-                        colorScheme,
+                          // Calendar grid
+                          SizedBox(
+                            width: calendarWidth,
+                            child: _buildCalendarGrid(
+                              context,
+                              defaultColors,
+                              colorScheme,
+                            ),
+                          ),
+                        ],
                       ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Month labels - fits on screen (use simple Row layout)
+                        if (showMonthLabels && months.isNotEmpty)
+                          SizedBox(
+                            height: monthLabelHeight,
+                            child: _buildMonthLabelsSimple(context, months),
+                          ),
+
+                        // Calendar grid - fits on screen
+                        _buildCalendarGrid(
+                          context,
+                          defaultColors,
+                          colorScheme,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
@@ -179,6 +214,60 @@ class ContributionCalendarWidget extends StatelessWidget {
             child: _buildLegend(context, defaultColors, colorScheme),
           ),
       ],
+    );
+  }
+
+  /// Build year labels row (shown above month labels for multi-year calendars)
+  Widget _buildYearLabels(
+    BuildContext context,
+    List<List<ContributionDay>> weeks,
+  ) {
+    final theme = Theme.of(context);
+    final textStyle = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      fontSize: 9,
+      fontWeight: FontWeight.w500,
+    );
+
+    // Calculate year positions based on actual week positions
+    final weekWidth = cellSize + cellSpacing;
+    final yearPositions = <int, double>{};
+    int? lastYear;
+
+    // Track which year each week belongs to
+    for (int weekIndex = 0; weekIndex < weeks.length; weekIndex++) {
+      final week = weeks[weekIndex];
+      if (week.isEmpty) continue;
+
+      // Get the first day of the week to determine the year
+      final firstDay = week.first.date;
+      final year = firstDay.year;
+
+      // Only show year label when year changes
+      if (lastYear == null || year != lastYear) {
+        final weekX = weekIndex * weekWidth;
+        // Only set position if we haven't set it yet for this year
+        if (!yearPositions.containsKey(year)) {
+          yearPositions[year] = weekX;
+        }
+        lastYear = year;
+      }
+    }
+
+    // Build positioned year labels
+    return Stack(
+      children: yearPositions.entries.map((entry) {
+        final year = entry.key;
+        final x = entry.value;
+
+        return Positioned(
+          left: x,
+          child: Text(
+            year.toString(),
+            style: textStyle,
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -197,21 +286,21 @@ class ContributionCalendarWidget extends StatelessWidget {
     // Each week takes (cellSize + cellSpacing) width
     final weekWidth = cellSize + cellSpacing;
     final monthPositions = <DateTime, double>{};
-    
+
     // Track which month each week belongs to
     for (int weekIndex = 0; weekIndex < weeks.length; weekIndex++) {
       final week = weeks[weekIndex];
       if (week.isEmpty) continue;
-      
+
       // Get the first day of the week to determine the month
       final firstDay = week.first.date;
       final month = DateTime(firstDay.year, firstDay.month, 1);
-      
+
       // Calculate the x position of this week
       final weekX = weekIndex * weekWidth;
-      
+
       // Only set position if this is the first week of the month or if we haven't set it yet
-      if (!monthPositions.containsKey(month) || 
+      if (!monthPositions.containsKey(month) ||
           weekX < monthPositions[month]!) {
         monthPositions[month] = weekX;
       }
@@ -222,9 +311,33 @@ class ContributionCalendarWidget extends StatelessWidget {
       children: monthPositions.entries.map((entry) {
         final month = entry.key;
         final x = entry.value;
-        
+
         return Positioned(
           left: x,
+          child: Text(
+            DateFormat('MMM').format(month),
+            style: textStyle,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Build month labels for non-scrollable calendar (uses simple Row layout)
+  Widget _buildMonthLabelsSimple(
+    BuildContext context,
+    List<DateTime> months,
+  ) {
+    final theme = Theme.of(context);
+    final textStyle = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      fontSize: 10,
+    );
+
+    // Simple Row layout for single-year calendars
+    return Row(
+      children: months.map((month) {
+        return Expanded(
           child: Text(
             DateFormat('MMM').format(month),
             style: textStyle,
