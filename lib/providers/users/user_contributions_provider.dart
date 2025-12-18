@@ -143,6 +143,8 @@ CombinedContributionsData _combineResults(
     throw Exception('No results to combine');
   }
 
+  log.d('[_combineResults] Starting to combine ${results.length} year results');
+
   // Combine all weeks from all years, preserving the original week structure from API
   // Use a map to track days by date (YYYY-MM-DD) to handle duplicates at year boundaries
   final allDaysMap = <String, ContributionDay>{};
@@ -151,20 +153,30 @@ CombinedContributionsData _combineResults(
   final weekFirstDaysList = <String>[];
 
   // Collect all weeks and days from all year results
-  for (final result in results) {
+  for (int resultIndex = 0; resultIndex < results.length; resultIndex++) {
+    final result = results[resultIndex];
     final calendar = result.contributionsCollection.contributionCalendar;
     final weeks = calendar.weeks.whereType<
         GuserContributionsData_user_contributionsCollection_contributionCalendar_weeks>();
 
-    for (final week in weeks) {
+    log.d('[_combineResults] Result $resultIndex: Found ${weeks.length} weeks');
+
+    for (int weekIndex = 0; weekIndex < weeks.length; weekIndex++) {
+      final week = weeks.elementAt(weekIndex);
+      
       // Get the first day of the week from the API (more reliable than using contributionDays.first)
       final firstDayDate = DateTime.parse(week.firstDay.toString());
       final firstDayKey = '${firstDayDate.year}-${firstDayDate.month.toString().padLeft(2, '0')}-${firstDayDate.day.toString().padLeft(2, '0')}';
+      
+      log.d('[_combineResults] Result $resultIndex, Week $weekIndex: firstDay=$firstDayKey, days=${week.contributionDays.length}');
       
       // Track unique week first days (use set for O(1) lookup, list for ordered output)
       if (!weekFirstDaysSet.contains(firstDayKey)) {
         weekFirstDaysSet.add(firstDayKey);
         weekFirstDaysList.add(firstDayKey);
+        log.d('[_combineResults] Added new week: $firstDayKey (total unique weeks: ${weekFirstDaysList.length})');
+      } else {
+        log.d('[_combineResults] Skipped duplicate week: $firstDayKey');
       }
 
       // Collect all days from this week
@@ -186,13 +198,18 @@ CombinedContributionsData _combineResults(
     }
   }
 
+  log.d('[_combineResults] Collected ${allDaysMap.length} unique days');
+  log.d('[_combineResults] Collected ${weekFirstDaysList.length} unique week first days');
+
   // Sort week first days chronologically
   weekFirstDaysList.sort((a, b) => a.compareTo(b));
+  log.d('[_combineResults] Sorted weeks. First week: ${weekFirstDaysList.firstOrNull}, Last week: ${weekFirstDaysList.lastOrNull}');
 
   // Reconstruct weeks preserving the original structure
   // Each week from API starts on the first day and has 7 days
   final allWeeks = <List<ContributionDay>>[];
-  for (final firstDayKey in weekFirstDaysList) {
+  for (int weekIndex = 0; weekIndex < weekFirstDaysList.length; weekIndex++) {
+    final firstDayKey = weekFirstDaysList[weekIndex];
     final firstDayDate = DateTime.parse(firstDayKey);
     final week = <ContributionDay>[];
     
@@ -213,7 +230,13 @@ CombinedContributionsData _combineResults(
     }
     
     allWeeks.add(week);
+    
+    if (weekIndex < 3 || weekIndex >= weekFirstDaysList.length - 3) {
+      log.d('[_combineResults] Reconstructed week $weekIndex: firstDay=$firstDayKey, days=${week.length}');
+    }
   }
+
+  log.d('[_combineResults] Final result: ${allWeeks.length} weeks, ${allDaysMap.length} unique days');
 
   // Combine repositories (merge by repository URL, sum contributions)
   final repoMap = <String, ContributedRepository>{};
