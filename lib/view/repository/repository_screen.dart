@@ -5,6 +5,7 @@ import 'package:diohub/common/misc/collapsible_action_buttons.dart';
 import 'package:diohub/common/misc/collapsible_app_bar.dart';
 import 'package:diohub/common/misc/action_card_builder.dart';
 import 'package:diohub/common/misc/floating_action_toolbar.dart';
+import 'package:diohub/common/misc/floating_toolbar_wrapper.dart';
 import 'package:diohub/common/misc/animated_tab_bar.dart';
 import 'package:diohub/common/misc/deep_link_widget.dart';
 import 'package:diohub/common/misc/scaffold_body.dart';
@@ -212,54 +213,16 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                   final repo = value.data;
                   return ThemeFromImage(
                     builder: (context) => SizedBox.expand(
-                      child: Stack(
-                        children: [
-                          SafeArea(
-                            child: DynamicTabsParent(
-                              controller: tabController,
-                              builder: (
-                                final BuildContext context,
-                                final PreferredSizeWidget tabs,
-                                final Widget tabView,
-                              ) =>
-                                  DynamicScroll(
-                                contentVersion: 0,
-                                animationController: _expandAnimationController,
-                                collapsedWidget:
-                                    buildCollapsedHeader(context, repo),
-                                expandedWidget: buildExpandedHeader(
-                                  context,
-                                  repo,
-                                  tabController.activeIdentifierNotifier,
-                                  tabController,
-                                  _expandAnimationController,
-                                ),
-                                pinnedWidget: null,
-                                actions: <Widget>[
-                                  ShareButton(repo.url.toString())
-                                ],
-                                bottom: AnimatedTabBar(
-                                  showTabBar: tabController.activeLength > 1,
-                                  tabBar: tabs,
-                                  defaultPadding:
-                                      const EdgeInsets.only(bottom: 8),
-                                  topSpacing: 4.0,
-                                ),
-                                body: loading
-                                    ? const Center(
-                                        child: CircularProgressIndicator())
-                                    : tabView,
-                              ),
-                            ),
-                          ),
-                          ValueListenableBuilder<String>(
+                      child: FloatingToolbarWrapper(
+                        toolbarBuilder: (scrollNotificationNotifier) {
+                          return ValueListenableBuilder<String>(
                             valueListenable:
                                 tabController.activeIdentifierNotifier,
                             builder: (context, currentTab, _) {
                               final tabState = _getTabState(currentTab);
                               return FloatingActionToolbar(
                                 key: const ValueKey('repository_toolbar'),
-                                debugLogging: true,
+                                // debugLogging: true,
                                 actions:
                                     _buildAllActions(context, repo, tabState),
                                 actionCardBuilder: buildStandardActionCard,
@@ -268,6 +231,8 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                                     horizontal: 16, vertical: 12),
                                 bottomPadding: 0.0,
                                 title: repo.name,
+                                scrollNotificationNotifier:
+                                    scrollNotificationNotifier,
                                 onExpandChanged: (isExpanded) {
                                   if (isExpanded) {
                                     _expandAnimationController.forward();
@@ -277,8 +242,46 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                                 },
                               );
                             },
+                          );
+                        },
+                        child: SafeArea(
+                          child: DynamicTabsParent(
+                            controller: tabController,
+                            builder: (
+                              final BuildContext context,
+                              final PreferredSizeWidget tabs,
+                              final Widget tabView,
+                            ) =>
+                                DynamicScroll(
+                              contentVersion: 0,
+                              animationController: _expandAnimationController,
+                              collapsedWidget:
+                                  buildCollapsedHeader(context, repo),
+                              expandedWidget: buildExpandedHeader(
+                                context,
+                                repo,
+                                tabController.activeIdentifierNotifier,
+                                tabController,
+                                _expandAnimationController,
+                              ),
+                              pinnedWidget: null,
+                              actions: <Widget>[
+                                ShareButton(repo.url.toString())
+                              ],
+                              bottom: AnimatedTabBar(
+                                showTabBar: tabController.activeLength > 1,
+                                tabBar: tabs,
+                                defaultPadding:
+                                    const EdgeInsets.only(bottom: 8),
+                                topSpacing: 4.0,
+                              ),
+                              body: loading
+                                  ? const Center(
+                                      child: CircularProgressIndicator())
+                                  : tabView,
+                            ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   );

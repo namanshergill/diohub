@@ -56,7 +56,7 @@ class IssuesTabState extends State<IssuesTab>
         SearchQueries().mentions.toQueryString(user.login): 'Mentioned',
       },
       quickOptions: <String, String>{
-        SearchQueries().iS.toQueryString('open'): 'Open issues only',
+        SearchQueries().iS.toQueryString('open'): 'Open Only',
       },
       searchBarMessage: 'Search in your issues',
       searchHeroTag: '${user.login}issueSearch',

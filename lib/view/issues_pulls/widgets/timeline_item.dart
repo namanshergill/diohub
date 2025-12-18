@@ -97,7 +97,7 @@ class TimelineItem extends StatelessWidget {
               toRepoAPIResource(
                 item.url.toString(),
               ),
-              padding: EdgeInsets.zero,
+              // padding: EdgeInsets.zero,
             ),
           final GunmarkedAsDuplicate_canonical__asPullRequest item =>
             PullLoadingCard(
@@ -293,7 +293,7 @@ class TimelineItem extends StatelessWidget {
               toRepoAPIResource(
                 p0.url.toString(),
               ),
-              padding: EdgeInsets.zero,
+              // padding: EdgeInsets.zero,
             ),
             pullRequest:
                 (final GmarkedAsDuplicate_canonical__asPullRequest p0) =>
@@ -458,7 +458,7 @@ class TimelineItem extends StatelessWidget {
               switch (item.source.G__typename) {
             'Issue' => IssueLoadingCard(
                 toRepoAPIResource((item.source as dynamic).url.toString()),
-                padding: EdgeInsets.zero,
+                // padding: EdgeInsets.zero,
               ),
             'PullRequest' => PullLoadingCard(
                 toRepoAPIResource(

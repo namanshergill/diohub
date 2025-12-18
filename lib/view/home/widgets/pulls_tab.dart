@@ -54,10 +54,10 @@ class PullsTabState extends State<PullsTab> with AutomaticKeepAliveClientMixin {
         SearchQueries().mentions.toQueryString(user.login): 'Mentioned',
       },
       quickOptions: <String, String>{
-        SearchQueries().iS.toQueryString('open'): 'Open pull requests only',
+        SearchQueries().iS.toQueryString('open'): 'Open Only',
       },
       searchBarMessage: 'Search in your pull requests',
-      searchHeroTag: '${user.login}issueSearch',
+      searchHeroTag: '${user.login}prSearch',
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       key: widget.searchWrapperKey,
       onButtonDataReady: widget.onButtonDataReady,
