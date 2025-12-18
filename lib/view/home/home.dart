@@ -182,34 +182,25 @@ class HomeScreenState extends State<HomeScreen>
                   // Build all actions in a single list - they'll be automatically split by type
                   final List<ActionButtonData> allActions = [];
 
-                  // New Issue button - prominent action
-                  allActions.add(
-                    MajorActionButton(
-                      icon: Octicons.plus,
-                      label: 'New Issue',
-                      category: 'Actions',
-                      isPositive: true,
-                      visibilityState: isIssuesTab
-                          ? ActionButtonVisibilityState.both
-                          : ActionButtonVisibilityState.none,
-                      onTap: () {
-                        // TODO: Navigate to create issue screen
-                      },
-                    ),
-                  );
-
                   // Search bar as major action - always include, use visibilityState
                   allActions.add(
                     MinorActionButton(
                       icon: Icons.search_rounded,
                       label: 'Search',
-                      category: 'Actions',
                       onTap: () async {
                         if (searchWrapperState != null) {
                           await AutoRouter.of(context).push(
-                            SearchRoute(
-                              initialSearchData:
-                                  searchWrapperState.currentSearchData,
+                            SearchOverlayRoute(
+                              message: searchWrapperState.searchBarMessage ??
+                                  (isIssuesTab
+                                      ? 'Search in your issues'
+                                      : 'Search in your pull requests'),
+                              multiHero: true,
+                              searchData: searchWrapperState.currentSearchData,
+                              heroTag: searchWrapperState.searchHeroTag,
+                              onSubmit: (final SearchData data) {
+                                searchWrapperState.updateSearchData(data);
+                              },
                             ),
                           );
                         }
@@ -235,7 +226,6 @@ class HomeScreenState extends State<HomeScreen>
                     ExpandableActionButton(
                       icon: Icons.filter_list_rounded,
                       label: 'Quick Filters',
-                      category: 'Actions',
                       subtitle: activeFilter, // Show active filter as subtitle
                       expandableWidgetBuilder: (onCollapse) {
                         if (searchWrapperState == null ||
@@ -272,7 +262,6 @@ class HomeScreenState extends State<HomeScreen>
                     ExpandableActionButton(
                       icon: Icons.sort_rounded,
                       label: 'Sort',
-                      category: 'Actions',
                       subtitle: sortSubtitle, // Show active sort as subtitle
                       expandableWidgetBuilder: (onCollapse) {
                         if (searchWrapperState == null) {
@@ -357,23 +346,11 @@ class HomeScreenState extends State<HomeScreen>
                     );
                   }
 
-                  // Minor actions (will appear in the row) - organized by category
+                  // Minor actions (will appear in the row)
                   allActions.addAll([
-                    // Primary - always visible in collapsed state
-                    MinorActionButton(
-                      icon: Octicons.pulse,
-                      label: 'Events',
-                      category: 'Primary',
-                      actionType: ActionButtonActionType.tab,
-                      visibilityState: currentTab == 'Events'
-                          ? ActionButtonVisibilityState.none
-                          : ActionButtonVisibilityState.both,
-                      onTap: () => tabsController.openTab('Events'),
-                    ),
                     MinorActionButton(
                       icon: Octicons.issue_opened,
                       label: 'Issues',
-                      category: 'Primary',
                       trailing: buildActionButtonTrailingCount(
                         context,
                         context.viewer.issues.totalCount,
@@ -387,7 +364,6 @@ class HomeScreenState extends State<HomeScreen>
                     MinorActionButton(
                       icon: Octicons.git_pull_request,
                       label: 'Pull Requests',
-                      category: 'Primary',
                       trailing: buildActionButtonTrailingCount(
                         context,
                         context.viewer.pullRequests.totalCount,
@@ -399,20 +375,15 @@ class HomeScreenState extends State<HomeScreen>
                       onTap: () => tabsController.openTab('Pulls'),
                     ),
                     MinorActionButton(
-                      icon: Octicons.person,
-                      label: 'Profile',
-                      category: 'Primary',
-                      actionType: ActionButtonActionType.navigation,
-                      visibilityState: ActionButtonVisibilityState.expandedOnly,
-                      onTap: () => AutoRouter.of(context).push(
-                        UserProfileRoute(login: context.viewer.login),
-                      ),
+                      icon: Icons.settings_rounded,
+                      label: 'App Settings',
+                      onTap: () {
+                        // Navigate to settings
+                      },
                     ),
-                    // Content - visible in expanded state only
                     MinorActionButton(
                       icon: Octicons.organization,
                       label: 'Organizations',
-                      category: 'Content',
                       trailing: buildActionButtonTrailingCount(
                         context,
                         context.viewer.organizations.totalCount,
@@ -426,7 +397,6 @@ class HomeScreenState extends State<HomeScreen>
                     MinorActionButton(
                       icon: Octicons.repo,
                       label: 'Repositories',
-                      category: 'Content',
                       trailing: buildActionButtonTrailingCount(
                         context,
                         context.viewer.repositories.totalCount,
@@ -436,16 +406,6 @@ class HomeScreenState extends State<HomeScreen>
                           : ActionButtonVisibilityState.expandedOnly,
                       onTap: () {
                         // tabsController.openTab('repos');
-                      },
-                    ),
-                    // Settings - visible in expanded state only
-                    MinorActionButton(
-                      icon: Icons.settings_rounded,
-                      label: 'App Settings',
-                      category: 'Settings',
-                      visibilityState: ActionButtonVisibilityState.expandedOnly,
-                      onTap: () {
-                        // Navigate to settings
                       },
                     ),
                   ]);
@@ -550,7 +510,9 @@ class HomeScreenState extends State<HomeScreen>
                 width: 8,
               ),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () async {
+                  await AutoRouter.of(context).push(const SearchRoute());
+                },
                 child: const Icon(
                   Icons.search_rounded,
                 ),

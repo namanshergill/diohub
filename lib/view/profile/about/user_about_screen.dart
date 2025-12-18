@@ -65,17 +65,23 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
 
     // Fetch contributions data using Riverpod with stable string key
     // Key only changes when year changes, preventing unnecessary rebuilds
+    final providerKey = _getProviderKey();
+    debugPrint('[UserAboutScreen] Provider key: $providerKey');
+    
     final contributionsAsync = ref.watch(
-      userContributionsProvider(_getProviderKey()),
+      userContributionsProvider(providerKey),
     );
 
     // Build contribution widgets based on async state
     final contributionWidgets = contributionsAsync.when(
       data: (contributionsData) {
+        debugPrint('[UserAboutScreen] Received data, type: ${contributionsData.runtimeType}');
+        
         // Handle both single-year (GuserContributionsData_user) and multi-year (CombinedContributionsData)
         if (contributionsData is CombinedContributionsData) {
           // Multi-year combined data - use directly, no need for extraction
           final combined = contributionsData;
+          debugPrint('[UserAboutScreen] CombinedContributionsData: ${combined.weeks.length} weeks, ${combined.totalContributions} contributions');
 
           return <Widget>[
             // Animated calendar section with fade-in
@@ -155,11 +161,14 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
           // Single-year data
           final contributionsCollection =
               contributionsData.contributionsCollection;
+          final rawWeeks = contributionsCollection.contributionCalendar.weeks;
+          debugPrint('[UserAboutScreen] GuserContributionsData_user: ${rawWeeks.length} raw weeks, ${contributionsCollection.contributionCalendar.totalContributions} contributions');
 
           // Contribution Calendar Section
           final weeks = ContributionDataConverter.convertWeeks(
             contributionsCollection.contributionCalendar.weeks.toList(),
           );
+          debugPrint('[UserAboutScreen] Converted to ${weeks.length} weeks for calendar');
           final colors = ContributionDataConverter.convertColors(
             contributionsCollection.contributionCalendar.colors.toList(),
           );
