@@ -7,6 +7,7 @@ import 'package:diohub/graphql/queries/repositories/__generated__/branches_list.
 import 'package:diohub/graphql/queries/repositories/__generated__/branches_list.req.gql.dart';
 import 'package:diohub/graphql/queries/repositories/__generated__/commit_info.data.gql.dart';
 import 'package:diohub/graphql/queries/repositories/__generated__/commit_info.req.gql.dart';
+import 'package:diohub/graphql/__generated__/schema.schema.gql.dart';
 import 'package:diohub/graphql/queries/repositories/__generated__/commits_list.data.gql.dart';
 import 'package:diohub/graphql/queries/repositories/__generated__/commits_list.req.gql.dart';
 import 'package:diohub/graphql/queries/repositories/__generated__/repo_info.data.gql.dart';
@@ -227,103 +228,112 @@ class RepositoryServices {
   }
 
   // Get paginated commits list using GraphQL
-  // static Future<
-  //     ({
-  //       List<
-  //           GcommitsListData_repository_defaultBranchRef_target__asCommit_history_edges?> edges,
-  //       bool hasNextPage,
-  //       String? endCursor,
-  //     })> getCommitsListGQL({
-  //   required final String owner,
-  //   required final String repo,
-  //   required final int first,
-  //   final String? after,
-  //   final String? path,
-  //   final String? ref,
-  //   final String? oid,
-  //   final String? authorEmail,
-  //   final bool refresh = false,
-  // }) async {
-  //   // Determine which query to use
-  //   if (oid != null) {
-  //     final GQLResponse response = await _gqlHandler.query(
-  //       GcommitsListByOidReq(
-  //         (final GcommitsListByOidReqBuilder b) => b
-  //           ..vars.owner = owner
-  //           ..vars.repo = repo
-  //           ..vars.oid = oid
-  //           ..vars.first = first
-  //           ..vars.after = after
-  //           ..vars.path = path
-  //           ..vars.author = authorEmail != null
-  //               ? (GcommitAuthorBuilder()..email = authorEmail)
-  //               : null,
-  //       ),
-  //       refreshCache: refresh,
-  //     );
-  //     final data = GcommitsListByOidData.fromJson(response.data!)!.repository!;
-  //     final commit = data.object!.when(
-  //       commit: (c) => c,
-  //       orElse: () => throw Exception('Object is not a Commit'),
-  //     );
-  //     return (
-  //       edges: commit.history.edges!.toList(),
-  //       hasNextPage: commit.history.pageInfo.hasNextPage,
-  //       endCursor: commit.history.pageInfo.endCursor,
-  //     );
-  //   } else if (ref != null) {
-  //     final GQLResponse response = await _gqlHandler.query(
-  //       GcommitsListByRefReq(
-  //         (final GcommitsListByRefReqBuilder b) => b
-  //           ..vars.owner = owner
-  //           ..vars.repo = repo
-  //           ..vars.ref = ref
-  //           ..vars.first = first
-  //           ..vars.after = after
-  //           ..vars.path = path
-  //           ..vars.author = authorEmail != null
-  //               ? (GcommitAuthorBuilder()..email = authorEmail)
-  //               : null,
-  //       ),
-  //       refreshCache: refresh,
-  //     );
-  //     final data = GcommitsListByRefData.fromJson(response.data!)!.repository!;
-  //     final commit = data.ref!.target!.when(
-  //       commit: (c) => c,
-  //       orElse: () => throw Exception('Target is not a Commit'),
-  //     );
-  //     return (
-  //       edges: commit.history.edges!.toList(),
-  //       hasNextPage: commit.history.pageInfo.hasNextPage,
-  //       endCursor: commit.history.pageInfo.endCursor,
-  //     );
-  //   } else {
-  //     final GQLResponse response = await _gqlHandler.query(
-  //       GcommitsListReq(
-  //         (final GcommitsListReqBuilder b) => b
-  //           ..vars.owner = owner
-  //           ..vars.repo = repo
-  //           ..vars.first = first
-  //           ..vars.after = after
-  //           ..vars.path = path
-  //           ..vars.author = authorEmail != null
-  //               ? (GcommitAuthorBuilder()..email = authorEmail)
-  //               : null,
-  //       ),
-  //       refreshCache: refresh,
-  //     );
-  //     final data = GcommitsListData.fromJson(response.data!)!.repository!;
-  //     final commit = data.defaultBranchRef!.target!.when(
-  //       commit: (c) => c,
-  //       orElse: () => throw Exception('Target is not a Commit'),
-  //     );
-  //     return (
-  //       edges: commit.history.edges!.toList(),
-  //       hasNextPage: commit.history.pageInfo.hasNextPage,
-  //       endCursor: commit.history.pageInfo.endCursor,
-  //     );
-  //   }
-  // }
+  // Returns commit history connection with edges and pageInfo
+  // Use ref for branch/ref, oid for specific commit, or neither for default branch
+  static Future<GcommitHistoryConnection> getCommitsListGQL({
+    required final String owner,
+    required final String repo,
+    required final int first,
+    final String? after,
+    final String? path,
+    final String? ref,
+    final String? oid,
+    final String? author,
+    final bool refresh = false,
+  }) async {
+    // Build author filter if provided
+    GCommitAuthor? authorFilter;
+    if (author != null) {
+      authorFilter = GCommitAuthor(
+          (authorBuilder) => authorBuilder..emails.replace([author]));
+    }
+
+    // Determine which query to use based on parameters
+    if (oid != null) {
+      // Use commitsListByOid for specific commit OID
+      final GQLResponse response = await _gqlHandler.query(
+        GcommitsListByOidReq(
+          (final GcommitsListByOidReqBuilder b) {
+            b
+              ..vars.owner = owner
+              ..vars.repo = repo
+              ..vars.oid = oid
+              ..vars.first = first
+              ..vars.after = after
+              ..vars.path = path;
+            if (authorFilter != null) {
+              b.vars.author.replace(authorFilter);
+            }
+          },
+        ),
+        refreshCache: refresh,
+      );
+      final data = GcommitsListByOidData.fromJson(response.data!)!.repository!;
+      if (data.object == null) {
+        throw Exception('Commit not found');
+      }
+      final commit = data.object!.when(
+        commit: (c) => c,
+        orElse: () => throw Exception('Object is not a Commit'),
+      );
+      return commit.history;
+    } else if (ref != null) {
+      // Use commitsListByRef for specific branch/ref
+      final GQLResponse response = await _gqlHandler.query(
+        GcommitsListByRefReq(
+          (final GcommitsListByRefReqBuilder b) {
+            b
+              ..vars.owner = owner
+              ..vars.repo = repo
+              ..vars.ref = ref
+              ..vars.first = first
+              ..vars.after = after
+              ..vars.path = path;
+            if (authorFilter != null) {
+              b.vars.author.replace(authorFilter);
+            }
+          },
+        ),
+        refreshCache: refresh,
+      );
+      final data = GcommitsListByRefData.fromJson(response.data!)!.repository!;
+      if (data.ref?.target == null) {
+        throw Exception('Ref not found');
+      }
+      final commit = data.ref!.target!.when(
+        commit: (c) => c,
+        orElse: () => throw Exception('Target is not a Commit'),
+      );
+      return commit.history;
+    } else {
+      // Use commitsList for default branch
+      final GQLResponse response = await _gqlHandler.query(
+        GcommitsListReq(
+          (final GcommitsListReqBuilder b) {
+            b
+              ..vars.owner = owner
+              ..vars.repo = repo
+              ..vars.first = first
+              ..vars.after = after
+              ..vars.path = path;
+            if (authorFilter != null) {
+              b.vars.author.replace(authorFilter);
+            }
+          },
+        ),
+        refreshCache: refresh,
+      );
+      final data = GcommitsListData.fromJson(response.data!)!.repository!;
+      if (data.defaultBranchRef?.target == null) {
+        throw Exception('Repository has no default branch');
+      }
+      final commit = data.defaultBranchRef!.target!.when(
+        commit: (c) => c,
+        orElse: () => throw Exception('Target is not a Commit'),
+      );
+      return commit.history;
+    }
+  }
 
   // Get commit info using GraphQL
   static Future<GcommitInfoData_repository_object__asCommit> getCommitInfo({
