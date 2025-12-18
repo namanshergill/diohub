@@ -133,11 +133,6 @@ class MarkdownBodyState extends State<MarkdownBody> {
         // Extract level from tag name (h1 = 1, h2 = 2, etc.)
         final level = int.parse(headingElement.localName!.substring(1));
 
-        print(
-            '[MarkdownBody] Extracted heading: text="$text", id="$id", level=$level');
-        print(
-            '[MarkdownBody] Heading element attributes: ${headingElement.attributes}');
-
         headings.add((text: text, id: id, level: level));
       }
     }
@@ -183,38 +178,16 @@ class MarkdownBodyState extends State<MarkdownBody> {
   HtmlWidgetState? get currentMarkdownState => htmlWidgetKey.currentState;
 
   void scrollToAnchor(String anchorId) {
-    print('[MarkdownBodyState] ====== scrollToAnchor CALLED ======');
-    print('[MarkdownBodyState] anchorId: "$anchorId"');
-    print('[MarkdownBodyState] htmlWidgetKey: ${htmlWidgetKey.toString()}');
-    print(
-        '[MarkdownBodyState] currentMarkdownState (HtmlWidgetState) is ${currentMarkdownState != null ? "not null" : "null"}');
     if (currentMarkdownState != null) {
-      print('[MarkdownBodyState] ✓ HtmlWidgetState found');
-      print(
-          '[MarkdownBodyState] HtmlWidgetState type: ${currentMarkdownState.runtimeType}');
-      print(
-          '[MarkdownBodyState] Calling currentMarkdownState.scrollToAnchor("$anchorId")');
       try {
         currentMarkdownState!.scrollToAnchor(anchorId);
-        print(
-            '[MarkdownBodyState] ✓ scrollToAnchor call to HtmlWidgetState completed successfully');
-      } catch (e, stackTrace) {
-        print('[MarkdownBodyState] ✗ ERROR calling scrollToAnchor: $e');
-        print('[MarkdownBodyState] Stack trace: $stackTrace');
+      } catch (e) {
+        // Silently handle scroll errors
       }
-    } else {
-      print(
-          '[MarkdownBodyState] ✗ ERROR: currentMarkdownState is null, cannot scroll');
-      print(
-          '[MarkdownBodyState] This means HtmlWidget may not be mounted yet or htmlWidgetKey is not attached');
     }
     // Also call callback if provided
     if (_scrollCallback != null) {
-      print(
-          '[MarkdownBodyState] Calling _scrollCallback with anchorId: "$anchorId"');
       _scrollCallback!.call(anchorId);
-    } else {
-      print('[MarkdownBodyState] No _scrollCallback provided');
     }
   }
 
@@ -241,22 +214,58 @@ class MarkdownBodyState extends State<MarkdownBody> {
             const LoadingIndicator(),
 
         customStylesBuilder: (final dom.Element element) {
-          // print(element.localName);
           return switch (element.localName) {
+            'p' => <String, String>{
+                'margin': '0 0 16px 0',
+                'line-height': '1.6',
+              },
+            'h1' => <String, String>{
+                'margin': '24px 0 16px 0',
+                'font-size': '2em',
+                'font-weight': '700',
+              },
+            'h2' => <String, String>{
+                'margin': '20px 0 12px 0',
+                'font-size': '1.5em',
+                'font-weight': '600',
+              },
+            'h3' => <String, String>{
+                'margin': '16px 0 10px 0',
+                'font-size': '1.25em',
+                'font-weight': '600',
+              },
+            'h4' => <String, String>{
+                'margin': '14px 0 8px 0',
+                'font-size': '1.1em',
+                'font-weight': '600',
+              },
+            'h5' => <String, String>{
+                'margin': '12px 0 6px 0',
+                'font-size': '1em',
+                'font-weight': '600',
+              },
+            'h6' => <String, String>{
+                'margin': '10px 0 4px 0',
+                'font-size': '0.9em',
+                'font-weight': '600',
+              },
             'a' => <String, String>{
                 'text-decoration': 'none',
               },
             'blockquote' => <String, String>{
                 'margin': '0',
-                // 'padding': '0',
               },
-            'ol' => {
-                'margin': '16',
-                // 'padding': '16',
+            'ol' => <String, String>{
+                'margin': '8px 0',
+                'padding-left': '24px',
               },
-            'ul' => {
-                'margin': '16',
-                // 'padding': '16',
+            'ul' => <String, String>{
+                'margin': '8px 0',
+                'padding-left': '24px',
+              },
+            'li' => <String, String>{
+                'margin': '4px 0',
+                'line-height': '1.6',
               },
             _ => null,
           };
@@ -303,27 +312,65 @@ class MarkdownBodyState extends State<MarkdownBody> {
       );
     }
     if (src.split('.').last.contains('svg')) {
-      return SvgPicture.network(
-        src,
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.all(4),
-      child: ImageLoader(
-        src,
-        height: double.tryParse(
-          element.attributes['height'] ?? '',
-        ),
-        width: double.tryParse(
-          element.attributes['width'] ?? '',
-        ),
-        // Some SVGs don't have svg in their URL so will miss the
-        // if check above. They will fail in the image loader
-        // so will build here.
-        errorBuilder: (final BuildContext context) => SvgPicture.network(
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: SvgPicture.network(
           src,
         ),
-      ),
+      );
+    }
+    return Builder(
+      builder: (final BuildContext context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width - 16,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: ImageLoader(
+                src,
+                height: double.tryParse(
+                  element.attributes['height'] ?? '',
+                ),
+                width: double.tryParse(
+                  element.attributes['width'] ?? '',
+                ),
+                // Some SVGs don't have svg in their URL so will miss the
+                // if check above. They will fail in the image loader
+                // so will build here.
+                errorBuilder: (final BuildContext context) => Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceVariant,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.broken_image,
+                        color: colorScheme.onSurfaceVariant,
+                        size: 32,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Failed to load image',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
