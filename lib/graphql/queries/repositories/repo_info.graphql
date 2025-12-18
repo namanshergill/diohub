@@ -84,6 +84,16 @@ query repositoryInfo($owner: String!, $name: String!) {
     # Code
     defaultBranchRef {
       name
+      target {
+        __typename
+        ... on Commit {
+          oid
+          abbreviatedOid
+          commitUrl
+          url
+          committedDate
+        }
+      }
     }
     primaryLanguage {
       name
@@ -175,6 +185,38 @@ query repositoryInfo($owner: String!, $name: String!) {
       }
     }
     
+
+    refs(
+      first: 10
+      refPrefix: "refs/heads/"
+    ) {
+      edges {
+        cursor
+        node {
+          name
+          id
+          target {
+            __typename
+            ... on Commit {
+              oid
+              abbreviatedOid
+              commitUrl
+              url
+              committedDate
+            }
+          }
+          branchProtectionRule {
+            isAdminEnforced
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  
+
     # Issue templates
     issueTemplates {
       name

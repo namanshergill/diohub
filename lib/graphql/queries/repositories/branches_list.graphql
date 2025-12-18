@@ -1,8 +1,9 @@
-query branchesList($owner: String!, $repo: String!, $first: Int!, $after: String) {
+query branchesList($owner: String!, $repo: String!, $first: Int!, $after: String, $query: String) {
   repository(name: $repo, owner: $owner) {
     refs(
       first: $first
       after: $after
+      query: $query
       refPrefix: "refs/heads/"
       orderBy: {field: ALPHABETICAL, direction: ASC}
     ) {
@@ -12,11 +13,13 @@ query branchesList($owner: String!, $repo: String!, $first: Int!, $after: String
           name
           id
           target {
+            __typename
             ... on Commit {
               oid
               abbreviatedOid
               commitUrl
               url
+              committedDate
             }
           }
           branchProtectionRule {
@@ -31,3 +34,4 @@ query branchesList($owner: String!, $repo: String!, $first: Int!, $after: String
     }
   }
 }
+
