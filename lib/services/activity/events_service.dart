@@ -5,7 +5,7 @@ import 'package:diohub/utils/type_cast.dart';
 
 class EventsService {
   static final RESTHandler _restHandler = RESTHandler(
-      apiLogSettings: APILoggingSettings.comprehensive(),
+      // apiLogSettings: APILoggingSettings.comprehensive(),
       );
 
   // Ref: https://docs.github.com/en/rest/reference/activity#list-events-for-the-authenticated-user

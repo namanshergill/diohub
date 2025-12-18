@@ -3,8 +3,8 @@ import 'package:dio/dio.dart';
 import 'package:diohub/app/api_handler/dio.dart';
 import 'package:diohub/graphql/queries/issues_pulls/__generated__/issue_templates.data.gql.dart';
 import 'package:diohub/graphql/queries/issues_pulls/__generated__/issue_templates.req.gql.dart';
-// import 'package:diohub/graphql/queries/repositories/__generated__/branches_list.data.gql.dart';
-// import 'package:diohub/graphql/queries/repositories/__generated__/branches_list.req.gql.dart';
+import 'package:diohub/graphql/queries/repositories/__generated__/branches_list.data.gql.dart';
+import 'package:diohub/graphql/queries/repositories/__generated__/branches_list.req.gql.dart';
 import 'package:diohub/graphql/queries/repositories/__generated__/commit_info.data.gql.dart';
 import 'package:diohub/graphql/queries/repositories/__generated__/commit_info.req.gql.dart';
 import 'package:diohub/graphql/queries/repositories/__generated__/commits_list.data.gql.dart';
@@ -124,35 +124,31 @@ class RepositoryServices {
   }
 
   // Get paginated branches list using GraphQL
-  // static Future<
-  //     ({
-  //       List<GbranchesListData_repository_refs_edges?> edges,
-  //       bool hasNextPage,
-  //       String? endCursor,
-  //     })> fetchBranchListGQL({
-  //   required final String owner,
-  //   required final String repo,
-  //   required final int first,
-  //   final String? after,
-  //   final bool refresh = false,
-  // }) async {
-  //   final GQLResponse response = await _gqlHandler.query(
-  //     GbranchesListReq(
-  //       (final GbranchesListReqBuilder b) => b
-  //         ..vars.owner = owner
-  //         ..vars.repo = repo
-  //         ..vars.first = first
-  //         ..vars.after = after,
-  //     ),
-  //     refreshCache: refresh,
-  //   );
-  //   final data = GbranchesListData.fromJson(response.data!)!.repository!;
-  //   return (
-  //     edges: data.refs!.edges!.toList(),
-  //     hasNextPage: data.refs!.pageInfo.hasNextPage,
-  //     endCursor: data.refs!.pageInfo.endCursor,
-  //   );
-  // }
+  static Future<List<GbranchesListData_repository_refs_edges>>
+      fetchBranchListGQL({
+    required final String owner,
+    required final String repo,
+    required final int first,
+    final String? after,
+    final String? query,
+    final bool refresh = false,
+  }) async {
+    final GQLResponse response = await _gqlHandler.query(
+      GbranchesListReq(
+        (final GbranchesListReqBuilder b) => b
+          ..vars.owner = owner
+          ..vars.repo = repo
+          ..vars.first = first
+          ..vars.after = after
+          ..vars.query = query,
+      ),
+      refreshCache: refresh,
+    );
+    final data = GbranchesListData.fromJson(response.data!)!.repository!;
+    final edges = data.refs?.edges?.toList() ?? [];
+
+    return edges.whereType<GbranchesListData_repository_refs_edges>().toList();
+  }
 
   // Ref: https://docs.github.com/en/rest/reference/repos#list-commits
   static Future<List<CommitListModel>> getCommitsList({
