@@ -26,12 +26,10 @@ Map<String?, List<ActionButtonData>> _groupActionsByCategory(
     // If category changed, start a new group
     if (category != currentCategory) {
       currentCategory = category;
-      if (!grouped.containsKey(category)) {
-        grouped[category] = [];
-      }
     }
     
-    grouped[category]!.add(action);
+    // Always ensure the category exists in the map before accessing it
+    grouped.putIfAbsent(category, () => []).add(action);
   }
   
   return grouped;
