@@ -117,17 +117,15 @@ class AboutUser extends StatelessWidget {
       );
     }
 
-    return ListView(
+    return Padding(
       padding: const EdgeInsets.all(16),
-      children: [
-        CollapsibleDetailTiles(
-          alwaysVisibleTiles: alwaysVisibleTiles,
-          expandableTiles: expandableTiles,
-          visibilityConfig: DetailTilesVisibilityConfig.fixedCount(
-            defaultVisibleCount: alwaysVisibleTiles.length.clamp(0, 3),
-            ),
-          ),
-        ],
-      );
+      child: CollapsibleDetailTiles(
+        alwaysVisibleTiles: alwaysVisibleTiles,
+        expandableTiles: expandableTiles,
+        visibilityConfig: DetailTilesVisibilityConfig.fixedCount(
+          defaultVisibleCount: alwaysVisibleTiles.length.clamp(0, 3),
+        ),
+      ),
+    );
   }
 }

@@ -1,16 +1,15 @@
 import 'package:diohub/common/search_overlay/filters.dart';
 import 'package:diohub/common/search_overlay/search_overlay.dart';
 import 'package:diohub/common/wrappers/search_scroll_wrapper.dart';
-import 'package:diohub/models/users/user_info_model.dart';
 import 'package:flutter/material.dart';
 
 class UserRepositories extends StatelessWidget {
   const UserRepositories(
-    this.userInfoModel, {
+    this.login, {
     this.currentUser = false,
     super.key,
   });
-  final UserInfoModel userInfoModel;
+  final String login;
   final bool? currentUser;
 
   @override
@@ -23,7 +22,7 @@ class UserRepositories extends StatelessWidget {
             ],
           ),
           defaultHiddenFilters: <String>[
-            SearchQueries().user.toQueryString(userInfoModel.login!),
+            SearchQueries().user.toQueryString(login),
           ],
         ),
         quickFilters: <String, String>{
@@ -36,8 +35,8 @@ class UserRepositories extends StatelessWidget {
           SearchQueries().fork.toQueryString('true'): 'Include forks',
         },
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        searchBarMessage: "Search in ${userInfoModel.login}'s repositories",
-        searchHeroTag: '${userInfoModel.login}Search',
+        searchBarMessage: "Search in $login's repositories",
+        searchHeroTag: '${login}Search',
         // nonSearchFuture: (pageNumber, pageSize, refresh, _, sort, order) {
         //   if (currentUser!)
         //     return UserInfoService.getCurrentUserRepos(
