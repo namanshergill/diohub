@@ -1,5 +1,6 @@
 import 'package:diohub/common/misc/nested_card_with_header.dart';
 import 'package:diohub/common/misc/repository_card.dart';
+import 'package:diohub/common/utils/contribution_utils.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_info.data.gql.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_contributions.data.gql.dart';
 import 'package:diohub/models/repositories/repo_card_data_model.dart';
@@ -8,6 +9,7 @@ import 'package:diohub/view/profile/about/widgets/activity_overview_section.dart
 import 'package:diohub/view/profile/about/widgets/contribution_calendar_section.dart';
 import 'package:diohub/view/profile/about/widgets/contribution_data_converter.dart';
 import 'package:diohub/view/profile/about/widgets/contribution_statistics_section.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -41,10 +43,8 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
       final to = DateTime(
           _customToDate!.year, _customToDate!.month, _customToDate!.day);
       // Use date-only format (YYYY-MM-DD) to avoid colons in ISO string breaking key parsing
-      final fromStr =
-          '${from.year}-${from.month.toString().padLeft(2, '0')}-${from.day.toString().padLeft(2, '0')}';
-      final toStr =
-          '${to.year}-${to.month.toString().padLeft(2, '0')}-${to.day.toString().padLeft(2, '0')}';
+      final fromStr = formatDateOnly(from);
+      final toStr = formatDateOnly(to);
       return '${widget.userData.login}:custom:$fromStr:$toStr';
     }
 
@@ -66,8 +66,7 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
     // Fetch contributions data using Riverpod with stable string key
     // Key only changes when year changes, preventing unnecessary rebuilds
     final providerKey = _getProviderKey();
-    debugPrint('[UserAboutScreen] Provider key: $providerKey');
-    
+
     final contributionsAsync = ref.watch(
       userContributionsProvider(providerKey),
     );
@@ -75,13 +74,10 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
     // Build contribution widgets based on async state
     final contributionWidgets = contributionsAsync.when(
       data: (contributionsData) {
-        debugPrint('[UserAboutScreen] Received data, type: ${contributionsData.runtimeType}');
-        
         // Handle both single-year (GuserContributionsData_user) and multi-year (CombinedContributionsData)
         if (contributionsData is CombinedContributionsData) {
           // Multi-year combined data - use directly, no need for extraction
           final combined = contributionsData;
-          debugPrint('[UserAboutScreen] CombinedContributionsData: ${combined.weeks.length} weeks, ${combined.totalContributions} contributions');
 
           return <Widget>[
             // Animated calendar section with fade-in
@@ -97,6 +93,7 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
                 customFromDate: _customFromDate,
                 customToDate: _customToDate,
                 useCustomRange: _useCustomRange,
+                createdAt: widget.userData.createdAt,
                 onYearChanged: (year) {
                   setState(() {
                     _selectedYear = year;
@@ -161,14 +158,11 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
           // Single-year data
           final contributionsCollection =
               contributionsData.contributionsCollection;
-          final rawWeeks = contributionsCollection.contributionCalendar.weeks;
-          debugPrint('[UserAboutScreen] GuserContributionsData_user: ${rawWeeks.length} raw weeks, ${contributionsCollection.contributionCalendar.totalContributions} contributions');
 
           // Contribution Calendar Section
           final weeks = ContributionDataConverter.convertWeeks(
             contributionsCollection.contributionCalendar.weeks.toList(),
           );
-          debugPrint('[UserAboutScreen] Converted to ${weeks.length} weeks for calendar');
           final colors = ContributionDataConverter.convertColors(
             contributionsCollection.contributionCalendar.colors.toList(),
           );
@@ -196,6 +190,7 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
                 customFromDate: _customFromDate,
                 customToDate: _customToDate,
                 useCustomRange: _useCustomRange,
+                createdAt: widget.userData.createdAt,
                 onYearChanged: (year) {
                   setState(() {
                     _selectedYear = year;
@@ -291,9 +286,10 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
         ActivityOverviewSectionLoading(),
       ],
       error: (error, stackTrace) {
-        // Log error for debugging
-        debugPrint('Error loading contribution data: $error');
-        debugPrint('Stack trace: $stackTrace');
+        if (kDebugMode) {
+          debugPrint('Error loading contribution data: $error');
+          debugPrint('Stack trace: $stackTrace');
+        }
 
         return [
           NestedCardWithHeader(
@@ -366,7 +362,6 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
                   ),
                   child: RepositoryCard(
                     RepoCardDataModel.fromGraphQL(repo),
-                    // withBackgroundr: true,
                   ),
                 );
               },
