@@ -57,6 +57,8 @@ class IssueScreenState extends State<IssueScreen> {
         totalCount: data.participants.totalCount,
       ),
       uri: data.url,
+      linkedIssues: data.trackedIssues,
+      linkedIssuesTrackedIn: data.trackedInIssues,
     );
   }
 

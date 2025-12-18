@@ -21,6 +21,8 @@ import 'package:diohub/graphql/queries/issues_pulls/__generated__/timeline.data.
 import 'package:diohub/providers/issue_pulls/comment_provider.dart';
 import 'package:diohub/providers/issue_pulls/issue_provider.dart';
 import 'package:diohub/routes/router.gr.dart';
+import 'package:diohub/adapters/deep_linking_handler.dart';
+import 'package:diohub/view/issues_pulls/issue_pull_screen.dart';
 import 'dart:developer';
 
 import 'package:diohub/utils/get_date.dart';
@@ -28,7 +30,6 @@ import 'package:diohub/utils/utils.dart';
 import 'package:diohub/view/issues_pulls/models/issue_pull_state.dart';
 import 'package:diohub/view/issues_pulls/widgets/about_tab.dart';
 import 'package:diohub/view/issues_pulls/widgets/discussion.dart';
-import 'package:diohub/view/issues_pulls/widgets/discussion_comment.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dynamic_tabs/flutter_dynamic_tabs.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
@@ -57,6 +58,9 @@ class IssuePullInfoTemplate extends StatefulWidget {
     required this.onRefresh,
     this.additionalAboutWidgets = const <Widget>[],
     this.additionalDetailTiles = const <Widget>[],
+    this.linkedIssues,
+    this.linkedIssuesTrackedIn,
+    this.linkedPullRequests,
   });
 
   final GassigneeInfo assigneesInfo;
@@ -79,6 +83,9 @@ class IssuePullInfoTemplate extends StatefulWidget {
   final UnfinishedList<Gactor> participantsInfo;
   final bool isPinned;
   final Future<void> Function() onRefresh;
+  final GissueInfo_trackedIssues? linkedIssues;
+  final GissueInfo_trackedInIssues? linkedIssuesTrackedIn;
+  final GpullInfo_closingIssuesReferences? linkedPullRequests;
 
   @override
   State<IssuePullInfoTemplate> createState() => IssuePullInfoTemplateState();
@@ -96,7 +103,6 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
   late EditingController<List<Glabel?>> labelsEditingController;
 
   late EditingController<String> titleEditingController;
-  int _contentVersion = 0;
   late final AnimationController _expandAnimationController =
       AnimationController(
     duration: const Duration(milliseconds: 300),
@@ -289,6 +295,10 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
       // Participants
       if (widget.participantsInfo.totalCount > 1)
         _buildParticipantsDetailTile(context),
+      // Linked issues
+      ..._buildLinkedIssuesDetailTiles(context),
+      // Linked PRs
+      ..._buildLinkedPullRequestsDetailTiles(context),
       // Additional detail tiles (PR-specific)
       ...widget.additionalDetailTiles,
     ];
@@ -387,6 +397,223 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
     );
   }
 
+  List<Widget> _buildLinkedIssuesDetailTiles(BuildContext context) {
+    final List<Widget> tiles = [];
+
+    // Tracked issues (issues that track this issue)
+    if ((widget.linkedIssues?.totalCount ?? 0) > 0) {
+      final nodes = widget.linkedIssues!.nodes
+              ?.whereType<GissueInfo_trackedIssues_nodes>()
+              .toList() ??
+          [];
+
+      if (nodes.length == 1) {
+        final node = nodes.first;
+        tiles.add(
+          DetailTile(
+            title: 'Linked issue',
+            actionType: DetailTileActionType.navigation,
+            onTap: () async {
+              await context.router.push(
+                issuePullScreenRoute(PathData.fromURL(node.url.toString())),
+              );
+            },
+            child: DetailTileLinkedIssue(
+              title: node.title,
+              number: node.number,
+              repositoryName: node.repository.name,
+              repositoryOwner: node.repository.owner.login,
+            ),
+          ),
+        );
+      } else if (nodes.isNotEmpty) {
+        tiles.add(
+          DetailTile(
+            title: 'Linked issues',
+            actionType: DetailTileActionType.bottomSheet,
+            onTap: () async {
+              await BottomSheetPagination<GissueInfo_trackedIssues_nodes>(
+                paginatedListItemBuilder: (context, data) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Card(
+                    color: context.colorScheme.surface,
+                    child: InkWell(
+                      onTap: () async {
+                        await context.router.push(
+                          issuePullScreenRoute(
+                              PathData.fromURL(data.item.url.toString())),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: DetailTileLinkedIssue(
+                          title: data.item.title,
+                          number: data.item.number,
+                          repositoryName: data.item.repository.name,
+                          repositoryOwner: data.item.repository.owner.login,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                paginationFuture: (data) async => nodes,
+                title: 'Linked issues',
+              ).openSheet(context);
+            },
+            child: DetailTileLinkedIssuesStack(
+              totalCount: nodes.length,
+            ),
+          ),
+        );
+      }
+    }
+
+    // Tracked in issues (issues this issue tracks)
+    if ((widget.linkedIssuesTrackedIn?.totalCount ?? 0) > 0) {
+      final nodes = widget.linkedIssuesTrackedIn!.nodes
+              ?.whereType<GissueInfo_trackedInIssues_nodes>()
+              .toList() ??
+          [];
+
+      if (nodes.length == 1) {
+        final node = nodes.first;
+        tiles.add(
+          DetailTile(
+            title: 'Tracked in',
+            actionType: DetailTileActionType.navigation,
+            onTap: () async {
+              await context.router.push(
+                issuePullScreenRoute(PathData.fromURL(node.url.toString())),
+              );
+            },
+            child: DetailTileLinkedIssue(
+              title: node.title,
+              number: node.number,
+              repositoryName: node.repository.name,
+              repositoryOwner: node.repository.owner.login,
+            ),
+          ),
+        );
+      } else if (nodes.isNotEmpty) {
+        tiles.add(
+          DetailTile(
+            title: 'Tracked in',
+            actionType: DetailTileActionType.bottomSheet,
+            onTap: () async {
+              await BottomSheetPagination<GissueInfo_trackedInIssues_nodes>(
+                paginatedListItemBuilder: (context, data) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Card(
+                    color: context.colorScheme.surface,
+                    child: InkWell(
+                      onTap: () async {
+                        await context.router.push(
+                          issuePullScreenRoute(
+                              PathData.fromURL(data.item.url.toString())),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: DetailTileLinkedIssue(
+                          title: data.item.title,
+                          number: data.item.number,
+                          repositoryName: data.item.repository.name,
+                          repositoryOwner: data.item.repository.owner.login,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                paginationFuture: (data) async => nodes,
+                title: 'Tracked in',
+              ).openSheet(context);
+            },
+            child: DetailTileLinkedIssuesStack(
+              totalCount: nodes.length,
+            ),
+          ),
+        );
+      }
+    }
+
+    return tiles;
+  }
+
+  List<Widget> _buildLinkedPullRequestsDetailTiles(BuildContext context) {
+    if ((widget.linkedPullRequests?.totalCount ?? 0) == 0) {
+      return [];
+    }
+
+    final nodes = widget.linkedPullRequests!.nodes
+            ?.whereType<GpullInfo_closingIssuesReferences_nodes>()
+            .toList() ??
+        [];
+    if (nodes.isEmpty) {
+      return [];
+    }
+
+    if (nodes.length == 1) {
+      final node = nodes.first;
+      return [
+        DetailTile(
+          title: 'Closes',
+          actionType: DetailTileActionType.navigation,
+          onTap: () async {
+            await context.router.push(
+              issuePullScreenRoute(PathData.fromURL(node.url.toString())),
+            );
+          },
+          child: DetailTileLinkedIssue(
+            title: node.title,
+            number: node.number,
+            repositoryName: node.repository.name,
+            repositoryOwner: node.repository.owner.login,
+          ),
+        ),
+      ];
+    } else {
+      return [
+        DetailTile(
+          title: 'Closes',
+          actionType: DetailTileActionType.bottomSheet,
+          onTap: () async {
+            await BottomSheetPagination<
+                GpullInfo_closingIssuesReferences_nodes>(
+              paginatedListItemBuilder: (context, data) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Card(
+                  color: context.colorScheme.surface,
+                  child: InkWell(
+                    onTap: () async {
+                      await context.router.push(
+                        issuePullScreenRoute(
+                            PathData.fromURL(data.item.url.toString())),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: DetailTileLinkedIssue(
+                        title: data.item.title,
+                        number: data.item.number,
+                        repositoryName: data.item.repository.name,
+                        repositoryOwner: data.item.repository.owner.login,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              paginationFuture: (data) async => nodes,
+              title: 'Closes',
+            ).openSheet(context);
+          },
+          child: DetailTileLinkedIssuesStack(
+            totalCount: nodes.length,
+          ),
+        ),
+      ];
+    }
+  }
+
   ScrollWrapperBuilder<NodeWithPaginationInfo<Gactor>>
       get _paginatedListItemBuilder => (
             final BuildContext context,
@@ -478,9 +705,6 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
             2, // Show 2 actions by default (Close/Reopen, Edit)
       ),
       onExpandChanged: (isExpanded) {
-        setState(() {
-          _contentVersion = isExpanded ? 1 : 0;
-        });
         if (isExpanded) {
           _expandAnimationController.forward();
         } else {
@@ -518,7 +742,6 @@ class IssuePullInfoTemplateState extends State<IssuePullInfoTemplate>
               onRefresh: widget.onRefresh,
               triggerMode: RefreshIndicatorTriggerMode.anywhere,
               child: DynamicScroll(
-                contentVersion: _contentVersion,
                 animationController: _expandAnimationController,
                 collapsedWidget: _buildCollapsedHeader(context),
                 expandedWidget: _buildExpandedHeader(context),

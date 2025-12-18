@@ -143,7 +143,7 @@ class BaseCommentState extends State<BaseComment> {
             subtitle: 'Go to profile',
             onTap: () async {
               await context.router.push(
-                OtherUserProfileRoute(login: widget.author!.login),
+                UserProfileRoute(login: widget.author!.login),
               );
             },
           ).themed(context),

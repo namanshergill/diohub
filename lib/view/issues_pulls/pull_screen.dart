@@ -87,6 +87,7 @@ class PullScreenState extends State<PullScreen>
       ],
       uri: data.url,
       onRefresh: widget.onRefresh,
+      linkedPullRequests: data.closingIssuesReferences,
       additionalDetailTiles: [
         // Commits
         DetailTile(
