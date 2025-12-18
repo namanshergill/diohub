@@ -59,11 +59,42 @@ Future<T?> showActionsSheet<T>(
             .call(context)
             .map(
               (final BottomSheetAction e) => ListTile(
-                title: e.title,
-                leading: e.leading,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                title: DefaultTextStyle(
+                  style: context.textTheme.bodyLarge?.copyWith(
+                        color: e.isDestructiveAction
+                            ? context.colorScheme.error
+                            : context.colorScheme.onSurface,
+                        fontWeight: e.isDefaultAction
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ) ??
+                      const TextStyle(),
+                  child: e.title,
+                ),
+                leading: e.leading != null
+                    ? DefaultTextStyle(
+                        style: TextStyle(
+                          color: e.isDestructiveAction
+                              ? context.colorScheme.error
+                              : context.colorScheme.onSurfaceVariant,
+                        ),
+                        child: e.leading!,
+                      )
+                    : null,
                 trailing: e.trailing,
-                onTap: () => e.onPressed,
-
+                onTap: () {
+                  e.onPressed();
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                },
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             )
             .toList(),

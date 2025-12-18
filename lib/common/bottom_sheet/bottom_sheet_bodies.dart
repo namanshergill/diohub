@@ -4,7 +4,7 @@ class BottomSheetBodyList extends StatelessWidget {
   const BottomSheetBodyList({
     required this.children,
     super.key,
-    this.itemPadding = const EdgeInsets.all(8),
+    this.itemPadding = const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
   });
   final EdgeInsets itemPadding;
   final List<Widget> children;
@@ -12,12 +12,18 @@ class BottomSheetBodyList extends StatelessWidget {
   Widget build(final BuildContext context) => ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
         itemBuilder: (final BuildContext context, final int index) => Padding(
           padding: itemPadding,
           child: children[index],
         ),
-        separatorBuilder: (final BuildContext context, final int index) => const Divider(
-          height: 0,
+        separatorBuilder: (final BuildContext context, final int index) =>
+            Divider(
+          height: 1,
+          thickness: 1,
+          indent: 16,
+          endIndent: 16,
+          color: context.colorScheme.outline.withOpacity(0.1),
         ),
         itemCount: children.length,
       );
@@ -34,9 +40,9 @@ class BottomSheetBodyScrollable extends StatelessWidget {
     required this.scrollBuilder,
     super.key,
     this.initialChildSize = 0.7,
-    this.maxChildSize = 1,
+    this.maxChildSize = 0.95,
     this.expand = false,
-    this.minChildSize = 0.6,
+    this.minChildSize = 0.5,
   });
   final ScrollableWidgetBuilder scrollBuilder;
   final double initialChildSize;
