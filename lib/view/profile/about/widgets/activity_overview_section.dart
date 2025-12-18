@@ -3,6 +3,7 @@ import 'package:diohub/common/charts/radar_chart_widget.dart';
 import 'package:diohub/common/misc/nested_card_with_header.dart';
 import 'package:diohub/common/misc/repository_card.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
+import 'package:diohub/common/utils/contribution_utils.dart';
 import 'package:diohub/models/repositories/repo_card_data_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
@@ -293,7 +294,7 @@ class ActivityOverviewSection extends StatelessWidget {
                                     height: 12,
                                     decoration: BoxDecoration(
                                       color: repo.languageColor != null
-                                          ? _parseColor(repo.languageColor!)
+                                          ? parseContributionColor(repo.languageColor!)
                                           : colorScheme.primary,
                                       shape: BoxShape.circle,
                                     ),
@@ -371,7 +372,7 @@ class ActivityOverviewSection extends StatelessWidget {
                                   height: 10,
                                   decoration: BoxDecoration(
                                     color: repo.languageColor != null
-                                        ? _parseColor(repo.languageColor!)
+                                        ? parseContributionColor(repo.languageColor!)
                                         : colorScheme.primary,
                                     shape: BoxShape.circle,
                                   ),
@@ -405,15 +406,6 @@ class ActivityOverviewSection extends StatelessWidget {
     );
   }
 
-  Color _parseColor(String hexColor) {
-    try {
-      final hex = hexColor.replaceFirst('#', '').toUpperCase();
-      final colorValue = int.parse('FF$hex', radix: 16);
-      return Color(colorValue);
-    } catch (e) {
-      return Colors.grey;
-    }
-  }
 
   String _formatNumber(int number) {
     if (number < 1000) return number.toString();
