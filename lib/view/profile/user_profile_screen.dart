@@ -1,5 +1,4 @@
 import 'package:auto_route/annotations.dart';
-import 'package:diohub/common/events/events.dart';
 import 'package:diohub/common/misc/collapsible_app_bar.dart';
 import 'package:diohub/common/misc/collapsible_action_buttons.dart';
 import 'package:diohub/common/misc/collapsible_detail_tiles.dart';
@@ -509,22 +508,24 @@ class UserProfileScreenState extends State<UserProfileScreen>
 
   List<ActionButtonData> _buildToolbarActions(BuildContext context,
       GuserInfoData_user userData, DynamicTabsController? tabController) {
-    final currentTab = tabController?.activeIdentifier ?? 'About';
+    final currentTab = tabController?.activeIdentifier ?? 'Activity';
 
     return [
-      // High priority - always visible (both states)
+      // Primary - always visible in collapsed state
       MinorActionButton(
-        icon: Octicons.info,
-        label: 'About',
+        icon: Octicons.pulse,
+        label: 'Activity',
+        category: 'Primary',
         actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'About'
+        visibilityState: currentTab == 'Activity'
             ? ActionButtonVisibilityState.none
             : ActionButtonVisibilityState.both,
-        onTap: () => tabController?.openTab('About'),
+        onTap: () => tabController?.openTab('Activity'),
       ),
       MinorActionButton(
         icon: Octicons.repo,
         label: 'Repositories',
+        category: 'Primary',
         trailing: buildActionButtonTrailingCount(
           context,
           userData.repositories.totalCount,
@@ -536,27 +537,42 @@ class UserProfileScreenState extends State<UserProfileScreen>
         onTap: () => tabController?.openTab('Repositories'),
       ),
       MinorActionButton(
-        icon: Octicons.pulse,
-        label: 'Activity',
+        icon: Octicons.star,
+        label: 'Stars',
+        category: 'Primary',
+        iconColor: const Color(0xFFFFC107), // Amber/Yellow for stars
+        trailing: buildActionButtonTrailingCount(
+          context,
+          userData.starredRepositories.totalCount,
+        ),
         actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Activity'
+        visibilityState: currentTab == 'Stars'
             ? ActionButtonVisibilityState.none
             : ActionButtonVisibilityState.both,
-        onTap: () => tabController?.openTab('Activity'),
+        onTap: () => tabController?.openTab('Stars'),
       ),
-      // Medium priority - visible in expanded state only
       MinorActionButton(
-        icon: Octicons.table,
-        label: 'Overview',
+        icon: Octicons.code_square,
+        label: 'Gists',
+        category: 'Primary',
+        trailing: userData.when(
+          user: (user) => buildActionButtonTrailingCount(
+            context,
+            user.gists.totalCount,
+          ),
+          orElse: () => null,
+        ),
         actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Overview'
+        visibilityState: currentTab == 'Gists'
             ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.expandedOnly,
-        onTap: () => tabController?.openTab('Overview'),
+            : ActionButtonVisibilityState.both,
+        onTap: () => tabController?.openTab('Gists'),
       ),
+      // Content - visible in expanded state only
       MinorActionButton(
         icon: Octicons.git_pull_request,
         label: 'Pull Requests',
+        category: 'Content',
         trailing: buildActionButtonTrailingCount(
           context,
           userData.pullRequests.totalCount,
@@ -570,6 +586,7 @@ class UserProfileScreenState extends State<UserProfileScreen>
       MinorActionButton(
         icon: Octicons.issue_opened,
         label: 'Issues',
+        category: 'Content',
         trailing: buildActionButtonTrailingCount(
           context,
           userData.issues.totalCount,
@@ -581,24 +598,9 @@ class UserProfileScreenState extends State<UserProfileScreen>
         onTap: () => tabController?.openTab('Issues'),
       ),
       MinorActionButton(
-        icon: Octicons.code_square,
-        label: 'Gists',
-        trailing: userData.when(
-          user: (user) => buildActionButtonTrailingCount(
-            context,
-            user.gists.totalCount,
-          ),
-          orElse: () => null,
-        ),
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Gists'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.expandedOnly,
-        onTap: () => tabController?.openTab('Gists'),
-      ),
-      MinorActionButton(
         icon: Octicons.organization,
         label: 'Organizations',
+        category: 'Content',
         trailing: userData.when(
           user: (user) => buildActionButtonTrailingCount(
             context,
@@ -612,10 +614,11 @@ class UserProfileScreenState extends State<UserProfileScreen>
             : ActionButtonVisibilityState.expandedOnly,
         onTap: () => tabController?.openTab('Organizations'),
       ),
-      // Lower priority - visible in expanded state only
+      // Social - visible in expanded state only
       MinorActionButton(
         icon: Octicons.people,
         label: 'Followers',
+        category: 'Social',
         trailing: buildActionButtonTrailingCount(
           context,
           userData.followers.totalCount,
@@ -629,6 +632,7 @@ class UserProfileScreenState extends State<UserProfileScreen>
       MinorActionButton(
         icon: Octicons.person,
         label: 'Following',
+        category: 'Social',
         trailing: userData.when(
           user: (user) => buildActionButtonTrailingCount(
             context,
@@ -642,28 +646,21 @@ class UserProfileScreenState extends State<UserProfileScreen>
             : ActionButtonVisibilityState.expandedOnly,
         onTap: () => tabController?.openTab('Following'),
       ),
-      MinorActionButton(
-        icon: Octicons.star,
-        label: 'Stars',
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Stars'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.expandedOnly,
-        onTap: () => tabController?.openTab('Stars'),
-      ),
+      // Other - visible in expanded state only
       MinorActionButton(
         icon: Octicons.package,
         label: 'Packages',
+        category: 'Other',
         actionType: ActionButtonActionType.tab,
         visibilityState: currentTab == 'Packages'
             ? ActionButtonVisibilityState.none
             : ActionButtonVisibilityState.expandedOnly,
         onTap: () => tabController?.openTab('Packages'),
       ),
-      // Lower priority - visible in expanded state only
       MinorActionButton(
         icon: Octicons.project,
         label: 'Projects',
+        category: 'Other',
         actionType: ActionButtonActionType.tab,
         visibilityState: currentTab == 'Projects'
             ? ActionButtonVisibilityState.none
@@ -673,6 +670,7 @@ class UserProfileScreenState extends State<UserProfileScreen>
       MinorActionButton(
         icon: Octicons.heart,
         label: 'Sponsors',
+        category: 'Other',
         actionType: ActionButtonActionType.tab,
         visibilityState: currentTab == 'Sponsors'
             ? ActionButtonVisibilityState.none
@@ -765,15 +763,10 @@ class _UserProfileTabsContentState extends State<_UserProfileTabsContent>
 
     final tabs = <DynamicTab>[
       DynamicTab(
-        identifier: 'About',
+        identifier: 'Activity',
         isDismissible: false,
         isFocusedOnInit: true,
         tabViewBuilder: (context) => UserAboutScreen(userData),
-      ),
-      DynamicTab(
-        identifier: 'Overview',
-        tabViewBuilder: (context) =>
-            const SizedBox.shrink(), // TODO: Implement Overview tab
       ),
       DynamicTab(
         identifier: 'Repositories',
@@ -832,13 +825,6 @@ class _UserProfileTabsContentState extends State<_UserProfileTabsContent>
         identifier: 'Sponsors',
         tabViewBuilder: (context) =>
             const SizedBox.shrink(), // TODO: Implement Sponsors tab
-      ),
-      DynamicTab(
-        identifier: 'Activity',
-        // isDismissible: false,
-        tabViewBuilder: (context) => Events(
-          specificUser: userData.login,
-        ),
       ),
     ];
     tabController = DynamicTabsController(vsync: this, tabs: tabs);

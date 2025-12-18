@@ -1,6 +1,7 @@
 import 'package:diohub/common/misc/nested_card_with_header.dart';
 import 'package:diohub/common/misc/repository_card.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_info.data.gql.dart';
+import 'package:diohub/graphql/queries/users/__generated__/user_contributions.data.gql.dart';
 import 'package:diohub/models/repositories/repo_card_data_model.dart';
 import 'package:diohub/providers/users/user_contributions_provider.dart';
 import 'package:diohub/view/profile/about/widgets/activity_overview_section.dart';
@@ -26,10 +27,27 @@ class UserAboutScreen extends ConsumerStatefulWidget {
 
 class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
   int? _selectedYear; // null means current year (default)
+  DateTime? _customFromDate;
+  DateTime? _customToDate;
+  bool _useCustomRange = false;
 
-  /// Builds a stable provider key based on selected year
-  /// Only recalculates when year changes, not on every build
+  /// Builds a stable provider key based on selected year or custom date range
+  /// Only recalculates when date range changes, not on every build
   String _getProviderKey() {
+    if (_useCustomRange && _customFromDate != null && _customToDate != null) {
+      // Normalize dates to day level for stable keys
+      final from = DateTime(
+          _customFromDate!.year, _customFromDate!.month, _customFromDate!.day);
+      final to = DateTime(
+          _customToDate!.year, _customToDate!.month, _customToDate!.day);
+      // Use date-only format (YYYY-MM-DD) to avoid colons in ISO string breaking key parsing
+      final fromStr =
+          '${from.year}-${from.month.toString().padLeft(2, '0')}-${from.day.toString().padLeft(2, '0')}';
+      final toStr =
+          '${to.year}-${to.month.toString().padLeft(2, '0')}-${to.day.toString().padLeft(2, '0')}';
+      return '${widget.userData.login}:custom:$fromStr:$toStr';
+    }
+
     final selectedYear = _selectedYear;
     if (selectedYear == null) {
       // Use "lastYear" for default (current year)
@@ -54,80 +72,207 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
     // Build contribution widgets based on async state
     final contributionWidgets = contributionsAsync.when(
       data: (contributionsData) {
-        final contributionsCollection =
-            contributionsData.contributionsCollection;
+        // Handle both single-year (GuserContributionsData_user) and multi-year (CombinedContributionsData)
+        if (contributionsData is CombinedContributionsData) {
+          // Multi-year combined data - use directly, no need for extraction
+          final combined = contributionsData;
 
-        // Contribution Calendar Section
-        final weeks = ContributionDataConverter.convertWeeks(
-          contributionsCollection.contributionCalendar.weeks.toList(),
-        );
-        final colors = ContributionDataConverter.convertColors(
-          contributionsCollection.contributionCalendar.colors.toList(),
-        );
-        final totalContributions =
-            contributionsCollection.contributionCalendar.totalContributions;
-        final availableYears =
-            contributionsCollection.contributionYears.toList();
+          return <Widget>[
+            // Animated calendar section with fade-in
+            _DelayedFadeAnimation(
+              delay: const Duration(milliseconds: 0),
+              duration: const Duration(milliseconds: 400),
+              child: ContributionCalendarSection(
+                weeks: combined.weeks,
+                totalContributions: combined.totalContributions,
+                colors: combined.colors,
+                availableYears: combined.contributionYears,
+                selectedYear: _selectedYear,
+                customFromDate: _customFromDate,
+                customToDate: _customToDate,
+                useCustomRange: _useCustomRange,
+                onYearChanged: (year) {
+                  setState(() {
+                    _selectedYear = year;
+                    _useCustomRange = false;
+                    _customFromDate = null;
+                    _customToDate = null;
+                  });
+                },
+                onCustomRangeChanged: (from, to) {
+                  setState(() {
+                    if (from == null && to == null) {
+                      // Reset to last year
+                      _selectedYear = null;
+                      _useCustomRange = false;
+                      _customFromDate = null;
+                      _customToDate = null;
+                    } else {
+                      _customFromDate = from;
+                      _customToDate = to;
+                      _useCustomRange = from != null && to != null;
+                      if (_useCustomRange) {
+                        _selectedYear = null;
+                      }
+                    }
+                  });
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Animated statistics section with staggered delay
+            _DelayedFadeAnimation(
+              delay: const Duration(milliseconds: 100),
+              duration: const Duration(milliseconds: 400),
+              child: ContributionStatisticsSection(
+                commits: combined.totalCommitContributions,
+                pullRequests: combined.totalPullRequestContributions,
+                issues: combined.totalIssueContributions,
+                reviews: combined.totalPullRequestReviewContributions,
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Animated activity overview with more delay
+            _DelayedFadeAnimation(
+              delay: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 400),
+              child: ActivityOverviewSection(
+                repositories: combined.commitContributionsByRepository,
+                commits: combined.totalCommitContributions,
+                issues: combined.totalIssueContributions,
+                pullRequests: combined.totalPullRequestContributions,
+                reviews: combined.totalPullRequestReviewContributions,
+                onRepositoryTap: (repo) async {
+                  final uri = Uri.parse(repo.url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
+            ),
+          ];
+        } else if (contributionsData is GuserContributionsData_user) {
+          // Single-year data
+          final contributionsCollection =
+              contributionsData.contributionsCollection;
 
-        // Convert repositories for Activity Overview
-        final repositories = ContributionDataConverter.convertRepositories(
-          contributionsCollection.commitContributionsByRepository.toList(),
-        );
+          // Contribution Calendar Section
+          final weeks = ContributionDataConverter.convertWeeks(
+            contributionsCollection.contributionCalendar.weeks.toList(),
+          );
+          final colors = ContributionDataConverter.convertColors(
+            contributionsCollection.contributionCalendar.colors.toList(),
+          );
+          final totalContributions =
+              contributionsCollection.contributionCalendar.totalContributions;
+          final availableYears =
+              contributionsCollection.contributionYears.toList();
 
-        return <Widget>[
-          // Animated calendar section with fade-in
-          _DelayedFadeAnimation(
-            delay: const Duration(milliseconds: 0),
-            duration: const Duration(milliseconds: 400),
-            child: ContributionCalendarSection(
-              weeks: weeks,
-              totalContributions: totalContributions,
-              colors: colors,
-              availableYears: availableYears,
-              selectedYear: _selectedYear,
-              onYearChanged: (year) {
-                setState(() {
-                  _selectedYear = year;
-                });
-              },
+          // Convert repositories for Activity Overview
+          final repositories = ContributionDataConverter.convertRepositories(
+            contributionsCollection.commitContributionsByRepository.toList(),
+          );
+
+          return <Widget>[
+            // Animated calendar section with fade-in
+            _DelayedFadeAnimation(
+              delay: const Duration(milliseconds: 0),
+              duration: const Duration(milliseconds: 400),
+              child: ContributionCalendarSection(
+                weeks: weeks,
+                totalContributions: totalContributions,
+                colors: colors,
+                availableYears: availableYears,
+                selectedYear: _selectedYear,
+                customFromDate: _customFromDate,
+                customToDate: _customToDate,
+                useCustomRange: _useCustomRange,
+                onYearChanged: (year) {
+                  setState(() {
+                    _selectedYear = year;
+                    _useCustomRange = false;
+                    _customFromDate = null;
+                    _customToDate = null;
+                  });
+                },
+                onCustomRangeChanged: (from, to) {
+                  setState(() {
+                    if (from == null && to == null) {
+                      // Reset to last year
+                      _selectedYear = null;
+                      _useCustomRange = false;
+                      _customFromDate = null;
+                      _customToDate = null;
+                    } else {
+                      _customFromDate = from;
+                      _customToDate = to;
+                      _useCustomRange = from != null && to != null;
+                      if (_useCustomRange) {
+                        _selectedYear = null;
+                      }
+                    }
+                  });
+                },
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          // Animated statistics section with staggered delay
-          _DelayedFadeAnimation(
-            delay: const Duration(milliseconds: 100),
-            duration: const Duration(milliseconds: 400),
-            child: ContributionStatisticsSection(
-              commits: contributionsCollection.totalCommitContributions,
-              pullRequests:
-                  contributionsCollection.totalPullRequestContributions,
-              issues: contributionsCollection.totalIssueContributions,
-              reviews:
-                  contributionsCollection.totalPullRequestReviewContributions,
+            const SizedBox(height: 8),
+            // Animated statistics section with staggered delay
+            _DelayedFadeAnimation(
+              delay: const Duration(milliseconds: 100),
+              duration: const Duration(milliseconds: 400),
+              child: ContributionStatisticsSection(
+                commits: contributionsCollection.totalCommitContributions,
+                pullRequests:
+                    contributionsCollection.totalPullRequestContributions,
+                issues: contributionsCollection.totalIssueContributions,
+                reviews:
+                    contributionsCollection.totalPullRequestReviewContributions,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          // Animated activity overview with more delay
-          _DelayedFadeAnimation(
-            delay: const Duration(milliseconds: 200),
-            duration: const Duration(milliseconds: 400),
-            child: ActivityOverviewSection(
-              repositories: repositories,
-              commits: contributionsCollection.totalCommitContributions,
-              issues: contributionsCollection.totalIssueContributions,
-              pullRequests:
-                  contributionsCollection.totalPullRequestContributions,
-              reviews:
-                  contributionsCollection.totalPullRequestReviewContributions,
-              onRepositoryTap: (repo) async {
-                final uri = Uri.parse(repo.url);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
-              },
+            const SizedBox(height: 8),
+            // Animated activity overview with more delay
+            _DelayedFadeAnimation(
+              delay: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 400),
+              child: ActivityOverviewSection(
+                repositories: repositories,
+                commits: contributionsCollection.totalCommitContributions,
+                issues: contributionsCollection.totalIssueContributions,
+                pullRequests:
+                    contributionsCollection.totalPullRequestContributions,
+                reviews:
+                    contributionsCollection.totalPullRequestReviewContributions,
+                onRepositoryTap: (repo) async {
+                  final uri = Uri.parse(repo.url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
             ),
-          ),
-        ];
+          ];
+        } else {
+          // Unknown type - should not happen
+          return <Widget>[
+            NestedCardWithHeader(
+              header: Text(
+                'Contribution Graph',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'Unexpected data type',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                ),
+              ),
+            ),
+          ];
+        }
       },
       loading: () => [
         ContributionCalendarSectionLoading(),
@@ -136,25 +281,46 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
         const SizedBox(height: 8),
         ActivityOverviewSectionLoading(),
       ],
-      error: (error, stackTrace) => [
-        NestedCardWithHeader(
-          header: Text(
-            'Contribution Graph',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Unable to load contribution data',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
+      error: (error, stackTrace) {
+        // Log error for debugging
+        debugPrint('Error loading contribution data: $error');
+        debugPrint('Stack trace: $stackTrace');
+
+        return [
+          NestedCardWithHeader(
+            header: Text(
+              'Contribution Graph',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
             ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Unable to load contribution data',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Error: ${error.toString()}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .error
+                              .withOpacity(0.7),
+                        ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ],
+        ];
+      },
     );
 
     final List<Widget> children = [
