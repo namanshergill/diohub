@@ -17,6 +17,10 @@ class ContributionCalendarSection extends StatelessWidget {
     this.selectedYear,
     this.availableYears,
     this.onYearChanged,
+    this.customFromDate,
+    this.customToDate,
+    this.useCustomRange = false,
+    this.onCustomRangeChanged,
     super.key,
   });
 
@@ -41,6 +45,18 @@ class ContributionCalendarSection extends StatelessWidget {
   /// Callback when year selection changes
   final void Function(int year)? onYearChanged;
 
+  /// Custom date range start
+  final DateTime? customFromDate;
+
+  /// Custom date range end
+  final DateTime? customToDate;
+
+  /// Whether custom date range is active
+  final bool useCustomRange;
+
+  /// Callback when custom date range changes
+  final void Function(DateTime? from, DateTime? to)? onCustomRangeChanged;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -55,13 +71,26 @@ class ContributionCalendarSection extends StatelessWidget {
           Color(0xFF216E39), // Very high
         ];
 
-    // Build header text based on selected year
-    final currentYear = DateTime.now().year;
-    final headerText = selectedYear == null
-        ? '$totalContributions contributions in the last year'
-        : selectedYear == currentYear
-            ? '$totalContributions contributions in $selectedYear'
-            : '$totalContributions contributions in $selectedYear';
+    // Build header text based on selected year or custom range
+    String headerText;
+    if (useCustomRange && customFromDate != null && customToDate != null) {
+      final fromStr = '${customFromDate!.year}-${customFromDate!.month.toString().padLeft(2, '0')}-${customFromDate!.day.toString().padLeft(2, '0')}';
+      final toStr = '${customToDate!.year}-${customToDate!.month.toString().padLeft(2, '0')}-${customToDate!.day.toString().padLeft(2, '0')}';
+      final daysDiff = customToDate!.difference(customFromDate!).inDays;
+      final yearsDiff = daysDiff / 365.25;
+      
+      // Note: GitHub API only returns ~53 weeks of calendar data (last year)
+      // Statistics reflect the full range, but calendar visualization is limited
+      if (yearsDiff > 1.1) {
+        headerText = '$totalContributions contributions from $fromStr to $toStr\n(Calendar shows last year only)';
+      } else {
+        headerText = '$totalContributions contributions from $fromStr to $toStr';
+      }
+    } else if (selectedYear == null) {
+      headerText = '$totalContributions contributions in the last year';
+    } else {
+      headerText = '$totalContributions contributions in $selectedYear';
+    }
 
     return NestedCardWithHeader(
       header: Row(
@@ -75,8 +104,7 @@ class ContributionCalendarSection extends StatelessWidget {
               ),
             ),
           ),
-          if (availableYears != null && availableYears!.isNotEmpty)
-            _buildYearSelector(context),
+          _buildDateRangeSelector(context),
         ],
       ),
       child: Padding(
@@ -103,43 +131,113 @@ class ContributionCalendarSection extends StatelessWidget {
     );
   }
 
-  Widget _buildYearSelector(BuildContext context) {
-    if (availableYears == null || availableYears!.isEmpty) {
-      return const SizedBox.shrink();
-    }
+  Widget _buildDateRangeSelector(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
-    return PopupMenuButton<int>(
-      initialValue: selectedYear,
-      onSelected: onYearChanged,
+    return PopupMenuButton<String>(
+      onSelected: (value) {
+        if (value == 'custom') {
+          _showCustomDateRangePicker(context);
+        } else if (value == 'lastYear') {
+          // Reset to last year - need to handle null case
+          if (onYearChanged != null) {
+            // Call with a sentinel value that we'll handle in the parent
+            // Actually, we can't pass null to a non-nullable int parameter
+            // So we'll use onCustomRangeChanged to clear it
+            onCustomRangeChanged?.call(null, null);
+          }
+        } else if (value.startsWith('year:')) {
+          final year = int.parse(value.split(':')[1]);
+          onYearChanged?.call(year);
+        }
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(
+              useCustomRange ? Icons.date_range : Icons.calendar_today,
+              size: 14,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
             Text(
-              selectedYear?.toString() ?? 'Year',
-              style: Theme.of(context).textTheme.bodySmall,
+              useCustomRange
+                  ? 'Custom'
+                  : selectedYear?.toString() ?? 'Last Year',
+              style: theme.textTheme.bodySmall,
             ),
             const SizedBox(width: 4),
             Icon(
               Icons.arrow_drop_down,
               size: 16,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
             ),
           ],
         ),
       ),
-      itemBuilder: (context) => availableYears!
-          .map((year) => PopupMenuItem(
-                value: year,
-                child: Text(year.toString()),
-              ))
-          .toList(),
+      itemBuilder: (context) {
+        final items = <PopupMenuEntry<String>>[
+          const PopupMenuItem(
+            value: 'lastYear',
+            child: Text('Last Year'),
+          ),
+          if (availableYears != null && availableYears!.isNotEmpty) ...[
+            const PopupMenuDivider(),
+            ...availableYears!.map((year) => PopupMenuItem(
+                  value: 'year:$year',
+                  child: Text(year.toString()),
+                )),
+          ],
+          const PopupMenuDivider(),
+          const PopupMenuItem(
+            value: 'custom',
+            child: Row(
+              children: [
+                Icon(Icons.date_range, size: 16),
+                SizedBox(width: 8),
+                Text('Custom Range'),
+              ],
+            ),
+          ),
+        ];
+        return items;
+      },
     );
+  }
+
+  Future<void> _showCustomDateRangePicker(BuildContext context) async {
+    final now = DateTime.now();
+    final initialFrom = customFromDate ?? now.subtract(const Duration(days: 365));
+    final initialTo = customToDate ?? now;
+
+    final pickedFrom = await showDatePicker(
+      context: context,
+      initialDate: initialFrom,
+      firstDate: DateTime(2000),
+      lastDate: now,
+      helpText: 'Select start date',
+    );
+
+    if (pickedFrom == null) return;
+
+    final pickedTo = await showDatePicker(
+      context: context,
+      initialDate: pickedFrom.isAfter(initialTo) ? pickedFrom : initialTo,
+      firstDate: pickedFrom,
+      lastDate: now,
+      helpText: 'Select end date',
+    );
+
+    if (pickedTo != null) {
+      onCustomRangeChanged?.call(pickedFrom, pickedTo);
+    }
   }
 }
 

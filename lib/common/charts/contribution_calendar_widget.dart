@@ -136,12 +136,15 @@ class ContributionCalendarWidget extends StatelessWidget {
                 child: _buildDayLabels(context),
               ),
 
-            // Calendar grid
+            // Calendar grid - make scrollable for long date ranges
             Expanded(
-              child: _buildCalendarGrid(
-                context,
-                defaultColors,
-                colorScheme,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: _buildCalendarGrid(
+                  context,
+                  defaultColors,
+                  colorScheme,
+                ),
               ),
             ),
           ],
