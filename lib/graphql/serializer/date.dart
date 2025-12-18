@@ -18,7 +18,7 @@ class DateSerializer implements PrimitiveSerializer<DateTime> {
     final DateTime date, {
     final FullType specifiedType = FullType.unspecified,
   }) =>
-      date.millisecondsSinceEpoch;
+      date.toIso8601String();
 
   @override
   Iterable<Type> get types => <Type>[DateTime];
@@ -45,7 +45,7 @@ class DateTimeSerializer implements PrimitiveSerializer<DateTime> {
       final DateTime date, {
         final FullType specifiedType = FullType.unspecified,
       }) =>
-      date.millisecondsSinceEpoch;
+      date.toIso8601String();
 
   @override
   Iterable<Type> get types => <Type>[DateTime];

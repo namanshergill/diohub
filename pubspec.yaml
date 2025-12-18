@@ -72,6 +72,8 @@ dependencies:
   flutter_widget_from_html: ^0.17.1
   #  google_nav_bar: ^5.0.6
   freezed: ^3.1.0
+  fl_chart: ^0.69.0
+  contribution_heatmap: ^0.5.1
   liquid_glass_renderer: ^0.2.0-dev.4
   gql: ^1.0.1-alpha+1730759315362
   gql_dio_link: ^2.0.0

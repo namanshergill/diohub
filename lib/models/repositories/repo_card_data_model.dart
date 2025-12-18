@@ -12,6 +12,7 @@ class RepoCardDataModel {
     this.stargazersCount,
     this.private,
     this.fork,
+    this.contributionCount,
   });
 
   final String name;
@@ -21,6 +22,7 @@ class RepoCardDataModel {
   final int? stargazersCount;
   final bool? private;
   final bool? fork;
+  final int? contributionCount;
 
   /// Construct from RepositoryModel
   factory RepoCardDataModel.fromRepositoryModel(RepositoryModel repo) {

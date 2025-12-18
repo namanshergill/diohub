@@ -360,6 +360,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.1"
+  contribution_heatmap:
+    dependency: "direct main"
+    description:
+      name: contribution_heatmap
+      sha256: "16695925b2edfc54c7a2836bdb2e3d9b2e7f26b12a4745291efa6248bff041c5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.2"
   conventional_commit:
     dependency: transitive
     description:
@@ -606,6 +614,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
+  fl_chart:
+    dependency: "direct main"
+    description:
+      name: fl_chart
+      sha256: "74959b99b92b9eebeed1a4049426fd67c4abc3c5a0f4d12e2877097d6a11ae08"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.69.2"
   flex_list:
     dependency: "direct main"
     description:

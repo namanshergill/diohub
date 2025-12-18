@@ -426,7 +426,8 @@ abstract class BaseAPIHandler {
                   cache.cacheOptions.policy != CachePolicy.refresh &&
                   cache.maxAge != null;
           if (checkCache) {
-            final String key = cache.cacheOptions.keyBuilder(url: options.uri,headers: options.headers.cast());
+            final String key = cache.cacheOptions
+                .keyBuilder(url: options.uri, headers: options.headers.cast());
             final CacheResponse? cacheData = await _cacheStore.get(key);
             final bool cacheIsBeforeExpiry = cacheData != null &&
                 DateTime.now().isBefore(
