@@ -1,9 +1,10 @@
 import 'package:diohub/app/global.dart';
 import 'package:diohub/common/charts/contribution_calendar_widget.dart';
-import 'package:diohub/graphql/__generated__/schema.schema.gql.dart';
+import 'package:diohub/common/utils/contribution_utils.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_contributions.data.gql.dart';
 import 'package:diohub/services/users/user_info_service.dart';
 import 'package:diohub/view/profile/about/widgets/activity_overview_section.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -143,7 +144,9 @@ CombinedContributionsData _combineResults(
     throw Exception('No results to combine');
   }
 
-  log.d('[_combineResults] Starting to combine ${results.length} year results');
+  if (kDebugMode) {
+    log.d('[_combineResults] Starting to combine ${results.length} year results');
+  }
 
   // Combine all weeks from all years, preserving the original week structure from API
   // Use a map to track days by date (YYYY-MM-DD) to handle duplicates at year boundaries
@@ -159,38 +162,44 @@ CombinedContributionsData _combineResults(
     final weeks = calendar.weeks.whereType<
         GuserContributionsData_user_contributionsCollection_contributionCalendar_weeks>();
 
-    log.d('[_combineResults] Result $resultIndex: Found ${weeks.length} weeks');
+    if (kDebugMode) {
+      log.d('[_combineResults] Result $resultIndex: Found ${weeks.length} weeks');
+    }
 
     for (int weekIndex = 0; weekIndex < weeks.length; weekIndex++) {
       final week = weeks.elementAt(weekIndex);
       
       // Get the first day of the week from the API (more reliable than using contributionDays.first)
       final firstDayDate = DateTime.parse(week.firstDay.toString());
-      final firstDayKey = '${firstDayDate.year}-${firstDayDate.month.toString().padLeft(2, '0')}-${firstDayDate.day.toString().padLeft(2, '0')}';
+      final firstDayKey = formatDateOnly(firstDayDate);
       
-      log.d('[_combineResults] Result $resultIndex, Week $weekIndex: firstDay=$firstDayKey, days=${week.contributionDays.length}');
+      if (kDebugMode) {
+        log.d('[_combineResults] Result $resultIndex, Week $weekIndex: firstDay=$firstDayKey, days=${week.contributionDays.length}');
+      }
       
       // Track unique week first days (use set for O(1) lookup, list for ordered output)
       if (!weekFirstDaysSet.contains(firstDayKey)) {
         weekFirstDaysSet.add(firstDayKey);
         weekFirstDaysList.add(firstDayKey);
-        log.d('[_combineResults] Added new week: $firstDayKey (total unique weeks: ${weekFirstDaysList.length})');
-      } else {
+        if (kDebugMode) {
+          log.d('[_combineResults] Added new week: $firstDayKey (total unique weeks: ${weekFirstDaysList.length})');
+        }
+      } else if (kDebugMode) {
         log.d('[_combineResults] Skipped duplicate week: $firstDayKey');
       }
 
       // Collect all days from this week
       for (final day in week.contributionDays) {
         final dayDate = DateTime.parse(day.date.toString());
-        final dateKey = '${dayDate.year}-${dayDate.month.toString().padLeft(2, '0')}-${dayDate.day.toString().padLeft(2, '0')}';
+        final dateKey = formatDateOnly(dayDate);
 
         // Use the latest data if there's a duplicate (at year boundaries)
         if (!allDaysMap.containsKey(dateKey)) {
           final contributionDay = ContributionDay(
             date: dayDate,
             count: day.contributionCount,
-            color: _parseColor(day.color),
-            level: _convertContributionLevel(day.contributionLevel),
+            color: parseContributionColor(day.color),
+            level: convertContributionLevel(day.contributionLevel),
           );
           allDaysMap[dateKey] = contributionDay;
         }
@@ -198,12 +207,16 @@ CombinedContributionsData _combineResults(
     }
   }
 
-  log.d('[_combineResults] Collected ${allDaysMap.length} unique days');
-  log.d('[_combineResults] Collected ${weekFirstDaysList.length} unique week first days');
+  if (kDebugMode) {
+    log.d('[_combineResults] Collected ${allDaysMap.length} unique days');
+    log.d('[_combineResults] Collected ${weekFirstDaysList.length} unique week first days');
+  }
 
   // Sort week first days chronologically
   weekFirstDaysList.sort((a, b) => a.compareTo(b));
-  log.d('[_combineResults] Sorted weeks. First week: ${weekFirstDaysList.firstOrNull}, Last week: ${weekFirstDaysList.lastOrNull}');
+  if (kDebugMode) {
+    log.d('[_combineResults] Sorted weeks. First week: ${weekFirstDaysList.firstOrNull}, Last week: ${weekFirstDaysList.lastOrNull}');
+  }
 
   // Reconstruct weeks preserving the original structure
   // Each week from API starts on the first day and has 7 days
@@ -216,7 +229,7 @@ CombinedContributionsData _combineResults(
     // Add 7 days for this week (preserving API structure)
     for (int i = 0; i < 7; i++) {
       final weekDay = firstDayDate.add(Duration(days: i));
-      final dateKey = '${weekDay.year}-${weekDay.month.toString().padLeft(2, '0')}-${weekDay.day.toString().padLeft(2, '0')}';
+      final dateKey = formatDateOnly(weekDay);
       
       // Get day from map or create empty day
       final day = allDaysMap[dateKey] ?? ContributionDay(
@@ -231,12 +244,14 @@ CombinedContributionsData _combineResults(
     
     allWeeks.add(week);
     
-    if (weekIndex < 3 || weekIndex >= weekFirstDaysList.length - 3) {
+    if (kDebugMode && (weekIndex < 3 || weekIndex >= weekFirstDaysList.length - 3)) {
       log.d('[_combineResults] Reconstructed week $weekIndex: firstDay=$firstDayKey, days=${week.length}');
     }
   }
 
-  log.d('[_combineResults] Final result: ${allWeeks.length} weeks, ${allDaysMap.length} unique days');
+  if (kDebugMode) {
+    log.d('[_combineResults] Final result: ${allWeeks.length} weeks, ${allDaysMap.length} unique days');
+  }
 
   // Combine repositories (merge by repository URL, sum contributions)
   final repoMap = <String, ContributedRepository>{};
@@ -309,7 +324,7 @@ CombinedContributionsData _combineResults(
   }
 
   // Get colors from the first result (they should be the same)
-  final colors = _parseColors(
+  final colors = parseContributionColors(
     results.first.contributionsCollection.contributionCalendar.colors.toList(),
   );
 
@@ -326,44 +341,3 @@ CombinedContributionsData _combineResults(
   );
 }
 
-/// Converts GraphQL contribution level to enum
-ContributionLevel _convertContributionLevel(GContributionLevel level) {
-  switch (level) {
-    case GContributionLevel.NONE:
-      return ContributionLevel.none;
-    case GContributionLevel.FIRST_QUARTILE:
-      return ContributionLevel.firstQuartile;
-    case GContributionLevel.SECOND_QUARTILE:
-      return ContributionLevel.secondQuartile;
-    case GContributionLevel.THIRD_QUARTILE:
-      return ContributionLevel.thirdQuartile;
-    case GContributionLevel.FOURTH_QUARTILE:
-      return ContributionLevel.fourthQuartile;
-    default:
-      return ContributionLevel.none;
-  }
-}
-
-/// Parses hex color string to Color
-Color _parseColor(String hexColor) {
-  // Remove # if present and ensure uppercase
-  final hex = hexColor.replaceFirst('#', '').toUpperCase();
-  // Parse as int with alpha channel (FF = fully opaque)
-  final colorValue = int.parse('FF$hex', radix: 16);
-  return Color(colorValue);
-}
-
-/// Parses list of hex color strings to Color list
-List<Color> _parseColors(List<String> colors) {
-  if (colors.isEmpty) {
-    // Default GitHub colors
-    return [
-      Color(0xFFEBEDF0),
-      Color(0xFF9BE9A8),
-      Color(0xFF40C463),
-      Color(0xFF30A14E),
-      Color(0xFF216E39),
-    ];
-  }
-  return colors.map(_parseColor).toList();
-}
