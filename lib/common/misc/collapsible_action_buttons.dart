@@ -136,6 +136,7 @@ sealed class ActionButtonData {
     this.actionType,
     this.visibilityState = ActionButtonVisibilityState.both,
     this.seedColor,
+    this.category,
   });
 
   final IconData icon;
@@ -164,6 +165,10 @@ sealed class ActionButtonData {
   /// Optional seed color used to determine button colors (for prominent action cards)
   /// When provided, this color is used as the base for generating icon, text, and background colors
   final Color? seedColor;
+
+  /// Optional category/section identifier for grouping actions
+  /// Actions with the same category will be grouped together with dividers between groups
+  final String? category;
 
   /// Gets the display icon for this action button
   /// For CheckboxActionButton, returns checked icon when value is true
@@ -347,6 +352,7 @@ class MinorActionButton extends ActionButtonData {
     super.actionType,
     super.visibilityState,
     super.seedColor,
+    super.category,
   });
 
   final VoidCallback? onTap;
@@ -366,6 +372,7 @@ class MinorActionButton extends ActionButtonData {
     ActionButtonActionType? actionType,
     ActionButtonVisibilityState? visibilityState,
     Color? seedColor,
+    String? category,
   }) {
     return MinorActionButton(
       icon: icon ?? this.icon,
@@ -381,6 +388,7 @@ class MinorActionButton extends ActionButtonData {
       actionType: actionType ?? this.actionType,
       visibilityState: visibilityState ?? this.visibilityState,
       seedColor: seedColor ?? this.seedColor,
+      category: category ?? this.category,
     );
   }
 }
@@ -401,6 +409,7 @@ class MajorActionButton extends ActionButtonData {
     super.actionType,
     super.visibilityState,
     super.seedColor,
+    super.category,
   });
 
   final VoidCallback? onTap;
@@ -420,6 +429,7 @@ class MajorActionButton extends ActionButtonData {
     ActionButtonActionType? actionType,
     ActionButtonVisibilityState? visibilityState,
     Color? seedColor,
+    String? category,
   }) {
     return MajorActionButton(
       icon: icon ?? this.icon,
@@ -435,6 +445,7 @@ class MajorActionButton extends ActionButtonData {
       actionType: actionType ?? this.actionType,
       visibilityState: visibilityState ?? this.visibilityState,
       seedColor: seedColor ?? this.seedColor,
+      category: category ?? this.category,
     );
   }
 }
@@ -455,6 +466,7 @@ class ExpandableActionButton extends ActionButtonData {
     super.actionType,
     super.visibilityState,
     super.seedColor,
+    super.category,
   });
 
   /// Builder function to create widget to show when this button is expanded
@@ -479,6 +491,7 @@ class ExpandableActionButton extends ActionButtonData {
     ActionButtonActionType? actionType,
     ActionButtonVisibilityState? visibilityState,
     Color? seedColor,
+    String? category,
   }) {
     return ExpandableActionButton(
       icon: icon ?? this.icon,
@@ -495,6 +508,7 @@ class ExpandableActionButton extends ActionButtonData {
       actionType: actionType ?? this.actionType,
       visibilityState: visibilityState ?? this.visibilityState,
       seedColor: seedColor ?? this.seedColor,
+      category: category ?? this.category,
     );
   }
 }
@@ -516,6 +530,7 @@ class CheckboxActionButton extends ActionButtonData {
     super.actionType,
     super.visibilityState,
     super.seedColor,
+    super.category,
   });
 
   /// Current checkbox value
@@ -540,6 +555,7 @@ class CheckboxActionButton extends ActionButtonData {
     ActionButtonActionType? actionType,
     ActionButtonVisibilityState? visibilityState,
     Color? seedColor,
+    String? category,
   }) {
     return CheckboxActionButton(
       icon: icon ?? this.icon,
@@ -556,6 +572,7 @@ class CheckboxActionButton extends ActionButtonData {
       actionType: actionType ?? this.actionType,
       visibilityState: visibilityState ?? this.visibilityState,
       seedColor: seedColor ?? this.seedColor,
+      category: category ?? this.category,
     );
   }
 }

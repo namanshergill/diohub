@@ -585,11 +585,13 @@ List<ActionButtonData> buildAllActions(
   allActions.add(newIssueButton);
   allActions.add(branchButton);
 
-  // Add minor actions (will appear in the row)
+  // Add minor actions (will appear in the row) - grouped by category
   allActions.addAll([
+    // Navigation - always visible in collapsed state
     MinorActionButton(
       icon: Octicons.file_code,
       label: repo.primaryLanguage?.name ?? 'Code',
+      category: 'Navigation',
       iconColor: () {
         final color = repo.primaryLanguage?.color;
         return color != null
@@ -607,6 +609,7 @@ List<ActionButtonData> buildAllActions(
     MinorActionButton(
       icon: Octicons.issue_opened,
       label: 'Issues',
+      category: 'Navigation',
       trailing: repo.issues.totalCount > 0
           ? buildActionButtonTrailingCount(context, repo.issues.totalCount)
           : null,
@@ -618,6 +621,7 @@ List<ActionButtonData> buildAllActions(
     MinorActionButton(
       icon: Octicons.git_pull_request,
       label: 'Pull Requests',
+      category: 'Navigation',
       trailing: repo.issues.totalCount > 0
           ? buildActionButtonTrailingCount(context, repo.issues.totalCount)
           : null,
@@ -626,9 +630,11 @@ List<ActionButtonData> buildAllActions(
           : ActionButtonVisibilityState.both,
       onTap: () => tabController.openTab('Pull Requests'),
     ),
+    // Content - visible in expanded state only
     MinorActionButton(
       icon: Octicons.book,
       label: 'Readme',
+      category: 'Content',
       visibilityState: tabState.isOnReadmeTab
           ? ActionButtonVisibilityState.none
           : ActionButtonVisibilityState.expandedOnly,
@@ -637,6 +643,7 @@ List<ActionButtonData> buildAllActions(
     MinorActionButton(
       icon: Octicons.kebab_horizontal,
       label: 'More',
+      category: 'Content',
       visibilityState: tabState.isOnMoreTab
           ? ActionButtonVisibilityState.none
           : ActionButtonVisibilityState.expandedOnly,

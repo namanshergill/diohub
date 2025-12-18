@@ -12,6 +12,73 @@ export 'package:diohub/common/misc/action_card_builder.dart'
 export 'package:diohub/common/misc/collapsible_action_buttons.dart'
     show ActionButtonColors;
 
+/// Groups actions by category, preserving order
+/// Returns a map where keys are categories (null for uncategorized) and values are lists of actions
+Map<String?, List<ActionButtonData>> _groupActionsByCategory(
+  List<ActionButtonData> actions,
+) {
+  final Map<String?, List<ActionButtonData>> grouped = {};
+  String? currentCategory;
+  
+  for (final action in actions) {
+    final category = action.category;
+    
+    // If category changed, start a new group
+    if (category != currentCategory) {
+      currentCategory = category;
+      if (!grouped.containsKey(category)) {
+        grouped[category] = [];
+      }
+    }
+    
+    grouped[category]!.add(action);
+  }
+  
+  return grouped;
+}
+
+/// Builds a divider widget between action groups
+Widget _buildCategoryDivider(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8.0),
+    child: Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context)
+            .colorScheme
+            .outline
+            .withOpacity(0.12),
+      ),
+    ),
+  );
+}
+
+/// Builds a section header widget for a category
+Widget _buildCategoryHeader(BuildContext context, String category) {
+  return Padding(
+    padding: const EdgeInsets.only(
+      left: 4,
+      top: 12,
+      bottom: 8,
+    ),
+    child: Text(
+      category.toUpperCase(),
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: Theme.of(context)
+            .colorScheme
+            .onSurfaceVariant
+            .withOpacity(0.6),
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.5,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    ),
+  );
+}
+
 /// Builds the toolbar content widget
 Widget buildToolbarContent({
   required BuildContext context,
@@ -269,42 +336,73 @@ Widget buildToolbarContent({
                                                             .shrink();
                                                       }
 
-                                                      // Compact wrapping grid - tighter spacing for modern look
+                                                      // Group actions by category
+                                                      final groupedActions = _groupActionsByCategory(allActions);
+                                                      final categories = groupedActions.keys.toList();
+
+                                                      // Filter categories to only include those with visible actions
+                                                      final categoriesWithVisibleActions = categories.where((category) {
+                                                        final categoryActions = groupedActions[category]!;
+                                                        return categoryActions.any((action) => action.isVisibleInExpanded);
+                                                      }).toList();
+
+                                                      // Compact wrapping grid with categories - tighter spacing for modern look
                                                       return Padding(
                                                         padding:
                                                             const EdgeInsets
                                                                 .only(
                                                                 bottom: 8),
-                                                        child: Wrap(
-                                                          spacing: 6.0,
-                                                          runSpacing: 6.0,
-                                                          alignment:
-                                                              WrapAlignment
-                                                                  .start,
-                                                          children: allActions
-                                                              .asMap()
-                                                              .entries
-                                                              .map((entry) {
-                                                            final index =
-                                                                entry.key;
-                                                            final action =
-                                                                entry.value;
+                                                        child: Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: categoriesWithVisibleActions.asMap().entries.map((categoryEntry) {
+                                                            final categoryIndex = categoryEntry.key;
+                                                            final category = categoryEntry.value;
+                                                            final categoryActions = groupedActions[category]!;
 
-                                                            return _AnimatedExpandedAction(
-                                                              key: ValueKey(
-                                                                  'expanded_${action.label}_${action.icon}'),
-                                                              action: action,
-                                                              index: index,
-                                                              callbacks:
-                                                                  callbacks,
-                                                              onCollapseRequested:
-                                                                  onCollapseRequested,
-                                                              expandAnimation:
-                                                                  expandAnimation,
-                                                              isNearTop: callbacks
-                                                                      .nearPosition ==
-                                                                  base.FloatingPosition
-                                                                      .top,
+                                                            return Column(
+                                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                                              mainAxisSize: MainAxisSize.min,
+                                                              children: [
+                                                                // Section header (only if category is not null and not empty)
+                                                                if (category != null && category.isNotEmpty)
+                                                                  _buildCategoryHeader(context, category),
+                                                                
+                                                                // Actions in this category
+                                                                Wrap(
+                                                                  spacing: 6.0,
+                                                                  runSpacing: 6.0,
+                                                                  alignment: WrapAlignment.start,
+                                                                  children: categoryActions
+                                                                      .asMap()
+                                                                      .entries
+                                                                      .map((entry) {
+                                                                    final index = entry.key;
+                                                                    final action = entry.value;
+
+                                                                    return _AnimatedExpandedAction(
+                                                                      key: ValueKey(
+                                                                          'expanded_${action.label}_${action.icon}'),
+                                                                      action: action,
+                                                                      index: index,
+                                                                      callbacks:
+                                                                          callbacks,
+                                                                      onCollapseRequested:
+                                                                          onCollapseRequested,
+                                                                      expandAnimation:
+                                                                          expandAnimation,
+                                                                      isNearTop: callbacks
+                                                                              .nearPosition ==
+                                                                          base.FloatingPosition
+                                                                              .top,
+                                                                    );
+                                                                  }).toList(),
+                                                                ),
+                                                                
+                                                                // Divider after category (except for last category)
+                                                                if (categoryIndex < categoriesWithVisibleActions.length - 1)
+                                                                  _buildCategoryDivider(context),
+                                                              ],
                                                             );
                                                           }).toList(),
                                                         ),
@@ -824,63 +922,48 @@ class _AnimatedCollapsedActionsRowState
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Horizontal row of regular actions
+        // Horizontal row of regular actions - simple row without category grouping
         Builder(
           builder: (context) {
-            // Filter to only visible actions for divider calculation
-            final visibleEnabled = widget.enabledActions
-                .where((a) => _isVisibleInCollapsed(a))
-                .toList();
-            final visibleDisabled = widget.disabledActions
-                .where((a) => _isVisibleInCollapsed(a))
-                .toList();
+            // Build a flat list of all actions in order (enabled first, then disabled)
+            final allActionsInOrder = <ActionButtonData>[
+              ...widget.enabledActions,
+              ...widget.disabledActions,
+            ];
 
             return Row(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ...widget.enabledActions.map((action) {
-                  // Check if this is the last VISIBLE enabled action
-                  final isLastVisibleEnabled = visibleEnabled.isNotEmpty &&
-                      action == visibleEnabled[visibleEnabled.length - 1];
-                  // Show divider if not the last visible enabled action, or if there are visible disabled actions
-                  final hasVisibleDisabled = visibleDisabled.isNotEmpty;
-                  final showDivider =
-                      !isLastVisibleEnabled || hasVisibleDisabled;
+              children: allActionsInOrder.asMap().entries.map((entry) {
+                final index = entry.key;
+                final action = entry.value;
+                final isVisible = _isVisibleInCollapsed(action);
+                
+                // Find the next visible action in the list (starting from the next index)
+                ActionButtonData? nextVisibleAction;
+                for (var i = index + 1; i < allActionsInOrder.length; i++) {
+                  if (_isVisibleInCollapsed(allActionsInOrder[i])) {
+                    nextVisibleAction = allActionsInOrder[i];
+                    break;
+                  }
+                }
+                
+                // Show divider only if this action is visible AND there's a next visible action
+                final showDivider = isVisible && nextVisibleAction != null;
 
-                  return _AnimatedActionButton(
-                    key: ValueKey('enabled_${action.label}_${action.icon}'),
-                    action: action,
-                    spacing: widget.spacing,
-                    buildCompactIconButton: widget.buildCompactIconButton,
-                    callbacks: widget.callbacks,
-                    onCollapseRequested: widget.onCollapseRequested,
-                    context: widget.context,
-                    showDivider: showDivider,
-                    expandAnimation: widget.expandAnimation,
-                    debugLogging: widget.debugLogging,
-                  );
-                }),
-                ...widget.disabledActions.map((action) {
-                  // Check if this is the last VISIBLE disabled action
-                  final isLastVisibleDisabled = visibleDisabled.isNotEmpty &&
-                      action == visibleDisabled[visibleDisabled.length - 1];
-                  // Show divider only if not the last visible disabled action
-
-                  return _AnimatedActionButton(
-                    key: ValueKey('disabled_${action.label}_${action.icon}'),
-                    action: action,
-                    spacing: widget.spacing,
-                    buildCompactIconButton: widget.buildCompactIconButton,
-                    callbacks: widget.callbacks,
-                    onCollapseRequested: widget.onCollapseRequested,
-                    context: widget.context,
-                    showDivider: !isLastVisibleDisabled,
-                    expandAnimation: widget.expandAnimation,
-                    debugLogging: widget.debugLogging,
-                  );
-                }),
-              ],
+                return _AnimatedActionButton(
+                  key: ValueKey('${action.enabled ? 'enabled' : 'disabled'}_${action.label}_${action.icon}'),
+                  action: action,
+                  spacing: widget.spacing,
+                  buildCompactIconButton: widget.buildCompactIconButton,
+                  callbacks: widget.callbacks,
+                  onCollapseRequested: widget.onCollapseRequested,
+                  context: widget.context,
+                  showDivider: showDivider,
+                  expandAnimation: widget.expandAnimation,
+                  debugLogging: widget.debugLogging,
+                );
+              }).toList(),
             );
           },
         ),
@@ -1100,7 +1183,6 @@ class _AnimatedActionButton extends StatefulWidget {
     required this.context,
     required this.showDivider,
     required this.expandAnimation,
-    this.bottomPadding = 0,
     this.debugLogging = false,
     super.key,
   });
@@ -1118,7 +1200,6 @@ class _AnimatedActionButton extends StatefulWidget {
   final BuildContext context;
   final bool showDivider;
   final Animation<double> expandAnimation;
-  final double bottomPadding;
   final bool debugLogging;
 
   @override
@@ -1311,23 +1392,19 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
                 ],
               );
 
-        // For prominent actions (spacing == 0), use SizeTransition to collapse vertically
         // For regular actions (spacing > 0), use SizeTransition to collapse horizontally
+        // Note: Prominent actions (spacing == 0) are handled by _AnimatedProminentAction
         Widget animatedWidget;
         if (widget.spacing == 0) {
-          // Prominent actions: use SizeTransition to collapse vertically
-          // Padding is inside SizeTransition so it collapses with the widget
+          // This shouldn't happen for regular actions, but handle gracefully
           animatedWidget = SizeTransition(
             sizeFactor: _fadeAnimation,
             axis: Axis.vertical,
-            child: Padding(
-              padding: EdgeInsets.only(bottom: widget.bottomPadding),
-              child: Opacity(
-                opacity: combinedOpacity.clamp(0.0, 1.0),
-                child: Transform.translate(
-                  offset: slideOffset,
-                  child: buttonContent,
-                ),
+            child: Opacity(
+              opacity: combinedOpacity.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: slideOffset,
+                child: buttonContent,
               ),
             ),
           );
