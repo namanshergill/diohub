@@ -298,6 +298,11 @@ class _InfinitePaginationState<T> extends State<_InfinitePagination<T>> {
   // or be fetched from cache, if available.
   bool refresh = false;
 
+  // Track which items have been animated in (for initial load)
+  final Set<int> _animatedItems = <int>{};
+  // Track if we've started animating items (to distinguish initial load from pagination)
+  bool _hasStartedAnimating = false;
+
   @override
   void initState() {
     super.initState();
@@ -337,6 +342,8 @@ class _InfinitePaginationState<T> extends State<_InfinitePagination<T>> {
   void resetAndRefresh() {
     refresh = true;
     pageNumber = widget.pageNumber;
+    _animatedItems.clear(); // Reset animated items on refresh
+    _hasStartedAnimating = false; // Reset animation state
     _pagingController.refresh();
   }
 
@@ -408,24 +415,57 @@ class _InfinitePaginationState<T> extends State<_InfinitePagination<T>> {
               final BuildContext context,
               final _ListItem<T> item,
               final int index,
-            ) =>
-                Column(
-              children: <Widget>[
-                if (index == 0)
-                  SizedBox(
-                    height: widget.padding.top,
-                  ),
-                widget.builder(
-                  context,
-                  ScrollWrapperBuilderData<T>(
-                    item: item.item,
+            ) {
+              // Store refresh value before it's consumed
+              final bool isRefresh = item.refreshChildren;
+
+              // Determine if this item should animate:
+              // 1. On initial load (first time items appear, index < pageSize)
+              // 2. On refresh (when refresh flag is true)
+              // 3. Only animate each item once
+              final bool isFirstPage = index < widget.pageSize;
+              // Allow all first-page items to animate on initial load
+              // Check if we're still in initial load phase (no items animated yet OR all animated items are first page)
+              final bool isInitialLoadPhase = _animatedItems.isEmpty ||
+                  (_animatedItems.isNotEmpty &&
+                      _animatedItems.every((i) => i < widget.pageSize));
+
+              // Animate if: not already animated AND (is refresh OR is first page in initial load phase)
+              final bool shouldAnimate = !_animatedItems.contains(index) &&
+                  (isRefresh || (isFirstPage && isInitialLoadPhase));
+
+              if (shouldAnimate) {
+                _animatedItems.add(index);
+                // Mark that we've started animating after processing first item
+                if (!_hasStartedAnimating) {
+                  _hasStartedAnimating = true;
+                }
+              }
+
+              return Column(
+                children: <Widget>[
+                  if (index == 0)
+                    SizedBox(
+                      height: widget.padding.top,
+                    ),
+                  _StaggeredAnimatedItem(
+                    key: ValueKey('animated_${item.item.hashCode}_$index'),
                     index: index,
-                    refresh: item.refreshChildren,
-                    isCurrentlyLast: (state.items?.length ?? 0) - 1 == index,
+                    shouldAnimate: shouldAnimate,
+                    child: widget.builder(
+                      context,
+                      ScrollWrapperBuilderData<T>(
+                        item: item.item,
+                        index: index,
+                        refresh: isRefresh,
+                        isCurrentlyLast:
+                            (state.items?.length ?? 0) - 1 == index,
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              );
+            },
             firstPageProgressIndicatorBuilder: (final BuildContext context) =>
                 widget.firstPageLoadingBuilder?.call(context) ??
                 const Padding(
@@ -553,6 +593,94 @@ class _FirstPageExceptionIndicator extends StatelessWidget {
             'Retry',
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Widget that animates items in with a staggered delay
+class _StaggeredAnimatedItem extends StatefulWidget {
+  const _StaggeredAnimatedItem({
+    super.key,
+    required this.index,
+    required this.shouldAnimate,
+    required this.child,
+  });
+
+  final int index;
+  final bool shouldAnimate;
+  final Widget child;
+
+  @override
+  State<_StaggeredAnimatedItem> createState() => _StaggeredAnimatedItemState();
+}
+
+class _StaggeredAnimatedItemState extends State<_StaggeredAnimatedItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOut,
+      ),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    if (widget.shouldAnimate) {
+      // Initialize controller at 0 (invisible) so items start hidden
+      _controller.value = 0.0;
+      // Start animation with a delay based on index for staggered effect
+      final int delay = (widget.index * 50).clamp(0, 300);
+      // Use addPostFrameCallback to ensure widget is fully built before animating
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future<void>.delayed(Duration(milliseconds: delay), () {
+          if (mounted && _controller.status == AnimationStatus.dismissed) {
+            _controller.forward();
+          }
+        });
+      });
+    } else {
+      // If not animating, show immediately
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(final BuildContext context) {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: widget.child,
       ),
     );
   }

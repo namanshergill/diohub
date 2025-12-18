@@ -114,27 +114,31 @@ class MarkdownBodyState extends State<MarkdownBody> {
     final dom.Document document = parse(data);
     // The list of tags to perform modifications on.
     final List<String> tags = <String>['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
-    final headings = <({String text, String id, int level})>[];
 
+    // Collect all heading elements first (for modifications)
     for (final String element in tags) {
       final List<dom.Element> elements = document.getElementsByTagName(element);
       performModifications(elements);
+    }
 
-      // Extract level from tag name (h1 = 1, h2 = 2, etc.)
-      final level = int.parse(element.substring(1));
+    // Extract headings in document order by querying all at once
+    final headings = <({String text, String id, int level})>[];
+    final allHeadingElements =
+        document.querySelectorAll('h1, h2, h3, h4, h5, h6');
 
-      // Extract headings for callback
-      for (final dom.Element headingElement in elements) {
-        final text = headingElement.text.trim();
-        if (text.isNotEmpty) {
-          final id = headingElement.attributes['id'] ?? '';
-          print(
-              '[MarkdownBody] Extracted heading: text="$text", id="$id", level=$level');
-          print(
-              '[MarkdownBody] Heading element attributes: ${headingElement.attributes}');
+    for (final dom.Element headingElement in allHeadingElements) {
+      final text = headingElement.text.trim();
+      if (text.isNotEmpty) {
+        final id = headingElement.attributes['id'] ?? '';
+        // Extract level from tag name (h1 = 1, h2 = 2, etc.)
+        final level = int.parse(headingElement.localName!.substring(1));
 
-          headings.add((text: text, id: id, level: level));
-        }
+        print(
+            '[MarkdownBody] Extracted heading: text="$text", id="$id", level=$level');
+        print(
+            '[MarkdownBody] Heading element attributes: ${headingElement.attributes}');
+
+        headings.add((text: text, id: id, level: level));
       }
     }
 

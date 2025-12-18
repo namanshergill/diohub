@@ -155,15 +155,23 @@ class SearchScrollWrapperState extends State<SearchScrollWrapper> {
 
   /// Updates the search data and refreshes the results
   void updateSearchData(SearchData newSearchData) {
+    print('[SearchScrollWrapper] updateSearchData called');
+    print('[SearchScrollWrapper] Old filters: ${searchData.filterStrings}');
+    print('[SearchScrollWrapper] New filters: ${newSearchData.filterStrings}');
     setState(() {
       searchData = newSearchData;
     });
+    print(
+        '[SearchScrollWrapper] setState called, widget.onChanged is null: ${widget.onChanged == null}');
     widget.onChanged?.call(newSearchData);
+    print('[SearchScrollWrapper] Calling controller.refresh()');
     controller.refresh();
     // Notify button data changed
     if (widget.onButtonDataReady != null) {
+      print('[SearchScrollWrapper] Notifying onButtonDataReady');
       widget.onButtonDataReady!(_getButtonData());
     }
+    print('[SearchScrollWrapper] updateSearchData completed');
   }
 
   /// Gets the current search data

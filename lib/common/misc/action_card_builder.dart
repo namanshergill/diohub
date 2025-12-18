@@ -3,6 +3,27 @@ import 'package:diohub/common/misc/highlighted_container.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:flutter/material.dart';
 
+// Re-export ActionButtonColors for backward compatibility
+export 'package:diohub/common/misc/collapsible_action_buttons.dart'
+    show ActionButtonColors;
+
+/// Calculates colors for action buttons based on their state and type
+/// This centralizes the color logic used across all action button builders
+///
+/// This is a convenience wrapper around [ActionButtonData.getColors]
+ActionButtonColors calculateActionButtonColors(
+  BuildContext context,
+  ActionButtonData action, {
+  bool forProminentButton = false,
+  Color? seedColor,
+}) {
+  return action.getColors(
+    context,
+    forProminentButton: forProminentButton,
+    seedColor: seedColor,
+  );
+}
+
 // Generic padding constants for prominent action buttons
 // These ensure consistent sizing across MajorActionButton, ExpandableActionButton, and CheckboxActionButton
 // This padding applies ONLY to the buttons themselves, not to the expanded widget content
@@ -80,43 +101,26 @@ Widget buildStandardActionCard(
   double borderRadius = 14,
   EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
 }) {
-  Color iconColor;
-  Color textColor;
-  Color badgeColor;
-  Color badgeTextColor;
+  final colors = calculateActionButtonColors(context, action);
 
-  if (!action.enabled) {
-    iconColor = context.colorScheme.onSurfaceVariant.withOpacity(0.3);
-    textColor = context.colorScheme.onSurfaceVariant.withOpacity(0.4);
-    badgeColor = Colors.transparent;
-    badgeTextColor = context.colorScheme.onSurfaceVariant.withOpacity(0.4);
-  } else if (action.isDestructive) {
-    iconColor = context.colorScheme.error;
-    textColor = context.colorScheme.error;
-    badgeColor = context.colorScheme.error;
-    badgeTextColor = Colors.white;
-  } else if (action.isPositive) {
-    iconColor = Colors.green.shade400;
-    textColor = Colors.green.shade300;
-    badgeColor = Colors.green.shade500;
-    badgeTextColor = Colors.white;
-  } else {
-    // More vibrant colors - use primary color for icons
-    iconColor = action.iconColor ?? context.colorScheme.primary;
-    textColor = context.colorScheme.onSurface.withOpacity(0.9);
-    badgeColor = context.colorScheme.primary;
-    badgeTextColor = Colors.white;
-  }
+  // Standard card uses primary for icon, slightly muted text
+  final iconColor =
+      action.enabled && !action.isDestructive && !action.isPositive
+          ? (action.iconColor ?? context.colorScheme.primary)
+          : colors.iconColor;
+  final textColor =
+      action.enabled && !action.isDestructive && !action.isPositive
+          ? context.colorScheme.onSurface.withOpacity(0.9)
+          : colors.textColor;
+
+  // Special handling for positive actions in standard cards
+  final effectiveIconColor =
+      action.isPositive ? Colors.green.shade400 : iconColor;
+  final effectiveTextColor =
+      action.isPositive ? Colors.green.shade300 : textColor;
 
   // Extract badge text from trailing widget
-  String? badgeText;
-  if (action.trailing != null) {
-    if (action.trailing is Text) {
-      badgeText = (action.trailing as Text).data;
-    } else {
-      badgeText = null;
-    }
-  }
+  final badgeText = action.badgeText;
 
   return Material(
     color: Colors.transparent,
@@ -127,7 +131,11 @@ Widget buildStandardActionCard(
             ? switch (action) {
                 MinorActionButton(:final onTap) => onTap,
                 CheckboxActionButton(:final onChanged, :final value) => () {
+                    print(
+                        '[ActionCardBuilder] Checkbox tapped! current value: $value, onChanged is null: ${onChanged == null}');
                     onChanged?.call(!value);
+                    print(
+                        '[ActionCardBuilder] Checkbox onChanged called with: ${!value}');
                   },
                 _ => null,
               }
@@ -146,15 +154,13 @@ Widget buildStandardActionCard(
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: iconColor.withOpacity(0.15),
+                      color: effectiveIconColor.withOpacity(0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      action is CheckboxActionButton && action.value
-                          ? Icons.check_box_rounded
-                          : action.icon,
+                      action.displayIcon,
                       size: iconSize,
-                      color: iconColor,
+                      color: effectiveIconColor,
                     ),
                   ),
                   // Badge overlay on icon (top-right)
@@ -168,7 +174,7 @@ Widget buildStandardActionCard(
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: badgeColor,
+                          color: colors.badgeColor,
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: Theme.of(context).scaffoldBackgroundColor,
@@ -184,7 +190,7 @@ Widget buildStandardActionCard(
                             badgeText,
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: badgeTextColor,
+                              color: colors.badgeTextColor,
                               fontSize: 10,
                               height: 1,
                             ),
@@ -200,7 +206,7 @@ Widget buildStandardActionCard(
               Text(
                 action.label,
                 style: context.textTheme.labelSmall?.copyWith(
-                  color: textColor,
+                  color: effectiveTextColor,
                   fontWeight: FontWeight.w600,
                   fontSize: 11,
                   letterSpacing: -0.1,
@@ -237,68 +243,44 @@ Widget buildProminentActionCard(
 }) {
   // Use generic padding constant if not specified
   final effectivePadding = padding ?? _kProminentActionButtonPadding;
-  Color iconColor;
-  Color textColor;
-  Color backgroundColor;
-  Color badgeColor;
-  Color badgeTextColor;
 
-  // Use seedColor from action if provided, otherwise use parameter
-  final effectiveSeedColor = action.seedColor ?? seedColor;
+  // Calculate colors using shared function
+  final colors = calculateActionButtonColors(
+    context,
+    action,
+    forProminentButton: true,
+    seedColor: seedColor,
+  );
 
-  if (!action.enabled) {
-    backgroundColor =
-        context.colorScheme.surfaceContainerHighest.withOpacity(0.2);
-    iconColor = context.colorScheme.onSurfaceVariant.withOpacity(0.3);
-    textColor = context.colorScheme.onSurfaceVariant.withOpacity(0.4);
-    badgeColor = Colors.transparent;
-    badgeTextColor = context.colorScheme.onSurfaceVariant.withOpacity(0.4);
-  } else if (action.isDestructive) {
-    backgroundColor = context.colorScheme.errorContainer.withOpacity(0.2);
-    iconColor = context.colorScheme.error;
-    textColor = context.colorScheme.error;
-    badgeColor = context.colorScheme.error;
-    badgeTextColor = Colors.white;
-  } else if (action.isPositive) {
-    backgroundColor = Colors.green.withOpacity(0.15);
-    iconColor = Colors.green.shade600;
-    textColor = Colors.green.shade700;
-    badgeColor = Colors.green.shade600;
-    badgeTextColor = Colors.white;
-  } else if (effectiveSeedColor != null) {
-    // Use seedColor to generate colors
-    backgroundColor = effectiveSeedColor.withOpacity(0.15);
-    iconColor = effectiveSeedColor;
-    textColor = effectiveSeedColor;
-    badgeColor = effectiveSeedColor;
-    badgeTextColor = Colors.white;
-  } else {
-    // Prominent actions get a subtle background
-    backgroundColor =
-        context.colorScheme.surfaceContainerHighest.withOpacity(0.25);
-    iconColor = action.iconColor ?? context.colorScheme.primary;
-    textColor = context.colorScheme.onSurface;
-    badgeColor = context.colorScheme.primary;
-    badgeTextColor = Colors.white;
+  // Debug: Print checkbox state for AnimatedContainer animation
+  if (action is CheckboxActionButton) {
+    final isSelected = action.value;
+    print(
+        '[ActionCardBuilder] buildProminentActionCard: Checkbox ${action.label}, value=$isSelected');
+    print(
+        '  - Background: ${colors.backgroundColor} (hashCode: ${colors.backgroundColor.hashCode})');
+    print(
+        '  - IconColor: ${colors.iconColor} (hashCode: ${colors.iconColor.hashCode})');
+    print(
+        '  - TextColor: ${colors.textColor} (hashCode: ${colors.textColor.hashCode})');
+    print('  - AnimatedContainer key: checkbox_${action.label}');
   }
 
   // Extract badge text from trailing widget or use trailing widget directly
-  String? badgeText;
-  Widget? trailingWidget;
-  if (action.trailing != null) {
-    if (action.trailing is Text) {
-      badgeText = (action.trailing as Text).data;
-    } else {
-      // Use trailing widget directly for custom designs
-      trailingWidget = action.trailing;
-    }
-  }
+  final badgeText = action.badgeText;
+  final trailingWidget = action.trailing != null && action.trailing is! Text
+      ? action.trailing
+      : null;
 
   // Get onTap from MajorActionButton or CheckboxActionButton
   final VoidCallback? onTap = switch (action) {
     MajorActionButton(:final onTap) => onTap,
     CheckboxActionButton(:final onChanged, :final value) => () {
+        print(
+            '[ActionCardBuilder] Checkbox tapped (card)! current value: $value, onChanged is null: ${onChanged == null}');
         onChanged?.call(!value);
+        print(
+            '[ActionCardBuilder] Checkbox onChanged called (card) with: ${!value}');
       },
     _ => null,
   };
@@ -310,11 +292,20 @@ Widget buildProminentActionCard(
       child: InkWell(
         onTap: action.enabled ? onTap : null,
         borderRadius: BorderRadius.circular(borderRadius),
-        child: Container(
+        child: AnimatedContainer(
+          key: ValueKey('checkbox_${action.label}'),
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOut,
           width: double.infinity,
           padding: effectivePadding,
+          onEnd: () {
+            if (action is CheckboxActionButton) {
+              print(
+                  '[ActionCardBuilder] AnimatedContainer animation ended for ${action.label}');
+            }
+          },
           decoration: BoxDecoration(
-            color: backgroundColor,
+            color: colors.backgroundColor,
             borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(
               color: context.colorScheme.outline.withOpacity(0.1),
@@ -326,32 +317,58 @@ Widget buildProminentActionCard(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               // Icon
-              Icon(
-                action is CheckboxActionButton && action.value
-                    ? Icons.check_box_rounded
-                    : action.icon,
-                size: iconSize,
-                color: iconColor,
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  action.displayIcon,
+                  key: ValueKey(action.displayIcon),
+                  size: iconSize,
+                  color: colors.iconColor,
+                ),
               ),
               const SizedBox(width: 10),
-              // Label
+              // Label and subtitle
               Flexible(
-                child: Text(
-                  action.label,
-                  style: context.textTheme.bodyMedium?.copyWith(
-                    color: textColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    letterSpacing: -0.2,
-                    height:
-                        1.0, // Prevent extra line height from affecting Row height
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textHeightBehavior: const TextHeightBehavior(
-                    applyHeightToFirstAscent: false,
-                    applyHeightToLastDescent: false,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      style: context.textTheme.bodyMedium?.copyWith(
+                            color: colors.textColor,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            letterSpacing: -0.2,
+                            height:
+                                1.0, // Prevent extra line height from affecting Row height
+                          ) ??
+                          const TextStyle(),
+                      child: Text(
+                        action.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textHeightBehavior: const TextHeightBehavior(
+                          applyHeightToFirstAscent: false,
+                          applyHeightToLastDescent: false,
+                        ),
+                      ),
+                    ),
+                    if (action.subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        action.subtitle!,
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: colors.textColor.withOpacity(0.7),
+                          fontWeight: FontWeight.w400,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
                 ),
               ),
               // Badge or trailing widget (moved to the right side)
@@ -364,7 +381,7 @@ Widget buildProminentActionCard(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: badgeColor,
+                    color: colors.badgeColor,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: Theme.of(context).scaffoldBackgroundColor,
@@ -380,7 +397,7 @@ Widget buildProminentActionCard(
                       badgeText,
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: badgeTextColor,
+                        color: colors.badgeTextColor,
                         fontSize: 10,
                         height: 1,
                       ),
@@ -482,49 +499,15 @@ class _ExpandableProminentActionCardState
     print(
         '[buildExpandableProminentActionCard] Building expandable button: ${action.label}, expandableWidgetBuilder is not null');
 
-    Color iconColor;
-    Color textColor;
-    Color backgroundColor;
-    Color badgeColor;
-    Color badgeTextColor;
+    // Calculate colors using shared function
+    final colors = calculateActionButtonColors(
+      context,
+      action,
+      forProminentButton: true,
+    );
 
-    // Use seedColor from action if provided
+    // Use seedColor from action for expanded state styling
     final effectiveSeedColor = action.seedColor;
-
-    if (!action.enabled) {
-      backgroundColor =
-          context.colorScheme.surfaceContainerHighest.withOpacity(0.2);
-      iconColor = context.colorScheme.onSurfaceVariant.withOpacity(0.3);
-      textColor = context.colorScheme.onSurfaceVariant.withOpacity(0.4);
-      badgeColor = Colors.transparent;
-      badgeTextColor = context.colorScheme.onSurfaceVariant.withOpacity(0.4);
-    } else if (action.isDestructive) {
-      backgroundColor = context.colorScheme.errorContainer.withOpacity(0.2);
-      iconColor = context.colorScheme.error;
-      textColor = context.colorScheme.error;
-      badgeColor = context.colorScheme.error;
-      badgeTextColor = Colors.white;
-    } else if (action.isPositive) {
-      backgroundColor = Colors.green.withOpacity(0.15);
-      iconColor = Colors.green.shade600;
-      textColor = Colors.green.shade700;
-      badgeColor = Colors.green.shade600;
-      badgeTextColor = Colors.white;
-    } else if (effectiveSeedColor != null) {
-      // Use seedColor to generate colors
-      backgroundColor = effectiveSeedColor.withOpacity(0.15);
-      iconColor = effectiveSeedColor;
-      textColor = effectiveSeedColor;
-      badgeColor = effectiveSeedColor;
-      badgeTextColor = Colors.white;
-    } else {
-      backgroundColor =
-          context.colorScheme.surfaceContainerHighest.withOpacity(0.25);
-      iconColor = action.iconColor ?? context.colorScheme.primary;
-      textColor = context.colorScheme.onSurface;
-      badgeColor = context.colorScheme.primary;
-      badgeTextColor = Colors.white;
-    }
 
     // Extract badge text from trailing widget or use trailing widget directly
     String? badgeText;
@@ -563,7 +546,7 @@ class _ExpandableProminentActionCardState
                 color: _isExpanded
                     ? (effectiveSeedColor ?? context.colorScheme.primary)
                         .withOpacity(0.15)
-                    : backgroundColor,
+                    : colors.backgroundColor,
                 borderRadius: BorderRadius.circular(widget.borderRadius),
                 border: Border.all(
                   color: _isExpanded
@@ -585,20 +568,39 @@ class _ExpandableProminentActionCardState
                         Icon(
                           action.icon,
                           size: widget.iconSize,
-                          color: iconColor,
+                          color: colors.iconColor,
                         ),
                         const SizedBox(width: 8),
-                        // Label
+                        // Label and subtitle
                         Flexible(
-                          child: Text(
-                            action.label,
-                            style: context.textTheme.bodyMedium?.copyWith(
-                              color: textColor,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                action.label,
+                                style: context.textTheme.bodyMedium?.copyWith(
+                                  color: colors.textColor,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (action.subtitle != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  action.subtitle!,
+                                  style: context.textTheme.bodySmall?.copyWith(
+                                    color: colors.textColor.withOpacity(0.7),
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         // Badge or trailing widget (moved to the right side, before expand indicator)
@@ -612,7 +614,7 @@ class _ExpandableProminentActionCardState
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: badgeColor,
+                              color: colors.badgeColor,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color:
@@ -629,7 +631,7 @@ class _ExpandableProminentActionCardState
                                 badgeText,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  color: badgeTextColor,
+                                  color: colors.badgeTextColor,
                                   fontSize: 10,
                                   height: 1,
                                 ),
@@ -646,7 +648,7 @@ class _ExpandableProminentActionCardState
                         ? Icons.expand_less_rounded
                         : Icons.expand_more_rounded,
                     size: widget.iconSize,
-                    color: iconColor.withOpacity(0.7),
+                    color: colors.iconColor.withOpacity(0.7),
                   ),
                 ],
               ),
@@ -671,7 +673,7 @@ class _ExpandableProminentActionCardState
                   ? ConstrainedBox(
                       constraints: BoxConstraints(
                         maxWidth: maxWidth,
-                        maxHeight: maxHeight,  
+                        maxHeight: maxHeight,
                       ),
                       child: Container(
                         margin: const EdgeInsets.only(top: 4),
@@ -708,6 +710,10 @@ Widget buildAppBarActionCard(
   double borderRadius = 12,
   EdgeInsets padding = const EdgeInsets.all(12),
 }) {
+  // Calculate base colors
+  final colors = calculateActionButtonColors(context, action);
+
+  // AppBar cards have some special styling
   Color backgroundColor;
   Color iconColor;
   Color textColor;
@@ -715,11 +721,11 @@ Widget buildAppBarActionCard(
   if (!action.enabled) {
     backgroundColor =
         context.colorScheme.surfaceContainerHighest.withOpacity(0.3);
-    iconColor = context.colorScheme.onSurfaceVariant.withOpacity(0.3);
-    textColor = context.colorScheme.onSurfaceVariant.withOpacity(0.3);
+    iconColor = colors.iconColor;
+    textColor = colors.textColor;
   } else if (action.isDestructive) {
     backgroundColor = context.colorScheme.errorContainer;
-    iconColor = context.colorScheme.error;
+    iconColor = colors.iconColor;
     textColor = context.colorScheme.onErrorContainer;
   } else if (action.isPositive) {
     backgroundColor = Colors.green.withOpacity(0.12);
@@ -837,6 +843,10 @@ Widget buildCompactActionCard(
   double borderRadius = 10,
   EdgeInsets padding = const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
 }) {
+  // Calculate base colors
+  final colors = calculateActionButtonColors(context, action);
+
+  // Compact cards have some special styling
   Color backgroundColor;
   Color iconColor;
   Color textColor;
@@ -844,11 +854,11 @@ Widget buildCompactActionCard(
   if (!action.enabled) {
     backgroundColor =
         context.colorScheme.surfaceContainerHighest.withOpacity(0.3);
-    iconColor = context.colorScheme.onSurfaceVariant.withOpacity(0.3);
-    textColor = context.colorScheme.onSurfaceVariant.withOpacity(0.3);
+    iconColor = colors.iconColor;
+    textColor = colors.textColor;
   } else if (action.isDestructive) {
     backgroundColor = context.colorScheme.errorContainer;
-    iconColor = context.colorScheme.error;
+    iconColor = colors.iconColor;
     textColor = context.colorScheme.onErrorContainer;
   } else if (action.isPositive) {
     backgroundColor = Colors.green.withOpacity(0.12);
