@@ -329,19 +329,19 @@ abstract class BaseAPIHandler {
           ),
         );
       }
-      // dio.interceptors.add(
-      //   PrettyDioLogger(
-      //     requestHeader: logSettings.requestHeader,
-      //     requestBody: logSettings.requestBody,
-      //     responseHeader: logSettings.responseHeader,
-      //     error: logSettings.error,
-      //     responseBody: logSettings.responseBody,
-      //     compact: logSettings.compact,
-      //     logPrint: logSettings.logPrint ?? print,
-      //     maxWidth: logSettings.maxWidth,
-      //     request: logSettings.request,
-      //   ),
-      // );
+      dio.interceptors.add(
+        PrettyDioLogger(
+          requestHeader: logSettings.requestHeader,
+          requestBody: logSettings.requestBody,
+          responseHeader: logSettings.responseHeader,
+          error: logSettings.error,
+          responseBody: logSettings.responseBody,
+          compact: logSettings.compact,
+          logPrint: logSettings.logPrint ?? print,
+          maxWidth: logSettings.maxWidth,
+          request: logSettings.request,
+        ),
+      );
     }
 
     if (addAuthHeader) {

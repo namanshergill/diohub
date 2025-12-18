@@ -147,7 +147,7 @@ List<PageRouteInfo>? _getRoutes(final Uri uri) {
     RegExp(_chars),
   )) {
     temp.add(
-      OtherUserProfileRoute(
+      UserProfileRoute(
         login: relPath.string,
       ),
     );
