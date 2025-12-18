@@ -2,7 +2,7 @@ import 'package:diohub/common/animations/fade_animation_widget.dart';
 import 'package:diohub/common/charts/contribution_calendar_widget.dart';
 import 'package:diohub/common/misc/nested_card_with_header.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
-import 'package:flutter/foundation.dart';
+import 'package:diohub/common/utils/contribution_utils.dart';
 import 'package:flutter/material.dart';
 
 /// A section widget that displays the contribution calendar with statistics.
@@ -22,6 +22,7 @@ class ContributionCalendarSection extends StatelessWidget {
     this.customToDate,
     this.useCustomRange = false,
     this.onCustomRangeChanged,
+    this.createdAt,
     super.key,
   });
 
@@ -58,17 +59,24 @@ class ContributionCalendarSection extends StatelessWidget {
   /// Callback when custom date range changes
   final void Function(DateTime? from, DateTime? to)? onCustomRangeChanged;
 
+  /// User's GitHub account creation date (for "Since joining GitHub" option)
+  final DateTime? createdAt;
+
+  /// Checks if the current custom range matches "Since joining GitHub"
+  bool get _isSinceJoining {
+    if (!useCustomRange || customFromDate == null || createdAt == null) {
+      return false;
+    }
+    return customFromDate!.year == createdAt!.year &&
+        customFromDate!.month == createdAt!.month &&
+        customFromDate!.day == createdAt!.day;
+  }
+
   @override
   Widget build(BuildContext context) {
-    debugPrint('[ContributionCalendarSection] Building with ${weeks.length} weeks, totalContributions=$totalContributions');
-    if (weeks.isNotEmpty) {
-      debugPrint('[ContributionCalendarSection] First week: ${weeks.first.length} days, first day: ${weeks.first.first.date}');
-      debugPrint('[ContributionCalendarSection] Last week: ${weeks.last.length} days, first day: ${weeks.last.first.date}');
-    }
-    
     final theme = Theme.of(context);
 
-    // Use GitHub's default green colors
+    // Use GitHub's default greenh colors
     final defaultColors = colors ??
         [
           Color(0xFFEBEDF0), // No contributions
@@ -79,24 +87,33 @@ class ContributionCalendarSection extends StatelessWidget {
         ];
 
     // Build header text based on selected year or custom range
+    // Also determine if calendar should scroll (multi-year ranges)
     String headerText;
+    bool shouldScroll = false;
+
     if (useCustomRange && customFromDate != null && customToDate != null) {
-      final fromStr = '${customFromDate!.year}-${customFromDate!.month.toString().padLeft(2, '0')}-${customFromDate!.day.toString().padLeft(2, '0')}';
-      final toStr = '${customToDate!.year}-${customToDate!.month.toString().padLeft(2, '0')}-${customToDate!.day.toString().padLeft(2, '0')}';
       final daysDiff = customToDate!.difference(customFromDate!).inDays;
       final yearsDiff = daysDiff / 365.25;
-      
-      // Note: GitHub API only returns ~53 weeks of calendar data (last year)
-      // Statistics reflect the full range, but calendar visualization is limited
-      if (yearsDiff > 1.1) {
-        headerText = '$totalContributions contributions from $fromStr to $toStr\n(Calendar shows last year only)';
+
+      // Enable scrolling for ranges > 1 year
+      shouldScroll = yearsDiff > 1.0;
+
+      if (_isSinceJoining) {
+        headerText = '$totalContributions contributions since joining GitHub';
       } else {
-        headerText = '$totalContributions contributions from $fromStr to $toStr';
+        final fromStr = formatDateOnly(customFromDate!);
+        final toStr = formatDateOnly(customToDate!);
+        headerText =
+            '$totalContributions contributions from $fromStr to $toStr';
       }
     } else if (selectedYear == null) {
       headerText = '$totalContributions contributions in the last year';
+      // Last year is always single year, no scrolling needed
+      shouldScroll = false;
     } else {
       headerText = '$totalContributions contributions in $selectedYear';
+      // Single year selection, no scrolling needed
+      shouldScroll = false;
     }
 
     return NestedCardWithHeader(
@@ -130,6 +147,7 @@ class ContributionCalendarSection extends StatelessWidget {
                 showDayLabels: false,
                 cellSize: 11.0,
                 cellSpacing: 2.0,
+                shouldScroll: shouldScroll,
               ),
             ),
           ],
@@ -146,14 +164,15 @@ class ContributionCalendarSection extends StatelessWidget {
       onSelected: (value) {
         if (value == 'custom') {
           _showCustomDateRangePicker(context);
-        } else if (value == 'lastYear') {
-          // Reset to last year - need to handle null case
-          if (onYearChanged != null) {
-            // Call with a sentinel value that we'll handle in the parent
-            // Actually, we can't pass null to a non-nullable int parameter
-            // So we'll use onCustomRangeChanged to clear it
-            onCustomRangeChanged?.call(null, null);
+        } else if (value == 'sinceJoining') {
+          // Set range from account creation to now
+          if (createdAt != null) {
+            final now = DateTime.now();
+            onCustomRangeChanged?.call(createdAt, now);
           }
+        } else if (value == 'lastYear') {
+          // Reset to last year
+          onCustomRangeChanged?.call(null, null);
         } else if (value.startsWith('year:')) {
           final year = int.parse(value.split(':')[1]);
           onYearChanged?.call(year);
@@ -176,7 +195,7 @@ class ContributionCalendarSection extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               useCustomRange
-                  ? 'Custom'
+                  ? (_isSinceJoining ? 'Since joining' : 'Custom')
                   : selectedYear?.toString() ?? 'Last Year',
               style: theme.textTheme.bodySmall,
             ),
@@ -203,6 +222,17 @@ class ContributionCalendarSection extends StatelessWidget {
                 )),
           ],
           const PopupMenuDivider(),
+          if (createdAt != null)
+            const PopupMenuItem(
+              value: 'sinceJoining',
+              child: Row(
+                children: [
+                  Icon(Icons.cake, size: 16),
+                  SizedBox(width: 8),
+                  Text('Since joining GitHub'),
+                ],
+              ),
+            ),
           const PopupMenuItem(
             value: 'custom',
             child: Row(
@@ -221,13 +251,17 @@ class ContributionCalendarSection extends StatelessWidget {
 
   Future<void> _showCustomDateRangePicker(BuildContext context) async {
     final now = DateTime.now();
-    final initialFrom = customFromDate ?? now.subtract(const Duration(days: 365));
+    final initialFrom =
+        customFromDate ?? now.subtract(const Duration(days: 365));
     final initialTo = customToDate ?? now;
+
+    // Use createdAt as earliest date, or default to year 2000 if not available
+    final earliestDate = createdAt ?? DateTime(2000);
 
     final pickedFrom = await showDatePicker(
       context: context,
       initialDate: initialFrom,
-      firstDate: DateTime(2000),
+      firstDate: earliestDate,
       lastDate: now,
       helpText: 'Select start date',
     );
