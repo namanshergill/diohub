@@ -220,6 +220,11 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                                 tabController.activeIdentifierNotifier,
                             builder: (context, currentTab, _) {
                               final tabState = _getTabState(currentTab);
+                              final ownerLogin = repo.owner.when(
+                                user: (u) => u.login,
+                                organization: (o) => o.login,
+                                orElse: () => null,
+                              );
                               return FloatingActionToolbar(
                                 key: const ValueKey('repository_toolbar'),
                                 // debugLogging: true,
@@ -231,6 +236,7 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                                     horizontal: 16, vertical: 12),
                                 bottomPadding: 0.0,
                                 title: repo.name,
+                                subtitle: ownerLogin,
                                 scrollNotificationNotifier:
                                     scrollNotificationNotifier,
                                 onExpandChanged: (isExpanded) {
@@ -253,7 +259,6 @@ class RepositoryScreenState extends DeepLinkWidgetState<RepositoryScreen>
                               final Widget tabView,
                             ) =>
                                 DynamicScroll(
-                              contentVersion: 0,
                               animationController: _expandAnimationController,
                               collapsedWidget:
                                   buildCollapsedHeader(context, repo),

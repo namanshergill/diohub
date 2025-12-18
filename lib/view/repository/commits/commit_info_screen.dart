@@ -44,8 +44,6 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
     vsync: this,
   );
 
-  int _contentVersion = 0;
-
   @override
   void dispose() {
     dynamicTabsController.dispose();
@@ -96,7 +94,6 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
           },
           triggerMode: RefreshIndicatorTriggerMode.anywhere,
           child: DynamicScroll(
-            contentVersion: _contentVersion,
             animationController: _expandAnimationController,
             collapsedWidget: _buildCollapsedHeader(commit),
             expandedWidget: _buildExpandedHeader(commit, provider),
@@ -239,7 +236,7 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
               : DetailTileActionType.none,
           onTap: commit.author?.user != null
               ? () => AutoRouter.of(context).push(
-                    OtherUserProfileRoute(login: commit.author!.user!.login),
+                    UserProfileRoute(login: commit.author!.user!.login),
                   )
               : null,
           child: DetailTileUser(
@@ -257,7 +254,7 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
               : DetailTileActionType.none,
           onTap: commit.committer?.user != null
               ? () => AutoRouter.of(context).push(
-                    OtherUserProfileRoute(login: commit.committer!.user!.login),
+                    UserProfileRoute(login: commit.committer!.user!.login),
                   )
               : null,
           child: DetailTileUser(
@@ -469,9 +466,6 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
         defaultVisibleCount: 2, // Show 2 tiles by default
       ),
       onExpandChanged: (isExpanded) {
-        setState(() {
-          _contentVersion++;
-        });
         if (isExpanded) {
           _expandAnimationController.forward();
         } else {
@@ -532,9 +526,6 @@ class CommitInfoScreenState extends State<CommitInfoScreen>
             2, // Show 2 actions by default (Browse Files, View on GitHub)
       ),
       onExpandChanged: (isExpanded) {
-        setState(() {
-          _contentVersion++;
-        });
         if (isExpanded) {
           _expandAnimationController.forward();
         } else {

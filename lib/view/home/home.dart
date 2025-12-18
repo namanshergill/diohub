@@ -443,7 +443,6 @@ class HomeScreenState extends State<HomeScreen>
                     final PreferredSizeWidget tabBar, final Widget tabView) =>
                 DynamicScroll(
               expandedByDefault: true,
-              contentVersion: 0,
               animationController: _expandAnimationController,
               collapsedWidget: buildCollapsedAppBar(context),
               bottom: AnimatedTabBar(
