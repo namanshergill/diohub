@@ -5,8 +5,13 @@ import 'package:diohub/common/misc/floating_expandable_widget.dart' as base;
 import 'package:flex_list/flex_list.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
-import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+
+// Re-export shared utilities for convenience
+export 'package:diohub/common/misc/action_card_builder.dart'
+    show calculateActionButtonColors;
+export 'package:diohub/common/misc/collapsible_action_buttons.dart'
+    show ActionButtonColors;
 
 /// Builds the toolbar content widget
 Widget buildToolbarContent({
@@ -35,13 +40,6 @@ Widget buildToolbarContent({
           a is ExpandableActionButton ||
           a is CheckboxActionButton)
       .toList();
-
-  // Helper function to check if action should be visible in expanded state
-  // Used for prominent actions visibility checks
-  bool _isVisibleInExpanded(ActionButtonData action) {
-    return action.visibilityState == ActionButtonVisibilityState.expandedOnly ||
-        action.visibilityState == ActionButtonVisibilityState.both;
-  }
 
   // Pass ALL actions to animated widgets so they can animate in/out smoothly
   // The animated widgets will handle visibility based on visibilityState
@@ -93,253 +91,266 @@ Widget buildToolbarContent({
               final screenWidth = MediaQuery.of(context).size.width;
               final expandedWidth = screenWidth * 0.9;
 
-              final content = Column(
-                key: toolbarKey,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: callbacks.isExpanded ? 20 : 8,
-                      vertical: callbacks.isExpanded ? 12 : 8,
-                    ),
-                    child: Builder(
-                      builder: (context) {
-                        final isNearTop =
-                            callbacks.nearPosition == base.FloatingPosition.top;
+              final content = AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOutCubic,
+                alignment: Alignment.center,
+                child: Column(
+                  key: toolbarKey,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: callbacks.isExpanded ? 20 : 8,
+                        vertical: callbacks.isExpanded ? 12 : 8,
+                      ),
+                      child: Builder(
+                        builder: (context) {
+                          final isNearTop = callbacks.nearPosition ==
+                              base.FloatingPosition.top;
 
-                        // Don't filter by visible here - let animated widgets handle visibility animations
-                        // They will filter internally to prevent hit test errors when fully hidden
-                        final visibleProminentActionsExpanded =
-                            allProminentActions;
+                          // Don't filter by visible here - let animated widgets handle visibility animations
+                          // They will filter internally to prevent hit test errors when fully hidden
+                          final visibleProminentActionsExpanded =
+                              allProminentActions;
 
-                        return Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(height: callbacks.isExpanded ? 4 : 4),
-                            if (!callbacks.isExpanded)
-                              IntrinsicWidth(
-                                child: _AnimatedCollapsedActionsRow(
-                                  enabledActions: allCollapsedEnabled,
-                                  disabledActions: allCollapsedDisabled,
-                                  prominentActions: allProminentActions,
-                                  spacing: spacing,
-                                  buildCompactIconButton:
-                                      buildCompactIconButton,
-                                  buildCompactProminentButton:
-                                      buildCompactProminentButton,
-                                  prominentActionBuilder:
-                                      prominentActionBuilder,
-                                  callbacks: callbacks,
-                                  onCollapseRequested: onCollapseRequested,
-                                  context: context,
-                                  expandAnimation: expandAnimation,
-                                  toolbarKey: toolbarKey,
-                                  debugLogging: debugLogging,
-                                ),
-                              ),
-                            AnimatedBuilder(
-                              animation: expandAnimation,
-                              builder: (context, child) {
-                                // Apply easing curve for smoother animation
-                                final curvedValue = Curves.easeInOutCubic
-                                    .transform(expandAnimation.value);
-
-                                // Add opacity animation for smoother collapse
-                                final opacity = curvedValue.clamp(0.0, 1.0);
-
-                                // Add subtle scale animation
-                                final scale = 0.95 + (curvedValue * 0.05);
-
-                                return Opacity(
-                                  opacity: opacity,
-                                  child: Transform.scale(
-                                    scale: scale,
-                                    alignment: isNearTop
-                                        ? Alignment.topCenter
-                                        : Alignment.bottomCenter,
-                                    child: SizeTransition(
-                                      sizeFactor: expandAnimation,
-                                      axisAlignment: isNearTop ? -1.0 : 1.0,
-                                      child: callbacks.isExpanded
-                                          ? Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.stretch,
-                                              children: [
-                                                // Title in expanded view
-                                                if (title != null &&
-                                                    title.isNotEmpty)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                      bottom: 12,
-                                                    ),
-                                                    child: Text(
-                                                      title,
-                                                      style: Theme.of(context)
-                                                          .textTheme
-                                                          .titleLarge
-                                                          ?.copyWith(
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            fontSize: 20,
-                                                            color: Theme.of(
-                                                                    context)
-                                                                .colorScheme
-                                                                .onSurface
-                                                                .withOpacity(
-                                                                    0.8),
-                                                          ),
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                // Compact FlexList layout for actions
-                                                LayoutBuilder(
-                                                  builder:
-                                                      (context, constraints) {
-                                                    // Ensure we have bounded constraints
-                                                    if (!constraints.hasBoundedWidth ||
-                                                        constraints.maxWidth
-                                                            .isInfinite ||
-                                                        constraints.maxWidth <=
-                                                            0) {
-                                                      // Return empty container if constraints are invalid
-                                                      return const SizedBox
-                                                          .shrink();
-                                                    }
-
-                                                    // Don't filter by visible here - let animated widgets handle visibility animations
-                                                    // They will filter internally to prevent hit test errors when fully hidden
-                                                    final allActions =
-                                                        regularActions;
-
-                                                    if (allActions.isEmpty) {
-                                                      return const SizedBox
-                                                          .shrink();
-                                                    }
-
-                                                    // Use FlexList to show all items with animation support
-                                                    return FlexList(
-                                                      horizontalSpacing: 8.0,
-                                                      verticalSpacing: 8.0,
-                                                      children: allActions
-                                                          .asMap()
-                                                          .entries
-                                                          .map((entry) {
-                                                        final index = entry.key;
-                                                        final action =
-                                                            entry.value;
-
-                                                        return _AnimatedExpandedAction(
-                                                          key: ValueKey(
-                                                              'expanded_${action.label}_${action.icon}'),
-                                                          action: action,
-                                                          index: index,
-                                                          callbacks: callbacks,
-                                                          onCollapseRequested:
-                                                              onCollapseRequested,
-                                                          expandAnimation:
-                                                              expandAnimation,
-                                                          isNearTop: callbacks
-                                                                  .nearPosition ==
-                                                              base.FloatingPosition
-                                                                  .top,
-                                                        );
-                                                      }).toList(),
-                                                    );
-                                                  },
-                                                ),
-                                              ],
-                                            )
-                                          : const SizedBox.shrink(),
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(height: callbacks.isExpanded ? 4 : 4),
+                              if (!callbacks.isExpanded)
+                                Center(
+                                  child: IntrinsicWidth(
+                                    child: _AnimatedCollapsedActionsRow(
+                                      enabledActions: allCollapsedEnabled,
+                                      disabledActions: allCollapsedDisabled,
+                                      prominentActions: allProminentActions,
+                                      spacing: spacing,
+                                      buildCompactIconButton:
+                                          buildCompactIconButton,
+                                      buildCompactProminentButton:
+                                          buildCompactProminentButton,
+                                      prominentActionBuilder:
+                                          prominentActionBuilder,
+                                      callbacks: callbacks,
+                                      onCollapseRequested: onCollapseRequested,
+                                      context: context,
+                                      expandAnimation: expandAnimation,
+                                      toolbarKey: toolbarKey,
+                                      debugLogging: debugLogging,
                                     ),
                                   ),
-                                );
-                              },
-                            ),
-                            // Prominent actions using Column (only when expanded)
-                            // Use SizeExpandedSection to collapse padding when all actions are hidden
-                            // This keeps all actions in tree while preventing empty padding
-                            if (callbacks.isExpanded &&
-                                visibleProminentActionsExpanded.isNotEmpty)
-                              SizeExpandedSection(
-                                expand: visibleProminentActionsExpanded
-                                    .any((a) => _isVisibleInExpanded(a)),
-                                axis: Axis.vertical,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 12),
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      // Ensure we have bounded constraints
-                                      if (!constraints.hasBoundedWidth ||
-                                          constraints.maxWidth.isInfinite ||
-                                          constraints.maxWidth <= 0) {
-                                        return const SizedBox.shrink();
-                                      }
+                                ),
+                              AnimatedBuilder(
+                                animation: expandAnimation,
+                                builder: (context, child) {
+                                  // Apply easing curve for smoother animation
+                                  final curvedValue = Curves.easeInOutCubic
+                                      .transform(expandAnimation.value);
 
-                                      // Use Column instead of FlexList for prominent actions
-                                      // FlexList can have issues with zero-sized animated widgets
-                                      // Column with SizeTransition handles animations better
-                                      // Padding wraps the animated widget so it collapses with hidden actions
-                                      // Filter to only visible actions for determining last item
-                                      final actuallyVisibleExpanded =
-                                          visibleProminentActionsExpanded
-                                              .where((a) =>
-                                                  _isVisibleInExpanded(a))
-                                              .toList();
-                                      return Column(
-                                        key: const ValueKey(
-                                            'prominent_actions_column'),
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children:
+                                  // Add opacity animation for smoother collapse
+                                  final opacity = curvedValue.clamp(0.0, 1.0);
+
+                                  // Add subtle scale animation
+                                  final scale = 0.95 + (curvedValue * 0.05);
+
+                                  return Opacity(
+                                    opacity: opacity,
+                                    child: Transform.scale(
+                                      scale: scale,
+                                      alignment: isNearTop
+                                          ? Alignment.topCenter
+                                          : Alignment.bottomCenter,
+                                      child: SizeTransition(
+                                        sizeFactor: expandAnimation,
+                                        axisAlignment: isNearTop ? -1.0 : 1.0,
+                                        child: callbacks.isExpanded
+                                            ? Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.stretch,
+                                                children: [
+                                                  // Title in expanded view
+                                                  if (title != null &&
+                                                      title.isNotEmpty)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                        bottom: 12,
+                                                      ),
+                                                      child: Text(
+                                                        title,
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .titleLarge
+                                                            ?.copyWith(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 20,
+                                                              color: Theme.of(
+                                                                      context)
+                                                                  .colorScheme
+                                                                  .onSurface
+                                                                  .withOpacity(
+                                                                      0.8),
+                                                            ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ),
+                                                  // Compact FlexList layout for actions
+                                                  LayoutBuilder(
+                                                    builder:
+                                                        (context, constraints) {
+                                                      // Ensure we have bounded constraints
+                                                      if (!constraints
+                                                              .hasBoundedWidth ||
+                                                          constraints.maxWidth
+                                                              .isInfinite ||
+                                                          constraints
+                                                                  .maxWidth <=
+                                                              0) {
+                                                        // Return empty container if constraints are invalid
+                                                        return const SizedBox
+                                                            .shrink();
+                                                      }
+
+                                                      // Don't filter by visible here - let animated widgets handle visibility animations
+                                                      // They will filter internally to prevent hit test errors when fully hidden
+                                                      final allActions =
+                                                          regularActions;
+
+                                                      if (allActions.isEmpty) {
+                                                        return const SizedBox
+                                                            .shrink();
+                                                      }
+
+                                                      // Use FlexList to show all items with animation support
+                                                      return FlexList(
+                                                        horizontalSpacing: 8.0,
+                                                        verticalSpacing: 8.0,
+                                                        children: allActions
+                                                            .asMap()
+                                                            .entries
+                                                            .map((entry) {
+                                                          final index =
+                                                              entry.key;
+                                                          final action =
+                                                              entry.value;
+
+                                                          return _AnimatedExpandedAction(
+                                                            key: ValueKey(
+                                                                'expanded_${action.label}_${action.icon}'),
+                                                            action: action,
+                                                            index: index,
+                                                            callbacks:
+                                                                callbacks,
+                                                            onCollapseRequested:
+                                                                onCollapseRequested,
+                                                            expandAnimation:
+                                                                expandAnimation,
+                                                            isNearTop: callbacks
+                                                                    .nearPosition ==
+                                                                base.FloatingPosition
+                                                                    .top,
+                                                          );
+                                                        }).toList(),
+                                                      );
+                                                    },
+                                                  ),
+                                                ],
+                                              )
+                                            : const SizedBox.shrink(),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              // Prominent actions using Column (only when expanded)
+                              // Use SizeExpandedSection to collapse padding when all actions are hidden
+                              // This keeps all actions in tree while preventing empty padding
+                              if (callbacks.isExpanded &&
+                                  visibleProminentActionsExpanded.isNotEmpty)
+                                SizeExpandedSection(
+                                  expand: visibleProminentActionsExpanded
+                                      .any((a) => a.isVisibleInExpanded),
+                                  axis: Axis.vertical,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(top: 12),
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        // Ensure we have bounded constraints
+                                        if (!constraints.hasBoundedWidth ||
+                                            constraints.maxWidth.isInfinite ||
+                                            constraints.maxWidth <= 0) {
+                                          return const SizedBox.shrink();
+                                        }
+
+                                        // Use Column instead of FlexList for prominent actions
+                                        // FlexList can have issues with zero-sized animated widgets
+                                        // Column with SizeTransition handles animations better
+                                        // Padding wraps the animated widget so it collapses with hidden actions
+                                        // Filter to only visible actions for determining last item
+                                        final actuallyVisibleExpanded =
                                             visibleProminentActionsExpanded
-                                                .asMap()
-                                                .entries
-                                                .map((entry) {
-                                          final action = entry.value;
-                                          // Check if this is the last VISIBLE action
-                                          final isLastVisible =
-                                              actuallyVisibleExpanded
-                                                      .isNotEmpty &&
-                                                  action ==
-                                                      actuallyVisibleExpanded[
-                                                          actuallyVisibleExpanded
-                                                                  .length -
-                                                              1];
-                                          return SizedBox(
-                                            width: double.infinity,
-                                            child: _AnimatedProminentAction(
-                                              key: ValueKey(
-                                                  'prominent_expanded_${action.label}_${action.icon}'),
-                                              action: action,
-                                              prominentActionBuilder:
-                                                  prominentActionBuilder ??
-                                                      buildProminentActionCard,
-                                              expandAnimation: expandAnimation,
-                                              callbacks: callbacks,
-                                              toolbarKey: toolbarKey,
-                                              bottomPadding:
-                                                  isLastVisible ? 0 : 4.0,
-                                              debugLogging: debugLogging,
-                                            ),
-                                          );
-                                        }).toList(),
-                                      );
-                                    },
+                                                .where((a) =>
+                                                    a.isVisibleInExpanded)
+                                                .toList();
+                                        return Column(
+                                          key: const ValueKey(
+                                              'prominent_actions_column'),
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children:
+                                              visibleProminentActionsExpanded
+                                                  .asMap()
+                                                  .entries
+                                                  .map((entry) {
+                                            final action = entry.value;
+                                            // Check if this is the last VISIBLE action
+                                            final isLastVisible =
+                                                actuallyVisibleExpanded
+                                                        .isNotEmpty &&
+                                                    action ==
+                                                        actuallyVisibleExpanded[
+                                                            actuallyVisibleExpanded
+                                                                    .length -
+                                                                1];
+                                            return SizedBox(
+                                              width: double.infinity,
+                                              child: _AnimatedProminentAction(
+                                                key: ValueKey(
+                                                    'prominent_expanded_${action.label}_${action.icon}'),
+                                                action: action,
+                                                prominentActionBuilder:
+                                                    prominentActionBuilder ??
+                                                        buildProminentActionCard,
+                                                expandAnimation:
+                                                    expandAnimation,
+                                                callbacks: callbacks,
+                                                toolbarKey: toolbarKey,
+                                                bottomPadding:
+                                                    isLastVisible ? 0 : 4.0,
+                                                debugLogging: debugLogging,
+                                              ),
+                                            );
+                                          }).toList(),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
-                              ),
-                            SizedBox(height: callbacks.isExpanded ? 4 : 4),
-                          ],
-                        );
-                      },
+                              SizedBox(height: callbacks.isExpanded ? 4 : 4),
+                            ],
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               );
 
               // Only apply width constraints when expanded
@@ -354,7 +365,7 @@ Widget buildToolbarContent({
               }
 
               // When collapsed, use IntrinsicWidth to prevent full-width expansion
-              return IntrinsicWidth(child: content);
+              return content;
             },
           ),
         ),
@@ -446,29 +457,25 @@ Widget buildCompactProminentButton(
   base.ExpandableCallbacks callbacks,
   VoidCallback? onCollapseRequested,
 ) {
-  Color iconColor;
-  Color textColor;
-  Color backgroundColor;
+  // Calculate colors using shared function
+  final colors = calculateActionButtonColors(
+    context,
+    action,
+    forProminentButton: true,
+  );
 
-  if (!action.enabled) {
-    backgroundColor =
-        Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.2);
-    iconColor = Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3);
-    textColor = Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4);
-  } else if (action.isDestructive) {
-    backgroundColor =
-        Theme.of(context).colorScheme.errorContainer.withOpacity(0.2);
-    iconColor = Theme.of(context).colorScheme.error;
-    textColor = Theme.of(context).colorScheme.error;
-  } else if (action.isPositive) {
-    backgroundColor = Colors.green.withOpacity(0.15);
-    iconColor = Colors.green.shade600;
-    textColor = Colors.green.shade700;
-  } else {
-    backgroundColor =
-        Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.25);
-    iconColor = action.iconColor ?? Theme.of(context).colorScheme.primary;
-    textColor = Theme.of(context).colorScheme.onSurface;
+  // Debug: Print checkbox state for AnimatedContainer animation
+  if (action is CheckboxActionButton) {
+    final isSelected = action.value;
+    print(
+        '[FloatingToolbar] buildCompactProminentButton: Checkbox ${action.label}, value=$isSelected');
+    print(
+        '  - Background: ${colors.backgroundColor} (hashCode: ${colors.backgroundColor.hashCode})');
+    print(
+        '  - IconColor: ${colors.iconColor} (hashCode: ${colors.iconColor.hashCode})');
+    print(
+        '  - TextColor: ${colors.textColor} (hashCode: ${colors.textColor.hashCode})');
+    print('  - AnimatedContainer key: checkbox_${action.label}');
   }
 
   return Material(
@@ -476,27 +483,30 @@ Widget buildCompactProminentButton(
     child: InkWell(
       onTap: action.enabled
           ? () {
-              switch (action) {
-                case MinorActionButton(:final onTap):
-                case MajorActionButton(:final onTap):
-                  onTap?.call();
-                  break;
-                default:
-                  break;
-              }
-              if (onCollapseRequested != null) {
-                onCollapseRequested();
-              } else {
-                callbacks.collapse();
+              if (action.handleTapAndShouldCollapse()) {
+                if (onCollapseRequested != null) {
+                  onCollapseRequested();
+                } else {
+                  callbacks.collapse();
+                }
               }
             }
           : null,
       borderRadius: BorderRadius.circular(12),
-      child: Container(
+      child: AnimatedContainer(
+        key: ValueKey('checkbox_${action.label}'),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        onEnd: () {
+          if (action is CheckboxActionButton) {
+            print(
+                '[FloatingToolbar] AnimatedContainer animation ended for ${action.label}');
+          }
+        },
         decoration: BoxDecoration(
-          color: backgroundColor,
+          color: colors.backgroundColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
@@ -507,19 +517,26 @@ Widget buildCompactProminentButton(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            Icon(
-              action.icon,
-              size: 18,
-              color: iconColor,
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                action.displayIcon,
+                key: ValueKey(action.displayIcon),
+                size: 18,
+                color: colors.iconColor,
+              ),
             ),
             const SizedBox(width: 6),
-            Text(
-              action.label,
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: textColor,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
+                        color: colors.textColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ) ??
+                  const TextStyle(),
+              child: Text(action.label),
             ),
           ],
         ),
@@ -535,42 +552,20 @@ Widget buildCompactIconButton(
   base.ExpandableCallbacks callbacks,
   VoidCallback? onCollapseRequested,
 ) {
-  Color iconColor;
-  if (!action.enabled) {
-    iconColor = Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3);
-  } else if (action.icon == Octicons.issue_opened) {
-    iconColor = Colors.green.shade600;
-  } else if (action.icon == Octicons.git_pull_request) {
-    iconColor = Colors.purple.shade600;
-  } else {
-    iconColor =
-        action.iconColor ?? Theme.of(context).colorScheme.onSurfaceVariant;
-  }
-
-  String? badgeText;
-  if (action.trailing != null) {
-    if (action.trailing is Text) {
-      badgeText = (action.trailing as Text).data;
-    }
-  }
+  final iconColor = action.getIconColor(context);
+  final badgeText = action.badgeText;
 
   return Material(
     color: Colors.transparent,
     child: InkWell(
       onTap: action.enabled
           ? () {
-              switch (action) {
-                case MinorActionButton(:final onTap):
-                case MajorActionButton(:final onTap):
-                  onTap?.call();
-                  break;
-                default:
-                  break;
-              }
-              if (onCollapseRequested != null) {
-                onCollapseRequested();
-              } else {
-                callbacks.collapse();
+              if (action.handleTapAndShouldCollapse()) {
+                if (onCollapseRequested != null) {
+                  onCollapseRequested();
+                } else {
+                  callbacks.collapse();
+                }
               }
             }
           : null,
@@ -583,7 +578,7 @@ Widget buildCompactIconButton(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                action.icon,
+                action.displayIcon,
                 size: 22,
                 color: iconColor,
               ),
@@ -625,24 +620,8 @@ Widget buildExpandedActionWithLabel(
   bool isNearTop,
 ) {
   // Use same color logic as collapsed tiles
-  Color iconColor;
-  if (!action.enabled) {
-    iconColor = Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3);
-  } else if (action.icon == Octicons.issue_opened) {
-    iconColor = Colors.green.shade600;
-  } else if (action.icon == Octicons.git_pull_request) {
-    iconColor = Colors.purple.shade600;
-  } else {
-    iconColor =
-        action.iconColor ?? Theme.of(context).colorScheme.onSurfaceVariant;
-  }
-
-  String? badgeText;
-  if (action.trailing != null) {
-    if (action.trailing is Text) {
-      badgeText = (action.trailing as Text).data;
-    }
-  }
+  final iconColor = action.getIconColor(context);
+  final badgeText = action.badgeText;
 
   return base.ExpandedContentItem(
     animation: expandAnimation,
@@ -651,18 +630,12 @@ Widget buildExpandedActionWithLabel(
       child: InkWell(
         onTap: action.enabled
             ? () {
-                switch (action) {
-                  case MinorActionButton(:final onTap):
-                  case MajorActionButton(:final onTap):
-                    onTap?.call();
-                    break;
-                  default:
-                    break;
-                }
-                if (onCollapseRequested != null) {
-                  onCollapseRequested();
-                } else {
-                  callbacks.collapse();
+                if (action.handleTapAndShouldCollapse()) {
+                  if (onCollapseRequested != null) {
+                    onCollapseRequested();
+                  } else {
+                    callbacks.collapse();
+                  }
                 }
               }
             : null,
@@ -673,7 +646,7 @@ Widget buildExpandedActionWithLabel(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                action.icon,
+                action.displayIcon,
                 size: 22,
                 color: iconColor,
               ),
@@ -789,7 +762,7 @@ class _AnimatedCollapsedActionsRowState
 
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Horizontal row of regular actions
         Builder(
@@ -804,6 +777,7 @@ class _AnimatedCollapsedActionsRowState
 
             return Row(
               mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ...widget.enabledActions.map((action) {
                   // Check if this is the last VISIBLE enabled action
@@ -1107,16 +1081,7 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
   AnimationStatusListener? _statusListener;
 
   bool _isActionVisible() {
-    // Check visibility based on current expanded/collapsed state
-    if (widget.callbacks.isExpanded) {
-      return widget.action.visibilityState ==
-              ActionButtonVisibilityState.expandedOnly ||
-          widget.action.visibilityState == ActionButtonVisibilityState.both;
-    } else {
-      return widget.action.visibilityState ==
-              ActionButtonVisibilityState.collapsedOnly ||
-          widget.action.visibilityState == ActionButtonVisibilityState.both;
-    }
+    return widget.action.isVisibleWhen(widget.callbacks.isExpanded);
   }
 
   @override
@@ -1219,6 +1184,46 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
         // Prevent hit testing when fully hidden to avoid hit test errors
         final isFullyHidden = _fadeAnimation.value == 0.0;
 
+        // Build the button content here (not cached) so it rebuilds when action properties change
+        // This is critical for AnimatedContainer to animate checkbox state changes
+        final buttonContent = widget.spacing == 0
+            ? // For prominent actions (spacing == 0), the parent Column with crossAxisAlignment.stretch
+            // will expand to full width, so we don't need SizedBox(width: double.infinity)
+            // which causes IntrinsicWidth calculation issues
+            widget.buildCompactIconButton(
+                widget.context,
+                widget.action,
+                widget.callbacks,
+                widget.onCollapseRequested,
+              )
+            : // For regular actions, use horizontal row layout
+            Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(right: widget.spacing),
+                    child: widget.buildCompactIconButton(
+                      widget.context,
+                      widget.action,
+                      widget.callbacks,
+                      widget.onCollapseRequested,
+                    ),
+                  ),
+                  if (widget.showDivider)
+                    Container(
+                      margin: EdgeInsets.only(right: widget.spacing),
+                      width: 1,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: Theme.of(widget.context)
+                            .colorScheme
+                            .outline
+                            .withOpacity(0.15),
+                      ),
+                    ),
+                ],
+              );
+
         // For prominent actions (spacing == 0), use SizeTransition to collapse vertically
         // For regular actions (spacing > 0), use SizeTransition to collapse horizontally
         Widget animatedWidget;
@@ -1234,7 +1239,7 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
                 opacity: combinedOpacity.clamp(0.0, 1.0),
                 child: Transform.translate(
                   offset: slideOffset,
-                  child: child,
+                  child: buttonContent,
                 ),
               ),
             ),
@@ -1250,7 +1255,7 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
               opacity: combinedOpacity.clamp(0.0, 1.0),
               child: Transform.translate(
                 offset: slideOffset,
-                child: child,
+                child: buttonContent,
               ),
             ),
           );
@@ -1264,43 +1269,6 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
         }
         return animatedWidget;
       },
-      child: widget.spacing == 0
-          ? // For prominent actions (spacing == 0), the parent Column with crossAxisAlignment.stretch
-          // will expand to full width, so we don't need SizedBox(width: double.infinity)
-          // which causes IntrinsicWidth calculation issues
-          widget.buildCompactIconButton(
-              widget.context,
-              widget.action,
-              widget.callbacks,
-              widget.onCollapseRequested,
-            )
-          : // For regular actions, use horizontal row layout
-          Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: EdgeInsets.only(right: widget.spacing),
-                  child: widget.buildCompactIconButton(
-                    widget.context,
-                    widget.action,
-                    widget.callbacks,
-                    widget.onCollapseRequested,
-                  ),
-                ),
-                if (widget.showDivider)
-                  Container(
-                    margin: EdgeInsets.only(right: widget.spacing),
-                    width: 1,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: Theme.of(widget.context)
-                          .colorScheme
-                          .outline
-                          .withOpacity(0.15),
-                    ),
-                  ),
-              ],
-            ),
     );
   }
 }
@@ -1340,16 +1308,7 @@ class _AnimatedProminentActionState extends State<_AnimatedProminentAction>
   AnimationStatusListener? _statusListener;
 
   bool _isActionVisible() {
-    // Check visibility based on current expanded/collapsed state
-    if (widget.callbacks.isExpanded) {
-      return widget.action.visibilityState ==
-              ActionButtonVisibilityState.expandedOnly ||
-          widget.action.visibilityState == ActionButtonVisibilityState.both;
-    } else {
-      return widget.action.visibilityState ==
-              ActionButtonVisibilityState.collapsedOnly ||
-          widget.action.visibilityState == ActionButtonVisibilityState.both;
-    }
+    return widget.action.isVisibleWhen(widget.callbacks.isExpanded);
   }
 
   @override
