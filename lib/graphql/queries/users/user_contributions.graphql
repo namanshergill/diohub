@@ -1,0 +1,56 @@
+# Query for fetching user contribution data with customizable date ranges
+# This allows independent updates of contribution data without refetching all user info
+
+# import './user_info.graphql'
+
+query userContributions($user: String!, $from: DateTime, $to: DateTime) {
+    user(login: $user) {
+        __typename
+        id
+        login
+        contributionsCollection(from: $from, to: $to) {
+            totalCommitContributions
+            totalIssueContributions
+            totalPullRequestContributions
+            totalPullRequestReviewContributions
+            totalRepositoriesWithContributedCommits
+            totalRepositoriesWithContributedIssues
+            totalRepositoriesWithContributedPullRequests
+            restrictedContributionsCount
+            contributionCalendar {
+                totalContributions
+                colors
+                weeks {
+                    firstDay
+                    contributionDays {
+                        contributionCount
+                        date
+                        color
+                        contributionLevel
+                        weekday
+                    }
+                }
+                months {
+                    name
+                    year
+                    firstDay
+                    totalWeeks
+                }
+            }
+            commitContributionsByRepository(maxRepositories: 50) {
+                repository {
+                    ...repositoryFields
+                    primaryLanguage {
+                        name
+                        color
+                    }
+                }
+                contributions {
+                    totalCount
+                }
+            }
+            contributionYears
+        }
+    }
+}
+
