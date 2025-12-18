@@ -7,6 +7,7 @@ import 'package:diohub/common/search_overlay/search_bar.dart';
 import 'package:diohub/common/search_overlay/search_overlay.dart';
 import 'package:diohub/common/wrappers/infinite_scroll_wrapper.dart';
 import 'package:diohub/models/issues/issue_model.dart';
+import 'package:diohub/models/repositories/repo_card_data_model.dart';
 import 'package:diohub/models/repositories/repository_model.dart' hide Type;
 import 'package:diohub/models/users/user_info_model.dart';
 import 'package:diohub/services/search/search_service.dart';
@@ -260,7 +261,7 @@ class SearchScrollWrapperState extends State<SearchScrollWrapper> {
                 Padding(
               padding: widget.padding,
               child: RepositoryCard(
-                data.item,
+              RepoCardDataModel.fromRepositoryModel(data.item),
                 // padding: EdgeInsets.zero,
               ),
             ),

@@ -11,23 +11,22 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:auto_route/auto_route.dart' as _i15;
 import 'package:diohub/adapters/deep_linking_handler.dart' as _i17;
-import 'package:diohub/common/search_overlay/search_overlay.dart' as _i13;
+import 'package:diohub/common/search_overlay/search_overlay.dart' as _i12;
 import 'package:diohub/graphql/queries/repositories/__generated__/repo_info.data.gql.dart'
     as _i18;
 import 'package:diohub/view/authentication/auth_screen.dart' as _i1;
 import 'package:diohub/view/home/home.dart' as _i5;
 import 'package:diohub/view/issues_pulls/issue_pull_screen.dart' as _i6;
-import 'package:diohub/view/issues_pulls/widgets/p_r_review_screen.dart'
-    as _i10;
+import 'package:diohub/view/issues_pulls/widgets/p_r_review_screen.dart' as _i9;
 import 'package:diohub/view/landing/widgets/landing_loading_screen.dart' as _i7;
-import 'package:diohub/view/landing/widgets/place_holder_screen.dart' as _i11;
-import 'package:diohub/view/profile/other_user_profile_screen.dart' as _i9;
+import 'package:diohub/view/landing/widgets/place_holder_screen.dart' as _i10;
+import 'package:diohub/view/profile/user_profile_screen.dart' as _i13;
 import 'package:diohub/view/repository/code/file_viewer.dart' as _i4;
 import 'package:diohub/view/repository/commits/commit_info_screen.dart' as _i3;
 import 'package:diohub/view/repository/commits/widgets/changes_viewer.dart'
     as _i2;
 import 'package:diohub/view/repository/issues/new_issue_screen.dart' as _i8;
-import 'package:diohub/view/repository/repository_screen.dart' as _i12;
+import 'package:diohub/view/repository/repository_screen.dart' as _i11;
 import 'package:diohub/view/repository/wiki/wiki_viewer.dart' as _i14;
 import 'package:flutter/material.dart' as _i16;
 
@@ -569,55 +568,7 @@ class NewIssueRouteArgs {
 }
 
 /// generated route for
-/// [_i9.OtherUserProfileScreen]
-class OtherUserProfileRoute
-    extends _i15.PageRouteInfo<OtherUserProfileRouteArgs> {
-  OtherUserProfileRoute({
-    required String login,
-    _i16.Key? key,
-    List<_i15.PageRouteInfo>? children,
-  }) : super(
-          OtherUserProfileRoute.name,
-          args: OtherUserProfileRouteArgs(login: login, key: key),
-          initialChildren: children,
-        );
-
-  static const String name = 'OtherUserProfileRoute';
-
-  static _i15.PageInfo page = _i15.PageInfo(
-    name,
-    builder: (data) {
-      final args = data.argsAs<OtherUserProfileRouteArgs>();
-      return _i9.OtherUserProfileScreen(args.login, key: args.key);
-    },
-  );
-}
-
-class OtherUserProfileRouteArgs {
-  const OtherUserProfileRouteArgs({required this.login, this.key});
-
-  final String login;
-
-  final _i16.Key? key;
-
-  @override
-  String toString() {
-    return 'OtherUserProfileRouteArgs{login: $login, key: $key}';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    if (other is! OtherUserProfileRouteArgs) return false;
-    return login == other.login && key == other.key;
-  }
-
-  @override
-  int get hashCode => login.hashCode ^ key.hashCode;
-}
-
-/// generated route for
-/// [_i10.PRReviewScreen]
+/// [_i9.PRReviewScreen]
 class PRReviewRoute extends _i15.PageRouteInfo<PRReviewRouteArgs> {
   PRReviewRoute({
     required String nodeID,
@@ -640,7 +591,7 @@ class PRReviewRoute extends _i15.PageRouteInfo<PRReviewRouteArgs> {
     name,
     builder: (data) {
       final args = data.argsAs<PRReviewRouteArgs>();
-      return _i10.PRReviewScreen(
+      return _i9.PRReviewScreen(
         args.nodeID,
         pullNodeID: args.pullNodeID,
         key: args.key,
@@ -681,7 +632,7 @@ class PRReviewRouteArgs {
 }
 
 /// generated route for
-/// [_i11.PlaceHolderScreen]
+/// [_i10.PlaceHolderScreen]
 class PlaceHolderRoute extends _i15.PageRouteInfo<void> {
   const PlaceHolderRoute({List<_i15.PageRouteInfo>? children})
       : super(PlaceHolderRoute.name, initialChildren: children);
@@ -691,13 +642,13 @@ class PlaceHolderRoute extends _i15.PageRouteInfo<void> {
   static _i15.PageInfo page = _i15.PageInfo(
     name,
     builder: (data) {
-      return const _i11.PlaceHolderScreen();
+      return const _i10.PlaceHolderScreen();
     },
   );
 }
 
 /// generated route for
-/// [_i12.RepositoryScreen]
+/// [_i11.RepositoryScreen]
 class RepositoryRoute extends _i15.PageRouteInfo<RepositoryRouteArgs> {
   RepositoryRoute({
     required String repositoryURL,
@@ -726,7 +677,7 @@ class RepositoryRoute extends _i15.PageRouteInfo<RepositoryRouteArgs> {
     name,
     builder: (data) {
       final args = data.argsAs<RepositoryRouteArgs>();
-      return _i12.RepositoryScreen(
+      return _i11.RepositoryScreen(
         args.repositoryURL,
         branch: args.branch,
         index: args.index,
@@ -788,12 +739,12 @@ class RepositoryRouteArgs {
 }
 
 /// generated route for
-/// [_i13.SearchOverlayScreen]
+/// [_i12.SearchOverlayScreen]
 class SearchOverlayRoute extends _i15.PageRouteInfo<SearchOverlayRouteArgs> {
   SearchOverlayRoute({
-    required _i13.SearchData searchData,
+    required _i12.SearchData searchData,
     required bool multiHero,
-    required _i16.ValueChanged<_i13.SearchData> onSubmit,
+    required _i16.ValueChanged<_i12.SearchData> onSubmit,
     String? message,
     String heroTag = 'search_bar',
     _i16.Key? key,
@@ -817,7 +768,7 @@ class SearchOverlayRoute extends _i15.PageRouteInfo<SearchOverlayRouteArgs> {
     name,
     builder: (data) {
       final args = data.argsAs<SearchOverlayRouteArgs>();
-      return _i13.SearchOverlayScreen(
+      return _i12.SearchOverlayScreen(
         args.searchData,
         multiHero: args.multiHero,
         onSubmit: args.onSubmit,
@@ -839,11 +790,11 @@ class SearchOverlayRouteArgs {
     this.key,
   });
 
-  final _i13.SearchData searchData;
+  final _i12.SearchData searchData;
 
   final bool multiHero;
 
-  final _i16.ValueChanged<_i13.SearchData> onSubmit;
+  final _i16.ValueChanged<_i12.SearchData> onSubmit;
 
   final String? message;
 
@@ -876,6 +827,53 @@ class SearchOverlayRouteArgs {
       message.hashCode ^
       heroTag.hashCode ^
       key.hashCode;
+}
+
+/// generated route for
+/// [_i13.UserProfileScreen]
+class UserProfileRoute extends _i15.PageRouteInfo<UserProfileRouteArgs> {
+  UserProfileRoute({
+    required String login,
+    _i16.Key? key,
+    List<_i15.PageRouteInfo>? children,
+  }) : super(
+          UserProfileRoute.name,
+          args: UserProfileRouteArgs(login: login, key: key),
+          initialChildren: children,
+        );
+
+  static const String name = 'UserProfileRoute';
+
+  static _i15.PageInfo page = _i15.PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<UserProfileRouteArgs>();
+      return _i13.UserProfileScreen(args.login, key: args.key);
+    },
+  );
+}
+
+class UserProfileRouteArgs {
+  const UserProfileRouteArgs({required this.login, this.key});
+
+  final String login;
+
+  final _i16.Key? key;
+
+  @override
+  String toString() {
+    return 'UserProfileRouteArgs{login: $login, key: $key}';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! UserProfileRouteArgs) return false;
+    return login == other.login && key == other.key;
+  }
+
+  @override
+  int get hashCode => login.hashCode ^ key.hashCode;
 }
 
 /// generated route for

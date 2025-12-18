@@ -525,7 +525,7 @@ class _SearchBarState extends State<_SearchBar> {
               overlay: overlayWidget,
               child: Hero(
                 tag: widget.multiHero
-                    ? widget.heroTag + searchData.isActive.toString()
+                    ? '${widget.heroTag}true'
                     : widget.heroTag,
                 child: Material(
                   color: Colors.transparent,

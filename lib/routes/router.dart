@@ -83,7 +83,7 @@ class AppRouter extends RootStackRouter {
           ],
         ),
         AutoRoute(
-          page: OtherUserProfileRoute.page,
+          page: UserProfileRoute.page,
           guards: <AutoRouteGuard>[
             authGuard,
           ],
