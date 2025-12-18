@@ -1,0 +1,455 @@
+# GraphQL Query and Migration Rules
+
+## Fragment Usage and Reuse
+
+### Fragment-First Approach
+- **ALWAYS prefer fragments over inline field selections** for any field set that might be reused
+- Create fragments for common data structures (e.g., `actor`, `label`, `repoInfo`, `reactionGroups`)
+- Use fragments to maintain consistency across queries and reduce duplication
+
+### Fragment Naming Conventions
+- Use camelCase for fragment names (e.g., `issueInfo`, `pullInfo`, `actor`, `repoInfo`)
+- Fragment names should be descriptive and indicate the type they operate on
+- Common reusable fragments should have simple, clear names (e.g., `actor`, `label`, `commit`)
+
+### Fragment Organization
+- Define fragments in the same file where they're primarily used
+- For fragments used across multiple files, consider creating a shared fragments file
+- Use `# import './path/to/fragments.graphql'` comments at the top of files to import shared fragments
+- Place fragments after queries/mutations in the file, grouped logically
+
+### Fragment Reuse Patterns
+- **Reuse existing fragments** before creating new ones (e.g., `...actor`, `...label`, `...repoInfo`)
+- When a fragment is used in multiple places, extract it to a shared location
+- Fragments should be composable - use fragments within fragments when appropriate
+- Always check existing fragments in `lib/graphql/queries/` before creating new ones
+
+### Fragment Examples
+```graphql
+# Good: Reusable fragment
+fragment actor on Actor {
+    avatarUrl
+    login
+}
+
+# Good: Fragment composition
+fragment issueInfo on Issue {
+    id
+    author {
+        ...actor  # Reusing actor fragment
+    }
+    labels(first: 100) {
+        nodes {
+            ...label  # Reusing label fragment
+        }
+    }
+}
+
+# Bad: Inline fields that should be a fragment
+query getIssue($id: ID!) {
+    node(id: $id) {
+        ... on Issue {
+            author {
+                avatarUrl
+                login
+            }
+        }
+    }
+}
+```
+
+## Query Structure
+
+### Query Organization
+- Organize queries by domain in subdirectories:
+  - `lib/graphql/queries/issues_pulls/` - Issues and Pull Requests
+  - `lib/graphql/queries/repositories/` - Repository-related queries
+  - `lib/graphql/queries/users/` - User-related queries
+  - `lib/graphql/queries/viewer/` - Viewer-specific queries
+
+### Query Naming
+- Use camelCase for query names (e.g., `issuePullInfo`, `getUserRepositories`, `searchMentionUsers`)
+- Query names should be descriptive and indicate their purpose
+- Use verbs for action-oriented queries (e.g., `get`, `search`, `fetch`)
+
+### Query Variables
+- Use camelCase for variable names (e.g., `$user`, `$repo`, `$number`, `$after`)
+- Always specify variable types explicitly
+- Use nullable types (`String`, `Int`) when appropriate, non-nullable (`String!`, `Int!`) when required
+- Include pagination variables (`$after`, `$first`) for list queries
+
+### Query Structure Best Practices
+- Always include `__typename` when using inline fragments or union types
+- Use inline fragments (`... on Type`) for union types and interfaces
+- Group related queries in the same file
+- Include mutations in the same file as related queries when they operate on the same domain
+
+## Mutations
+
+### Mutation Structure
+- Follow the same naming and organization conventions as queries
+- Include mutations in domain-specific query files (e.g., reactions in `issue_pull_info.graphql`)
+- Always return relevant data from mutations (e.g., return updated reaction groups after adding a reaction)
+
+### Mutation Naming
+- Use camelCase (e.g., `addReaction`, `removeReaction`, `followUser`, `unfollowUser`)
+- Use verb-noun pattern for clarity
+
+## Type Safety and Inline Fragments
+
+### Union Types and Interfaces
+- Always use `__typename` when querying union types or interfaces
+- Use inline fragments (`... on Type`) to access type-specific fields
+- Handle all possible types in a union when necessary
+
+### Example:
+```graphql
+query getIssueOrPR($id: ID!) {
+    node(id: $id) {
+        __typename
+        ... on Issue {
+            ...issueInfo
+        }
+        ... on PullRequest {
+            ...pullInfo
+        }
+    }
+}
+```
+
+## Pagination
+
+### Pagination Patterns
+- Always include `pageInfo` with `hasNextPage` and `endCursor` for paginated queries
+- Use `edges` with `cursor` and `node` structure for paginated lists
+- Include `totalCount` when available for display purposes
+- Use `$after` and `$first` variables for pagination control
+
+### Example:
+```graphql
+query getItems($after: String, $first: Int!) {
+    items(first: $first, after: $after) {
+        edges {
+            cursor
+            node {
+                id
+                name
+            }
+        }
+        pageInfo {
+            hasNextPage
+            endCursor
+        }
+        totalCount
+    }
+}
+```
+
+## Code Generation
+
+### Build Configuration
+- GraphQL files are automatically processed by `ferry_generator` (configured in `build.yaml`)
+- Generated files are placed in `__generated__/` directories
+- Always run `flutter pub run build_runner build` after modifying GraphQL files
+
+### Generated Code Usage
+- Import generated files from `__generated__/` directories
+- Use generated request classes (e.g., `GissuePullInfoReq`) for queries
+- Use generated data classes (e.g., `GissuePullInfoData`) for responses
+- Use generated variable classes for type-safe variable passing
+
+## REST to GraphQL Migration
+
+### Core Principle: Complete Migration, No Backward Compatibility
+- **NEVER create conversion methods** from GraphQL types to REST models (e.g., `RepositoryModel.fromGraphQL()`)
+- **NEVER create adapter models** that bridge REST and GraphQL (e.g., `RepoCardDataModel.fromGraphQL()`)
+- **ALWAYS use GraphQL types directly** in services, providers, and UI layers
+- **Remove REST model dependencies** once GraphQL equivalent exists
+
+### Migration Strategy
+
+#### 1. Service Layer Migration
+- **Replace REST service methods** with GraphQL equivalents
+- **Return GraphQL types directly** from service methods
+- **Remove REST model imports** when GraphQL types are available
+- **Update method signatures** to use GraphQL types instead of REST models
+
+**Bad Example (Avoid):**
+```dart
+// ❌ BAD: Converting GraphQL to REST model
+Future<RepositoryModel> fetchRepository(String owner, String repo) async {
+  final gqlData = await fetchRepositoryGraphQL(owner: owner, repo: repo);
+  return RepositoryModel.fromGraphQL(gqlData); // DON'T DO THIS
+}
+
+// ❌ BAD: Adapter model for backward compatibility
+class RepoCardDataModel {
+  factory RepoCardDataModel.fromGraphQL(GrepositoryFields repo) {
+    // Converting GraphQL to intermediate model - DON'T DO THIS
+  }
+}
+```
+
+**Good Example:**
+```dart
+// ✅ GOOD: Return GraphQL type directly
+Future<GrepositoryInfoData_repository> fetchRepository({
+  required String owner,
+  required String repo,
+  bool refresh = false,
+}) async {
+  final GQLResponse response = await _gqlHandler.query(
+    GrepositoryInfoReq(
+      (final GrepositoryInfoReqBuilder b) => b
+        ..vars.owner = owner
+        ..vars.name = repo,
+    ),
+    refreshCache: refresh,
+  );
+  return GrepositoryInfoData.fromJson(response.data!)!.repository!;
+}
+```
+
+#### 2. UI Layer Migration
+- **Update UI widgets** to consume GraphQL types directly
+- **Remove REST model dependencies** from UI code
+- **Use GraphQL field accessors** (e.g., `repo.name`, `repo.owner.login`)
+- **Handle nullable GraphQL fields** appropriately with null checks
+
+**Bad Example (Avoid):**
+```dart
+// ❌ BAD: Converting GraphQL to REST model in UI
+Widget buildRepositoryCard(GrepositoryInfoData_repository repo) {
+  final repoModel = RepositoryModel.fromGraphQL(repo); // DON'T DO THIS
+  return RepositoryCard(model: repoModel);
+}
+```
+
+**Good Example:**
+```dart
+// ✅ GOOD: Use GraphQL type directly in UI
+Widget buildRepositoryCard(GrepositoryInfoData_repository repo) {
+  return RepositoryCard(
+    name: repo.name,
+    description: repo.description,
+    owner: repo.owner?.login ?? '',
+    stargazers: repo.stargazerCount ?? 0,
+  );
+}
+```
+
+#### 3. Model Removal Checklist
+When migrating a feature from REST to GraphQL:
+
+1. **Create GraphQL query** with all necessary fields
+2. **Update service method** to return GraphQL type directly
+3. **Update all UI components** to use GraphQL type
+4. **Remove REST model imports** from migrated files
+5. **Delete REST model file** if no longer used anywhere
+6. **Remove REST service methods** that have GraphQL equivalents
+7. **Update tests** to use GraphQL types
+
+#### 4. Handling GraphQL Type Differences
+- **Use GraphQL field names directly** (e.g., `stargazerCount` not `stargazersCount`)
+- **Handle nullable fields** with null-aware operators (`?.`, `??`)
+- **Use GraphQL connection types** for paginated lists (e.g., `edges`, `nodes`)
+- **Leverage GraphQL unions** with `when()` method for type-safe handling
+
+**Example:**
+```dart
+// ✅ GOOD: Handle GraphQL types correctly
+String getRepositoryLanguage(GrepositoryInfoData_repository repo) {
+  // Handle nullable primary language
+  return repo.primaryLanguage?.name ?? 'Unknown';
+}
+
+// ✅ GOOD: Use GraphQL connection pattern
+List<String> getRepositoryTopics(GrepositoryInfoData_repository repo) {
+  return repo.repositoryTopics?.edges
+      ?.map((e) => e?.node?.topic?.name ?? '')
+      .where((name) => name.isNotEmpty)
+      .toList() ?? [];
+}
+```
+
+#### 5. Fragment-Based Type Reuse
+- **Use GraphQL fragments** to ensure consistent field selection
+- **Leverage fragment interfaces** (e.g., `GrepositoryFields`) for type reuse
+- **Create shared fragments** for common data structures used across queries
+
+**Example:**
+```dart
+// ✅ GOOD: Use fragment interface for type reuse
+void displayRepository(GrepositoryFields repo) {
+  // Works with any GraphQL repository type that uses repositoryFields fragment
+  print('${repo.name} by ${repo.owner?.login}');
+}
+```
+
+#### 6. Migration Order
+When migrating multiple related features:
+
+1. **Start with data models** - Create GraphQL queries first
+2. **Migrate services** - Update service layer to return GraphQL types
+3. **Migrate providers** - Update state management to use GraphQL types
+4. **Migrate UI** - Update widgets to consume GraphQL types
+5. **Remove old code** - Delete REST models and conversion methods
+6. **Update tests** - Migrate tests to use GraphQL types
+
+### Anti-Patterns to Avoid
+
+1. **❌ Conversion Factories**: Don't create `fromGraphQL()` methods on REST models
+2. **❌ Adapter Classes**: Don't create intermediate models that convert between REST and GraphQL
+3. **❌ Dual Support**: Don't maintain both REST and GraphQL versions of the same feature
+4. **❌ Type Casting**: Don't cast GraphQL types to REST types
+5. **❌ Wrapper Models**: Don't wrap GraphQL types in REST model classes
+
+### Migration Examples
+
+#### Example 1: Repository Service
+```dart
+// ❌ OLD: REST-based
+static Future<RepositoryModel> fetchRepository(String url) async {
+  final response = await _restHandler.get<TypeMap>(url);
+  return RepositoryModel.fromJson(response.data!);
+}
+
+// ✅ NEW: GraphQL-based (complete migration)
+Future<GrepositoryInfoData_repository> fetchRepository({
+  required String owner,
+  required String repo,
+  bool refresh = false,
+}) async {
+  final GQLResponse response = await _gqlHandler.query(
+    GrepositoryInfoReq(
+      (final GrepositoryInfoReqBuilder b) => b
+        ..vars.owner = owner
+        ..vars.name = repo,
+    ),
+    refreshCache: refresh,
+  );
+  return GrepositoryInfoData.fromJson(response.data!)!.repository!;
+}
+```
+
+#### Example 2: UI Component
+```dart
+// ❌ OLD: Using REST model
+class RepositoryCard extends StatelessWidget {
+  final RepositoryModel repo;
+  
+  Widget build(BuildContext context) {
+    return Text(repo.name ?? '');
+  }
+}
+
+// ✅ NEW: Using GraphQL type directly
+class RepositoryCard extends StatelessWidget {
+  final GrepositoryInfoData_repository repo;
+  
+  Widget build(BuildContext context) {
+    return Text(repo.name);
+  }
+}
+```
+
+## Migration Guidelines
+
+### When Adding New Fields
+1. **Check for existing fragments** that might already include the field
+2. **Update fragments** rather than duplicating field selections
+3. **Maintain backward compatibility** when possible (add fields, don't remove without migration)
+4. **Update related queries** that use the same fragment
+
+### When Refactoring Queries
+1. **Extract common patterns** into reusable fragments
+2. **Consolidate duplicate field selections** into shared fragments
+3. **Update all usages** when renaming or restructuring fragments
+4. **Test generated code** after refactoring
+
+### When Creating New Queries
+1. **Check existing queries** for similar patterns to reuse
+2. **Use existing fragments** where possible
+3. **Follow the domain organization** structure
+4. **Include all necessary fields** but avoid over-fetching
+5. **Consider pagination** for list queries
+
+### When Migrating from REST to GraphQL
+1. **Create GraphQL query** with all required fields using fragments
+2. **Update service method** to return GraphQL type directly (no conversion)
+3. **Update UI components** to consume GraphQL types directly
+4. **Remove REST model dependencies** from migrated code
+5. **Delete unused REST models** and conversion methods
+6. **Update tests** to use GraphQL types
+
+## Common Fragment Patterns
+
+### Actor Fragment (Most Common)
+```graphql
+fragment actor on Actor {
+    avatarUrl
+    login
+}
+```
+
+### Repository Info Fragment
+```graphql
+fragment repoInfo on Repository {
+    name
+    owner {
+        login
+        avatarUrl
+    }
+}
+```
+
+### Label Fragment
+```graphql
+fragment label on Label {
+    color
+    name
+}
+```
+
+### Reaction Groups Fragment
+```graphql
+fragment reactionGroups on ReactionGroup {
+    content
+    viewerHasReacted
+    reactors {
+        totalCount
+    }
+    subject {
+        id
+    }
+}
+```
+
+## Best Practices Summary
+
+1. **Fragment First**: Always prefer fragments over inline selections
+2. **Reuse Before Create**: Check for existing fragments before creating new ones
+3. **Compose Fragments**: Use fragments within fragments for complex structures
+4. **Type Safety**: Always use `__typename` with union types and interfaces
+5. **Consistent Naming**: Follow camelCase conventions throughout
+6. **Domain Organization**: Group queries by domain in appropriate directories
+7. **Pagination**: Always include proper pagination support for list queries
+8. **Code Generation**: Run build_runner after any GraphQL changes
+9. **Documentation**: Use comments to explain complex queries or disabled fragments
+10. **Maintainability**: Keep fragments focused and reusable
+
+## File Structure Example
+
+```
+lib/graphql/queries/
+├── issues_pulls/
+│   ├── issue_pull_info.graphql    # Main issue/PR queries with fragments
+│   ├── timeline.graphql            # Timeline queries with event fragments
+│   └── participants.graphql        # Participant queries
+├── repositories/
+│   ├── repo_info.graphql           # Repository info queries
+│   └── commits_list.graphql        # Commit-related queries
+└── users/
+    └── user_info.graphql           # User-related queries
+```
+
