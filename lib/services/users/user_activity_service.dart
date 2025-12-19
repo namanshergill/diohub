@@ -38,7 +38,8 @@ class Phase1State {
 }
 
 class UserActivityService {
-  static final GraphqlHandler _gqlHandler = GraphqlHandler();
+  static final GraphqlHandler _gqlHandler = GraphqlHandler(
+      apiLogSettings: APILoggingSettings(compact: true, responseBody: true));
 
   /// Phase 1: Combined minimal fetch with dynamic first params
   /// As we find ranges for each type, set their first to 0
@@ -111,73 +112,52 @@ class UserActivityService {
       final data = parsedData.user!;
 
       // Process repositories
-      if (state.reposResult == null && data.repositories.edges != null) {
-        final reposResult = _processRepositories(
-          data.repositories.edges!,
-          data.repositories.pageInfo,
-          from,
-          to,
-        );
-        if (reposResult != null) {
-          state.reposResult = reposResult;
-          results['repos'] = reposResult;
-          state.firstRepos = 0; // Stop fetching repos
-        } else {
-          // Only continue pagination if there are more pages
-          if (data.repositories.pageInfo.hasNextPage) {
-            state.afterRepos = data.repositories.pageInfo.endCursor;
-          } else {
-            // Exhausted but range not found - stop fetching
-            state.firstRepos = 0;
-          }
-        }
-      }
+      _processCollectionType(
+        state: state,
+        results: results,
+        resultKey: 'repos',
+        currentResult: state.reposResult,
+        setResult: (result) => state.reposResult = result,
+        edges: data.repositories.edges,
+        pageInfo: data.repositories.pageInfo,
+        processFunction: _processRepositories,
+        setFirst: (value) => state.firstRepos = value,
+        setAfter: (value) => state.afterRepos = value,
+        from: from,
+        to: to,
+      );
 
       // Process pull requests
-      if (state.prsResult == null && data.pullRequests.edges != null) {
-        final prsResult = _processPullRequests(
-          data.pullRequests.edges!,
-          data.pullRequests.pageInfo,
-          from,
-          to,
-        );
-        if (prsResult != null) {
-          state.prsResult = prsResult;
-          results['prs'] = prsResult;
-          state.firstPRs = 0; // Stop fetching PRs
-        } else {
-          // Only continue pagination if there are more pages
-          if (data.pullRequests.pageInfo.hasNextPage) {
-            state.afterPRs = data.pullRequests.pageInfo.endCursor;
-          } else {
-            // Exhausted but range not found - stop fetching
-            state.firstPRs = 0;
-          }
-        }
-      }
+      _processCollectionType(
+        state: state,
+        results: results,
+        resultKey: 'prs',
+        currentResult: state.prsResult,
+        setResult: (result) => state.prsResult = result,
+        edges: data.pullRequests.edges,
+        pageInfo: data.pullRequests.pageInfo,
+        processFunction: _processPullRequests,
+        setFirst: (value) => state.firstPRs = value,
+        setAfter: (value) => state.afterPRs = value,
+        from: from,
+        to: to,
+      );
 
       // Process issues
-      if (state.issuesResult == null && data.issues.edges != null) {
-        final issuesResult = _processIssues(
-          data.issues.edges!,
-          data.issues.pageInfo,
-          from,
-          to,
-        );
-        if (issuesResult != null) {
-          state.issuesResult = issuesResult;
-          results['issues'] = issuesResult;
-          state.firstIssues = 0; // Stop fetching issues
-        } else {
-          // Only continue pagination if there are more pages
-          if (data.issues.pageInfo.hasNextPage) {
-            state.afterIssues = data.issues.pageInfo.endCursor;
-          } else {
-            // Exhausted but range not found - stop fetching
-            state.firstIssues = 0;
-          }
-        }
-      }
+      _processCollectionType(
+        state: state,
+        results: results,
+        resultKey: 'issues',
+        currentResult: state.issuesResult,
+        setResult: (result) => state.issuesResult = result,
+        edges: data.issues.edges,
+        pageInfo: data.issues.pageInfo,
+        processFunction: _processIssues,
+        setFirst: (value) => state.firstIssues = value,
+        setAfter: (value) => state.afterIssues = value,
+        from: from,
+        to: to,
+      );
 
       // Check if we should continue
       // Only check hasNextPage for collections that are still being fetched
@@ -196,6 +176,82 @@ class UserActivityService {
     }
 
     return results;
+  }
+
+  /// Generic handler for processing a collection type (repos, PRs, issues)
+  ///
+  /// Handles the common pattern of:
+  /// 1. Processing edges to find date range
+  /// 2. Updating pagination state based on results
+  /// 3. Handling edge cases like empty edges with inconsistent API responses
+  ///
+  /// **API Inconsistency Note:**
+  /// GitHub's GraphQL API can return `edges: []` (empty array) with
+  /// `hasNextPage: true` and `endCursor: null` when filtering by date ranges.
+  /// This happens because:
+  /// - `hasNextPage` is based on the unfiltered result set
+  /// - If all items in a page are outside the date range, `edges` is empty
+  /// - But `hasNextPage` may still be `true` if there are more items in the unfiltered set
+  /// - However, `endCursor: null` indicates there's no valid cursor to continue
+  ///
+  /// We handle this by treating `endCursor: null` with empty edges as exhausted,
+  /// preventing infinite loops while still allowing valid pagination when a cursor exists.
+  static void _processCollectionType<TEdges, TPageInfo>({
+    required Phase1State state,
+    required Map<String, Phase1Result> results,
+    required String resultKey,
+    required Phase1Result? currentResult,
+    required void Function(Phase1Result) setResult,
+    required BuiltList<TEdges>? edges,
+    required TPageInfo pageInfo,
+    required Phase1Result? Function(
+      BuiltList<TEdges>,
+      TPageInfo,
+      DateTime,
+      DateTime,
+    ) processFunction,
+    required void Function(int?) setFirst,
+    required void Function(String?) setAfter,
+    required DateTime from,
+    required DateTime to,
+  }) {
+    // Skip if already found or no edges
+    if (currentResult != null || edges == null) return;
+
+    // Handle empty edges edge case (API inconsistency)
+    if (edges.isEmpty) {
+      // Empty edges: if no cursor, we can't paginate (treat as exhausted)
+      // This prevents infinite loops when API returns hasNextPage=true but endCursor=null
+      final hasNextPage = (pageInfo as dynamic).hasNextPage as bool;
+      final endCursor = (pageInfo as dynamic).endCursor as String?;
+
+      if (!hasNextPage || endCursor == null) {
+        setFirst(0); // Exhausted
+      } else {
+        setAfter(endCursor); // Valid cursor - continue pagination
+      }
+      return;
+    }
+
+    // Process edges to find date range
+    final result = processFunction(edges, pageInfo, from, to);
+
+    if (result != null) {
+      // Range found - stop fetching
+      setResult(result);
+      results[resultKey] = result;
+      setFirst(0);
+    } else {
+      // Range not found - continue pagination if possible
+      final hasNextPage = (pageInfo as dynamic).hasNextPage as bool;
+      final endCursor = (pageInfo as dynamic).endCursor as String?;
+
+      if (hasNextPage) {
+        setAfter(endCursor);
+      } else {
+        setFirst(0); // Exhausted
+      }
+    }
   }
 
   /// Process repositories to find range
