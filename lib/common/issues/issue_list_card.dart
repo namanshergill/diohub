@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:diohub/adapters/deep_linking_handler.dart';
+import 'package:diohub/common/markdown_view/trimmable_markdown_content.dart';
 import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
 import 'package:diohub/common/pulls/simple_pull_card.dart';
@@ -16,12 +17,14 @@ class IssueListCard extends StatelessWidget {
     this.item, {
     this.showRepoName = true,
     this.commentsSince,
+    this.showDescription = true,
     super.key,
   });
 
   final IssueModel item;
   final DateTime? commentsSince;
   final bool showRepoName;
+  final bool showDescription;
 
   @override
   Widget build(final BuildContext context) {
@@ -29,6 +32,7 @@ class IssueListCard extends StatelessWidget {
       return SimplePullLoadingCard(
         item.pullRequest!.url!,
         showRepoName: showRepoName,
+        showDescription: showDescription,
       );
     }
 
@@ -160,6 +164,23 @@ class IssueListCard extends StatelessWidget {
               ),
           ],
         ),
+        // Issue body preview with markdown rendering
+        if (showDescription &&
+            (item.bodyHtml ?? item.body ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: context.colorScheme.surfaceVariant.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: TrimmableMarkdownContent(
+              text: item.body,
+              textHtml: item.bodyHtml,
+              repo: repoName,
+            ),
+          ),
+        ],
       ],
     );
 
@@ -245,6 +266,17 @@ class IssueLoadingCard extends StatelessWidget {
                     width: 35,
                   ),
                 ],
+              ),
+              // Body preview shimmer (optional, may or may not appear)
+              const SizedBox(height: 10),
+              ShimmerWidget.container(
+                height: 14,
+                width: double.infinity,
+              ),
+              const SizedBox(height: 4),
+              ShimmerWidget.container(
+                height: 14,
+                width: double.infinity,
               ),
             ],
           ),

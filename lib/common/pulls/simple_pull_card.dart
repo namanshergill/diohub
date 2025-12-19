@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:diohub/adapters/deep_linking_handler.dart';
+import 'package:diohub/common/markdown_view/trimmable_markdown_content.dart';
 import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
 import 'package:diohub/common/wrappers/api_wrapper_widget.dart';
@@ -15,11 +16,13 @@ class SimplePullCard extends StatelessWidget {
   const SimplePullCard(
     this.item, {
     this.showRepoName = true,
+    this.showDescription = true,
     super.key,
   });
 
   final PullRequestModel item;
   final bool showRepoName;
+  final bool showDescription;
 
   @override
   Widget build(final BuildContext context) {
@@ -151,6 +154,27 @@ class SimplePullCard extends StatelessWidget {
               ),
           ],
         ),
+        // PR body preview with markdown rendering
+        if (showDescription &&
+            (item.bodyHtml ?? item.body ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: context.colorScheme.surfaceVariant.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: context.colorScheme.outlineVariant.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: TrimmableMarkdownContent(
+              text: item.body,
+              textHtml: item.bodyHtml,
+              repo: repoName,
+            ),
+          ),
+        ],
       ],
     );
 
@@ -195,12 +219,14 @@ class SimplePullLoadingCard extends StatelessWidget {
     this.url, {
     this.padding = const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
     this.showRepoName = true,
+    this.showDescription = true,
     super.key,
   });
 
   final String url;
   final EdgeInsets padding;
   final bool showRepoName;
+  final bool showDescription;
 
   @override
   Widget build(final BuildContext context) => Padding(
@@ -212,6 +238,7 @@ class SimplePullLoadingCard extends StatelessWidget {
               SimplePullCard(
             data,
             showRepoName: showRepoName,
+            showDescription: showDescription,
           ),
           loadingBuilder: (final BuildContext context) => SizedBox(
             width: double.infinity,
@@ -245,6 +272,17 @@ class SimplePullLoadingCard extends StatelessWidget {
                       width: 35,
                     ),
                   ],
+                ),
+                // Body preview shimmer (optional, may or may not appear)
+                const SizedBox(height: 10),
+                ShimmerWidget.container(
+                  height: 14,
+                  width: double.infinity,
+                ),
+                const SizedBox(height: 4),
+                ShimmerWidget.container(
+                  height: 14,
+                  width: double.infinity,
                 ),
               ],
             ),
