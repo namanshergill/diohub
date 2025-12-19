@@ -76,15 +76,30 @@ class ContributionCalendarSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Use GitHub's default greenh colors
-    final defaultColors = colors ??
-        [
-          Color(0xFFEBEDF0), // No contributions
-          Color(0xFF9BE9A8), // Low
-          Color(0xFF40C463), // Medium
-          Color(0xFF30A14E), // High
-          Color(0xFF216E39), // Very high
-        ];
+    // Use colors from GitHub API (provided via colors parameter)
+    // Colors come from contributionCalendar.colors in GraphQL response
+    final defaultColors = colors;
+    if (defaultColors == null || defaultColors.isEmpty) {
+      // Should not happen - colors always come from GitHub API
+      // Return error state if somehow missing
+      return NestedCardWithHeader(
+        header: Text(
+          'Contribution Graph',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            'Unable to load contribution colors',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+        ),
+      );
+    }
 
     // Build header text based on selected year or custom range
     // Also determine if calendar should scroll (multi-year ranges)
