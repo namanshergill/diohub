@@ -1,0 +1,89 @@
+# import './user_info.graphql'
+
+# Combined Phase 1 query: Fetch minimal data for all types in a single query
+# As we find ranges for each type, we can set their first param to 0 in subsequent pages
+query userActivityTimelineMinimal(
+  $user: String!
+  $firstRepos: Int
+  $afterRepos: String
+  $firstPRs: Int
+  $afterPRs: String
+  $firstIssues: Int
+  $afterIssues: String
+) {
+  user(login: $user) {
+    repositories(
+      first: $firstRepos
+      after: $afterRepos
+      orderBy: {field: CREATED_AT, direction: DESC}
+      affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]
+    ) {
+      edges {
+        cursor
+        node {
+          id
+          name
+          owner {
+            login
+          }
+          createdAt
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+    pullRequests(
+      first: $firstPRs
+      after: $afterPRs
+      orderBy: {field: CREATED_AT, direction: DESC}
+      states: [OPEN, CLOSED, MERGED]
+    ) {
+      edges {
+        cursor
+        node {
+          id
+          number
+          createdAt
+          repository {
+            name
+            owner {
+              login
+            }
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+    issues(
+      first: $firstIssues
+      after: $afterIssues
+      orderBy: {field: CREATED_AT, direction: DESC}
+      states: [OPEN, CLOSED]
+    ) {
+      edges {
+        cursor
+        node {
+          id
+          number
+          createdAt
+          repository {
+            name
+            owner {
+              login
+            }
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+

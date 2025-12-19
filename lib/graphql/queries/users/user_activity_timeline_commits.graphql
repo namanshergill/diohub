@@ -1,0 +1,47 @@
+# Query for fetching commit contributions with date filtering
+# Commits already have date filtering via contributionsCollection, so no two-phase needed
+
+query userActivityTimelineCommits(
+  $user: String!
+  $from: DateTime!
+  $to: DateTime!
+) {
+  user(login: $user) {
+    __typename
+    id
+    contributionsCollection(from: $from, to: $to) {
+      commitContributionsByRepository(maxRepositories: 50) {
+        repository {
+          __typename
+          id
+          name
+          owner {
+            __typename
+            login
+          }
+          url
+        }
+        contributions(first: 100) {
+          edges {
+            cursor
+            node {
+              occurredAt
+              commit {
+                __typename
+                oid
+                messageHeadline
+                url
+                committedDate
+              }
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    }
+  }
+}
+

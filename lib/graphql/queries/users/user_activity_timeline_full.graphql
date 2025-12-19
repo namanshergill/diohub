@@ -1,0 +1,112 @@
+# import './user_info.graphql'
+
+# Combined Phase 2 query: Fetch all event types in a single query
+# Uses cursors and counts from Phase 1 to fetch exactly what we need
+query userActivityTimelineFull(
+  $user: String!
+  $firstRepos: Int
+  $afterRepos: String
+  $firstPRs: Int
+  $afterPRs: String
+  $firstIssues: Int
+  $afterIssues: String
+) {
+  user(login: $user) {
+    repositories(
+      first: $firstRepos
+      after: $afterRepos
+      orderBy: {field: CREATED_AT, direction: DESC}
+      affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]
+    ) {
+      edges {
+        cursor
+        node {
+          id
+          name
+          nameWithOwner
+          description
+          url
+          createdAt
+          primaryLanguage {
+            name
+            color
+          }
+          owner {
+            login
+            avatarUrl
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+    pullRequests(
+      first: $firstPRs
+      after: $afterPRs
+      orderBy: {field: CREATED_AT, direction: DESC}
+      states: [OPEN, CLOSED, MERGED]
+    ) {
+      edges {
+        cursor
+        node {
+          id
+          number
+          title
+          url
+          state
+          merged
+          mergedAt
+          createdAt
+          updatedAt
+          repository {
+            name
+            owner {
+              login
+            }
+            url
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+    issues(
+      first: $firstIssues
+      after: $afterIssues
+      orderBy: {field: CREATED_AT, direction: DESC}
+      states: [OPEN, CLOSED]
+    ) {
+      edges {
+        cursor
+        node {
+          id
+          number
+          title
+          url
+          state
+          createdAt
+          updatedAt
+          comments {
+            totalCount
+          }
+          repository {
+            name
+            owner {
+              login
+            }
+            url
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
