@@ -1,82 +1,47 @@
+import 'package:diohub/common/misc/repository_card.dart';
 import 'package:diohub/models/commits/commit_card_data_model.dart';
+import 'package:diohub/models/repositories/repo_card_data_model.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 
-/// Simple card content for commit events in timeline (no nested cards)
+/// Card content for commit events in timeline
+/// Shows repository cards with commit counts for each repo
 class TimelineCommitContent extends StatelessWidget {
   const TimelineCommitContent({
     required this.commitData,
+    required this.userLogin,
+    this.userEmail,
     super.key,
   });
 
   final CommitCardDataModel commitData;
+  final String userLogin;
+  final String? userEmail;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Show repository cards for each repo
+        ...commitData.repositories.map((repoInfo) {
+          // Use existing repoData if available, otherwise create from basic info
+          final repoCardData = repoInfo.repoData ??
+              RepoCardDataModel(
+                name: repoInfo.name,
+                url: repoInfo.url,
+              );
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: colorScheme.outlineVariant.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Commit count summary
-          Row(
-            children: [
-              Icon(
-                Octicons.git_commit,
-                size: 16,
-                color: const Color(0xFF2196F3), // Blue for commits
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '${commitData.count} commit${commitData.count > 1 ? 's' : ''}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          // Repository list (if multiple)
-          if (commitData.repositoryCount > 1) ...[
-            const SizedBox(height: 8),
-            ...commitData.repositories.map((repo) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Octicons.repo,
-                        size: 12,
-                        color: colorScheme.onSurfaceVariant.withOpacity(0.6),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          '${repo.owner}/${repo.name} (${repo.count} commit${repo.count > 1 ? 's' : ''})',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
-          ],
-        ],
-      ),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: RepositoryCard(
+              repoCardData,
+              contributionCount: repoInfo.count, // Commit count for this date
+              withBackground: true, // Use background for card styling
+            ),
+          );
+        }),
+      ],
     );
   }
 }
-

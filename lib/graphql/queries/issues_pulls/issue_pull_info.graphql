@@ -213,6 +213,8 @@ fragment issueInfo on Issue{
         ...repoInfo
     }
     state
+    title
+    updatedAt
     titleHTML
     timelineItems{
         totalCount
@@ -271,10 +273,11 @@ fragment pullInfo on PullRequest{
         ...repoInfo
     }
     state
+    updatedAt
     timelineItems{
         totalCount
     }
-
+    title
     titleHTML
     url
     userContentEdits{

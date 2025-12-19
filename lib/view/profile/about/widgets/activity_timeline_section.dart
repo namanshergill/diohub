@@ -74,10 +74,19 @@ class ActivityTimelineSection extends ConsumerWidget {
           );
         } else if (state is ActivityTimelineSuccess) {
           if (state.data.events.isEmpty) {
-            return const SliverToBoxAdapter(child: SizedBox.shrink());
+            return SliverToBoxAdapter(
+              child: _buildNoActivityMessage(context),
+            );
           }
           return _buildTimelineContent(context, state.data);
         } else if (state is ActivityTimelineError) {
+          if (kDebugMode) {
+            debugPrint('Error loading activity timeline: ${state.message}');
+            debugPrint('Error object: ${state.error}');
+            if (state.stackTrace != null) {
+              debugPrint('Stack trace: ${state.stackTrace}');
+            }
+          }
           return _buildErrorSliver(context, state, ref, providerKey);
         }
         return const SliverToBoxAdapter(child: SizedBox.shrink());
@@ -205,12 +214,30 @@ class ActivityTimelineSection extends ConsumerWidget {
   Widget _buildNoActivityPlaceholder(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(left: 40), // Align with timeline items
-      child: Text(
-        'No activity',
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontStyle: FontStyle.italic,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Center(
+        child: Text(
+          'No activity',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build message for when there are no events at all
+  Widget _buildNoActivityMessage(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      child: Center(
+        child: Text(
+          'No activity',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6),
+          ),
+          textAlign: TextAlign.center,
         ),
       ),
     );

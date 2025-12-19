@@ -38,17 +38,13 @@ class ActivityTimelineItem extends StatelessWidget {
         if (event.commitData != null) {
           card = TimelineCommitContent(
             commitData: event.commitData!,
+            userLogin: userLogin,
+            // TODO: Get user email from user profile if available
+            userEmail: null,
           );
           eventDate = event.commitData!.date;
           // Build action text for commits
-          String repoText;
-          if (event.commitData!.repositoryCount == 1) {
-            final repo = event.commitData!.primaryRepository!;
-            repoText = '${repo.owner}/${repo.name}';
-          } else {
-            repoText = '${event.commitData!.repositoryCount} repositories';
-          }
-          actionText = 'pushed to $repoText';
+          actionText = 'pushed';
         } else {
           return const SizedBox.shrink();
         }
@@ -62,8 +58,7 @@ class ActivityTimelineItem extends StatelessWidget {
           // Build action text for issues
           final state =
               event.issueData!.state == 'CLOSED' ? 'closed' : 'opened';
-          actionText =
-              '$state an issue in ${event.issueData!.repositoryOwner}/${event.issueData!.repositoryName}';
+          actionText = '$state an issue';
         } else {
           return const SizedBox.shrink();
         }
@@ -75,8 +70,7 @@ class ActivityTimelineItem extends StatelessWidget {
           );
           eventDate = event.pullRequestData!.createdAt;
           // Build action text for pull requests
-          actionText =
-              '${event.pullRequestData!.action} a pull request in ${event.pullRequestData!.repositoryOwner}/${event.pullRequestData!.repositoryName}';
+          actionText = '${event.pullRequestData!.action} a pull request';
         } else {
           return const SizedBox.shrink();
         }
@@ -194,16 +188,18 @@ class ActivityTimelineItem extends StatelessWidget {
     }
   }
 
-  /// Build action text with proper formatting (action verb + bold repository/name)
+  /// Build action text with proper formatting (action verb + bold name)
   Widget _buildActionText(BuildContext context, String? actionText) {
     if (actionText == null) {
       return const SizedBox.shrink();
     }
     final theme = Theme.of(context);
-    final parts = actionText.split(' in ');
 
-    if (parts.length == 2) {
-      // Format: "action verb ... in repository"
+    // Format: "action verb name" (e.g., "created repository-name", "pushed")
+    final words = actionText.split(' ');
+    if (words.length >= 2) {
+      final action = words[0];
+      final name = words.sublist(1).join(' ');
       return Text.rich(
         TextSpan(
           style: theme.textTheme.bodySmall?.copyWith(
@@ -211,36 +207,14 @@ class ActivityTimelineItem extends StatelessWidget {
             fontSize: 12,
           ),
           children: [
-            TextSpan(text: '${parts[0]} in '),
+            TextSpan(text: '$action '),
             TextSpan(
-              text: parts[1],
+              text: name,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ],
         ),
       );
-    } else {
-      // Format: "action verb name" (e.g., "created repository-name")
-      final words = actionText.split(' ');
-      if (words.length >= 2) {
-        final action = words[0];
-        final name = words.sublist(1).join(' ');
-        return Text.rich(
-          TextSpan(
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: context.colorScheme.onSurface.withOpacity(0.6),
-              fontSize: 12,
-            ),
-            children: [
-              TextSpan(text: '$action '),
-              TextSpan(
-                text: name,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        );
-      }
     }
 
     // Fallback: plain text

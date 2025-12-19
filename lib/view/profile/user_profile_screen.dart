@@ -1,4 +1,5 @@
 import 'package:auto_route/annotations.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:diohub/common/misc/collapsible_app_bar.dart';
 import 'package:diohub/common/misc/collapsible_action_buttons.dart';
 import 'package:diohub/common/misc/collapsible_detail_tiles.dart';
@@ -17,6 +18,7 @@ import 'package:diohub/models/contributions/contribution_query_models.dart';
 import 'package:diohub/providers/base_provider.dart';
 import 'package:diohub/providers/users/user_contributions_provider.dart';
 import 'package:diohub/providers/users/user_provider.dart';
+import 'package:diohub/routes/router.gr.dart';
 import 'package:diohub/utils/get_date.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:diohub/view/profile/about/user_about_screen.dart';
@@ -135,6 +137,7 @@ class UserProfileScreenState extends State<UserProfileScreen>
       onYearChanged: _onYearChanged,
       onCustomRangeChanged: _onCustomRangeChanged,
       getProviderKey: _getContributionProviderKey,
+      onCollapse: onCollapse,
     );
   }
 
@@ -605,23 +608,184 @@ class UserProfileScreenState extends State<UserProfileScreen>
       GuserInfoData_user userData, DynamicTabsController? tabController) {
     final currentTab = tabController?.activeIdentifier ?? 'Activity';
 
+    // Get pinned repositories
+    final pinnedItems = userData.pinnedItems.edges?.toList() ??
+        <GuserInfoData_user_pinnedItems_edges?>[];
+    final pinnedRepos = pinnedItems
+        .map((edge) => edge?.node)
+        .whereType<GuserInfoData_user_pinnedItems_edges_node>()
+        .where((node) => node.G__typename == 'Repository')
+        .map((node) => node as GrepositoryFields)
+        .toList();
+    final pinnedReposCount = pinnedRepos.length;
+
     return [
-      // Time range selector - only visible on Activity tab
-      if (currentTab == 'Activity')
+      // Pinned Repos - visible on all tabs
+      if (pinnedReposCount > 0)
         ExpandableActionButton(
-          icon: Icons.date_range,
-          label: 'Time Range',
-          subtitle: _getDateRangeLabel(),
+          icon: Octicons.pin,
+          label: 'Pinned Repos',
+          trailing: pinnedReposCount > 0
+              ? buildModernCountBadge(context, pinnedReposCount)
+              : null,
+          enabled: pinnedReposCount > 0,
           category: 'Primary',
           visibilityState: ActionButtonVisibilityState.both,
-          expandableWidgetBuilder: (onCollapse) {
-            return _buildDateRangeExpandedContent(
-              context,
-              userData,
-              onCollapse,
-            );
-          },
+          expandableWidgetBuilder: (onCollapse) => Builder(
+            builder: (context) {
+              if (pinnedRepos.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                  child: Text(
+                    'No pinned repositories available',
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                );
+              }
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: pinnedRepos.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final repo = entry.value;
+                    final isLast = index == pinnedRepos.length - 1;
+
+                    final ownerLogin = repo.owner.login;
+                    final repoName = repo.name;
+
+                    // Construct repository URL for navigation: owner/repo
+                    final navigationUrl = '$ownerLogin/$repoName';
+
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () async {
+                          await AutoRouter.of(context).push(
+                            RepositoryRoute(
+                              repositoryURL: navigationUrl,
+                            ),
+                          );
+                          onCollapse();
+                        },
+                        borderRadius: BorderRadius.only(
+                          bottomLeft:
+                              isLast ? const Radius.circular(14) : Radius.zero,
+                          bottomRight:
+                              isLast ? const Radius.circular(14) : Radius.zero,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            border: isLast
+                                ? null
+                                : Border(
+                                    bottom: BorderSide(
+                                      color: context.colorScheme.outline
+                                          .withOpacity(0.1),
+                                      width: 0.5,
+                                    ),
+                                  ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      repoName,
+                                      style: context.textTheme.bodyMedium
+                                          ?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (repo.description != null &&
+                                        repo.description!.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        repo.description!,
+                                        style: context.textTheme.bodySmall
+                                            ?.copyWith(
+                                          color: context
+                                              .colorScheme.onSurfaceVariant
+                                              .withOpacity(0.8),
+                                          fontSize: 11,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              if (repo.stargazerCount > 0) ...[
+                                const SizedBox(width: 8),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Octicons.star,
+                                      size: 14,
+                                      color: context
+                                          .colorScheme.onSurfaceVariant
+                                          .withOpacity(0.7),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      repo.stargazerCount.toString(),
+                                      style:
+                                          context.textTheme.bodySmall?.copyWith(
+                                        color: context
+                                            .colorScheme.onSurfaceVariant
+                                            .withOpacity(0.7),
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              );
+            },
+          ),
         ),
+      // Time range selector - only visible on Activity tab
+
+      ExpandableActionButton(
+        icon: Icons.date_range,
+        label: _getDateRangeLabel(),
+        subtitle: 'Time Range',
+        category: 'Primary',
+        visibilityState: currentTab == 'Activity'
+            ? ActionButtonVisibilityState.both
+            : ActionButtonVisibilityState.none,
+        expandableWidgetBuilder: (onCollapse) {
+          return _buildDateRangeExpandedContent(
+            context,
+            userData,
+            onCollapse,
+          );
+        },
+      ),
       // Primary - always visible in collapsed state
       MinorActionButton(
         icon: Octicons.pulse,
@@ -844,6 +1008,7 @@ class _DateRangeExpandedContent extends ConsumerWidget {
     required this.onYearChanged,
     required this.onCustomRangeChanged,
     required this.getProviderKey,
+    required this.onCollapse,
   });
 
   final String userName;
@@ -855,6 +1020,7 @@ class _DateRangeExpandedContent extends ConsumerWidget {
   final void Function(int) onYearChanged;
   final void Function(DateTime?, DateTime?) onCustomRangeChanged;
   final ContributionQueryKey Function(String) getProviderKey;
+  final VoidCallback onCollapse;
 
   /// Checks if the current custom range matches "Since joining GitHub"
   bool _isSinceJoining(DateTime? customFrom, DateTime? created) {
@@ -898,6 +1064,7 @@ class _DateRangeExpandedContent extends ConsumerWidget {
 
     if (pickedTo != null) {
       onCustomRangeChanged(pickedFrom, pickedTo);
+      onCollapse();
     }
   }
 
@@ -910,11 +1077,27 @@ class _DateRangeExpandedContent extends ConsumerWidget {
       userContributionsProvider(providerKey),
     );
 
-    // Get available years from the provider, or empty list if loading/error
-    final availableYears = contributionsAsync.when(
+    // Watch the last year provider separately to get available years
+    // This ensures years list doesn't disappear when current provider is loading
+    final lastYearKey = ContributionQueryKey.lastYear(userName);
+    final lastYearAsync = ref.watch(
+      userContributionsProvider(lastYearKey),
+    );
+
+    // Get available years from the last year provider (which always has all years)
+    // Fall back to current provider if last year provider is not available
+    final availableYears = lastYearAsync.when(
       data: (viewModel) => viewModel.contributionYears,
-      loading: () => <int>[],
-      error: (_, __) => <int>[],
+      loading: () => contributionsAsync.when(
+        data: (viewModel) => viewModel.contributionYears,
+        loading: () => <int>[],
+        error: (_, __) => <int>[],
+      ),
+      error: (_, __) => contributionsAsync.when(
+        data: (viewModel) => viewModel.contributionYears,
+        loading: () => <int>[],
+        error: (_, __) => <int>[],
+      ),
     );
 
     // Determine which option is currently selected
@@ -940,6 +1123,7 @@ class _DateRangeExpandedContent extends ConsumerWidget {
             isSelected: isLastYearSelected,
             onTap: () {
               onCustomRangeChanged(null, null);
+              onCollapse();
             },
           ),
           // Year options
@@ -956,6 +1140,7 @@ class _DateRangeExpandedContent extends ConsumerWidget {
                     isSelected: !useCustomRange && selectedYear == year,
                     onTap: () {
                       onYearChanged(year);
+                      onCollapse();
                     },
                   ),
                 )),
@@ -973,6 +1158,7 @@ class _DateRangeExpandedContent extends ConsumerWidget {
               onTap: () {
                 final now = DateTime.now();
                 onCustomRangeChanged(createdAt, now);
+                onCollapse();
               },
             ),
           ],

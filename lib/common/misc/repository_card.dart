@@ -213,38 +213,50 @@ class RepositoryCard extends StatelessWidget {
               LanguageIndicator(
                 repo!.language,
               ),
-              if ((repo?.stargazersCount ?? 0) > 0)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(
-                      Octicons.star_fill,
-                      size: 12,
-                      color: context.colorScheme.onSurface.withOpacity(0.7),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      repo!.stargazersCount!.toShortenedStr(),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color:
-                                context.colorScheme.onSurface.withOpacity(0.7),
-                          ),
-                    ),
-                  ],
-                ),
+              Builder(
+                builder: (context) {
+                  final starCount = repo?.stargazersCount ?? 0;
+                  if (starCount <= 0) {
+                    return const SizedBox.shrink();
+                  }
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(
+                        Octicons.star_fill,
+                        size: 12,
+                        color: context.colorScheme.onSurface.withOpacity(0.7),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        starCount.toShortenedStr(),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: context.colorScheme.onSurface
+                                  .withOpacity(0.7),
+                            ),
+                      ),
+                    ],
+                  );
+                },
+              ),
               Builder(
                 builder: (context) {
                   final count =
                       contributionCount ?? repo?.contributionCount ?? 0;
-                  if (count <= 0) return const SizedBox.shrink();
-                  // Styled to match existing footer items but more prominent
+                  if (count <= 0) {
+                    return const SizedBox.shrink();
+                  }
+                  // Badge style matching the old commit card design
                   return Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color:
-                          context.colorScheme.surfaceVariant.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(4),
+                      color: const Color(0xFF2196F3).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: const Color(0xFF2196F3).withOpacity(0.3),
+                        width: 1,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -252,15 +264,15 @@ class RepositoryCard extends StatelessWidget {
                         Icon(
                           Octicons.git_commit,
                           size: 12,
-                          color: context.colorScheme.primary,
+                          color: const Color(0xFF2196F3),
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '$count ${count == 1 ? 'contribution' : 'contributions'}',
+                          '$count ${count == 1 ? 'commit' : 'commits'}',
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: context.colorScheme.primary,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF2196F3),
                                   ),
                         ),
                       ],

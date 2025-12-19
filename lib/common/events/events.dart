@@ -29,7 +29,7 @@ class Events extends StatelessWidget {
   Widget build(final BuildContext context) {
     final CurrentUserProvider user = Provider.of<CurrentUserProvider>(context);
     return InfiniteScrollWrapper<EventsModel>(
-      padding:  EdgeInsets.only(top: 4),
+      padding: EdgeInsets.only(top: 4),
       // separatrBuilder: (final BuildContext context, final int index) =>
       //     const Divider(
       //   height: 16,
@@ -94,7 +94,7 @@ class Events extends StatelessWidget {
       //     ],
       //   ),
       // ),
-  
+
       filterFn: (final List<EventsModel> items) {
         final List<EventsModel> temp = <EventsModel>[];
         for (final EventsModel item in items) {
@@ -260,7 +260,7 @@ class Events extends StatelessWidget {
           return AddedEventCard(
             isInTimeline: isTimeline,
             item,
-            '${item.payload!.action} ${item.payload!.member!.login} to',
+            '${item.payload!.action} ${item.payload!.member!.login}',
           );
         } else if (item.type == EventsType.DeleteEvent) {
           return RepoEventCard(

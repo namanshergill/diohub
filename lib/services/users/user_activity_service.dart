@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_classes_with_only_static_members
+
 import 'package:built_collection/built_collection.dart';
 import 'package:diohub/app/api_handler/dio.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_activity_timeline_minimal.data.gql.dart';
@@ -40,7 +42,8 @@ class Phase1State {
 
 class UserActivityService {
   static final GraphqlHandler _gqlHandler = GraphqlHandler(
-      apiLogSettings: APILoggingSettings(compact: true, responseBody: true));
+      apiLogSettings:
+          APILoggingSettings(compact: true, responseBody: true, error: true,request: true,  requestBody: true));
 
   /// Phase 1: Combined minimal fetch with dynamic first params
   /// As we find ranges for each type, set their first to 0

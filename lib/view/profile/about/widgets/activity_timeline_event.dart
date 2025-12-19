@@ -143,7 +143,12 @@ class UserActivityTimelineData {
   }) {
     final grouped = _groupByMonth(events);
     return UserActivityTimelineData._(
-      events: _flattenGroupedEvents(grouped, from: from, to: to),
+      events: _flattenGroupedEvents(
+        grouped,
+        from: from,
+        to: to,
+        hasEvents: events.isNotEmpty,
+      ),
       eventsByMonth: grouped,
     );
   }
@@ -270,28 +275,32 @@ class UserActivityTimelineData {
   }
 
   /// Flatten grouped events into a single list (maintains order)
-  /// Fills in empty months with "No activity" placeholders
+  /// Fills in empty months with "No activity" placeholders only if there are some events
   static List<TimelineEventWithFlags> _flattenGroupedEvents(
     Map<int, Map<int, List<TimelineEventWithFlags>>> grouped, {
     required DateTime from,
     required DateTime to,
+    required bool hasEvents,
   }) {
     final flattened = <TimelineEventWithFlags>[];
+
+    // If no events at all, don't fill empty months - return empty list
+    if (!hasEvents) {
+      return flattened;
+    }
 
     // Generate all months in the date range (newest first)
     final allMonths = _generateMonthsInRange(from, to);
 
-    // Extract months that have events
-    final monthsWithEvents = _extractMonthsFromGrouped(grouped);
-
-    // Iterate through all months and merge with events
+    // Iterate through all months - check grouped map directly
     for (final (year, month) in allMonths) {
-      if (monthsWithEvents.contains((year, month))) {
+      final monthEvents = grouped[year]?[month];
+
+      if (monthEvents != null && monthEvents.isNotEmpty) {
         // Month has events - add them
-        final monthEvents = grouped[year]?[month] ?? [];
         flattened.addAll(monthEvents);
       } else {
-        // Empty month - add placeholder
+        // Empty month - add placeholder (only if we have some events)
         flattened.add(
           TimelineEventWithFlags(
             event: null,
@@ -326,19 +335,6 @@ class UserActivityTimelineData {
       }
     }
 
-    return months;
-  }
-
-  /// Extract all (year, month) pairs that have events from grouped structure
-  static Set<(int year, int month)> _extractMonthsFromGrouped(
-    Map<int, Map<int, List<TimelineEventWithFlags>>> grouped,
-  ) {
-    final months = <(int, int)>{};
-    for (final yearEntry in grouped.entries) {
-      for (final monthEntry in yearEntry.value.entries) {
-        months.add((yearEntry.key, monthEntry.key));
-      }
-    }
     return months;
   }
 }

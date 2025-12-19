@@ -28,9 +28,6 @@ class AddedEventCard extends StatelessWidget {
         eventType: event.type,
         headerText: <TextSpan>[
           TextSpan(text: '$eventTextMiddle'),
-          TextSpan(
-            text: event.repo!.name,
-          ),
         ],
         userLogin: event.actor!.login,
         date: event.createdAt,

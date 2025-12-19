@@ -1,8 +1,6 @@
 import 'package:diohub/common/misc/nested_card_with_header.dart';
-import 'package:diohub/common/misc/repository_card.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_info.data.gql.dart';
 import 'package:diohub/models/contributions/contribution_query_models.dart';
-import 'package:diohub/models/repositories/repo_card_data_model.dart';
 import 'package:diohub/providers/users/user_contributions_provider.dart';
 import 'package:diohub/view/profile/about/widgets/activity_overview_section.dart';
 import 'package:diohub/view/profile/about/widgets/activity_timeline_section.dart';
@@ -39,7 +37,6 @@ class UserAboutScreen extends ConsumerStatefulWidget {
 }
 
 class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
-
   /// Builds a typed provider key based on selected year or custom date range
   /// Only recalculates when date range changes, not on every build
   ContributionQueryKey _getProviderKey() {
@@ -47,13 +44,9 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
         widget.customFromDate != null &&
         widget.customToDate != null) {
       // Normalize dates to day level for stable keys
-      final from = DateTime(
-          widget.customFromDate!.year,
-          widget.customFromDate!.month,
-          widget.customFromDate!.day);
-      final to = DateTime(
-          widget.customToDate!.year,
-          widget.customToDate!.month,
+      final from = DateTime(widget.customFromDate!.year,
+          widget.customFromDate!.month, widget.customFromDate!.day);
+      final to = DateTime(widget.customToDate!.year, widget.customToDate!.month,
           widget.customToDate!.day);
       return ContributionQueryKey.customRange(
         userName: widget.userData.login,
@@ -74,10 +67,6 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Pinned items rarely change, but toList() is cheap - no need to cache
-    final pinnedItems = widget.userData.pinnedItems.edges?.toList() ??
-        <GuserInfoData_user_pinnedItems_edges?>[];
-
     // Fetch contributions data using Riverpod with typed key
     // Key only changes when date range changes, preventing unnecessary rebuilds
     final providerKey = _getProviderKey();
@@ -153,6 +142,9 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
             customToDate: widget.customToDate,
             useCustomRange: widget.useCustomRange,
           ),
+          SliverToBoxAdapter(
+              child:
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.15)),
         ];
       },
       loading: () => [
@@ -211,47 +203,6 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
       ...contributionSlivers,
     ];
 
-    // Pinned Repositories
-    if (pinnedItems.isNotEmpty) {
-      slivers.add(
-        const SliverToBoxAdapter(child: SizedBox(height: 8)),
-      );
-      slivers.add(
-        SliverToBoxAdapter(
-          child: NestedCardWithHeader(
-            header: Text(
-              'Pinned Repositories',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: List<Widget>.generate(
-                pinnedItems.length,
-                (final int index) {
-                  final node = pinnedItems[index]?.node;
-                  // Check if it's a repository by __typename and cast to GrepositoryFields
-                  if (node == null || node.G__typename != 'Repository') {
-                    return const SizedBox.shrink();
-                  }
-                  final repo = node as GrepositoryFields;
-                  return Padding(
-                    padding: EdgeInsets.only(
-                      bottom: index < pinnedItems.length - 1 ? 12 : 0,
-                    ),
-                    child: RepositoryCard(
-                      RepoCardDataModel.fromGraphQL(repo),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     if (slivers.isEmpty) {
       return const Center(
         child: Padding(
@@ -262,7 +213,12 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.fromLTRB(
+        8,
+        16,
+        8,
+        0,
+      ),
       child: CustomScrollView(
         slivers: slivers,
       ),
