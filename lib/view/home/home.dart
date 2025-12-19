@@ -182,11 +182,28 @@ class HomeScreenState extends State<HomeScreen>
                   // Build all actions in a single list - they'll be automatically split by type
                   final List<ActionButtonData> allActions = [];
 
-                  // Search bar as major action - always include, use visibilityState
+                  final isEventsTab = currentTab == 'Events';
+
+                  // Navigation category - Events action (visible in both states)
+                  allActions.add(
+                    MinorActionButton(
+                      icon: Icons.timeline_rounded,
+                      label: 'Events',
+                      actionType: ActionButtonActionType.tab,
+                      visibilityState: isEventsTab
+                          ? ActionButtonVisibilityState.none
+                          : ActionButtonVisibilityState.both,
+                      category: 'Navigation',
+                      onTap: () => tabsController.openTab('Events'),
+                    ),
+                  );
+
+                  // Search & Filter category - Search bar as major action
                   allActions.add(
                     MinorActionButton(
                       icon: Icons.search_rounded,
                       label: 'Search',
+                      category: 'Search & Filter',
                       onTap: () async {
                         if (searchWrapperState != null) {
                           await AutoRouter.of(context).push(
@@ -227,6 +244,7 @@ class HomeScreenState extends State<HomeScreen>
                       icon: Icons.filter_list_rounded,
                       label: 'Quick Filters',
                       subtitle: activeFilter, // Show active filter as subtitle
+                      category: 'Search & Filter',
                       expandableWidgetBuilder: (onCollapse) {
                         if (searchWrapperState == null ||
                             filters == null ||
@@ -263,6 +281,7 @@ class HomeScreenState extends State<HomeScreen>
                       icon: Icons.sort_rounded,
                       label: 'Sort',
                       subtitle: sortSubtitle, // Show active sort as subtitle
+                      category: 'Search & Filter',
                       expandableWidgetBuilder: (onCollapse) {
                         if (searchWrapperState == null) {
                           return const SizedBox.shrink();
@@ -304,6 +323,7 @@ class HomeScreenState extends State<HomeScreen>
                             : Icons.check_box_outline_blank_rounded,
                         label: entry.value,
                         value: isSelected,
+                        category: 'Search & Filter',
                         onChanged: (bool value) {
                           if (searchWrapperState == null) return;
                           print(
@@ -346,7 +366,7 @@ class HomeScreenState extends State<HomeScreen>
                     );
                   }
 
-                  // Minor actions (will appear in the row)
+                  // Navigation category - Tab navigation actions
                   allActions.addAll([
                     MinorActionButton(
                       icon: Octicons.issue_opened,
@@ -356,6 +376,7 @@ class HomeScreenState extends State<HomeScreen>
                         context.viewer.issues.totalCount,
                       ),
                       actionType: ActionButtonActionType.tab,
+                      category: 'Navigation',
                       visibilityState: currentTab == 'Issues'
                           ? ActionButtonVisibilityState.none
                           : ActionButtonVisibilityState.both,
@@ -369,17 +390,11 @@ class HomeScreenState extends State<HomeScreen>
                         context.viewer.pullRequests.totalCount,
                       ),
                       actionType: ActionButtonActionType.tab,
+                      category: 'Navigation',
                       visibilityState: currentTab == 'Pulls'
                           ? ActionButtonVisibilityState.none
                           : ActionButtonVisibilityState.both,
                       onTap: () => tabsController.openTab('Pulls'),
-                    ),
-                    MinorActionButton(
-                      icon: Icons.settings_rounded,
-                      label: 'App Settings',
-                      onTap: () {
-                        // Navigate to settings
-                      },
                     ),
                     MinorActionButton(
                       icon: Octicons.organization,
@@ -389,6 +404,7 @@ class HomeScreenState extends State<HomeScreen>
                         context.viewer.organizations.totalCount,
                       ),
                       actionType: ActionButtonActionType.tab,
+                      category: 'Navigation',
                       visibilityState: currentTab == 'orgs'
                           ? ActionButtonVisibilityState.none
                           : ActionButtonVisibilityState.expandedOnly,
@@ -401,11 +417,48 @@ class HomeScreenState extends State<HomeScreen>
                         context,
                         context.viewer.repositories.totalCount,
                       ),
+                      category: 'Navigation',
                       visibilityState: currentTab == 'repos'
                           ? ActionButtonVisibilityState.none
                           : ActionButtonVisibilityState.expandedOnly,
                       onTap: () {
                         // tabsController.openTab('repos');
+                      },
+                    ),
+                  ]);
+
+                  // Account category - Expanded only actions
+                  final currentUserLogin =
+                      context.provider<CurrentUserProvider>().data.login;
+                  allActions.addAll([
+                    MinorActionButton(
+                      icon: Icons.person_rounded,
+                      label: 'Profile',
+                      category: 'Account',
+                      actionType: ActionButtonActionType.navigation,
+                      visibilityState: ActionButtonVisibilityState.expandedOnly,
+                      onTap: () {
+                        AutoRouter.of(context).push(
+                          UserProfileRoute(login: currentUserLogin),
+                        );
+                      },
+                    ),
+                    MinorActionButton(
+                      icon: Icons.settings_rounded,
+                      label: 'App Settings',
+                      category: 'Account',
+                      visibilityState: ActionButtonVisibilityState.expandedOnly,
+                      onTap: () {
+                        // Navigate to settings
+                      },
+                    ),
+                    MinorActionButton(
+                      icon: Icons.notifications_rounded,
+                      label: 'Notifications',
+                      category: 'Account',
+                      visibilityState: ActionButtonVisibilityState.expandedOnly,
+                      onTap: () {
+                        // Navigate to notifications
                       },
                     ),
                   ]);
@@ -510,9 +563,7 @@ class HomeScreenState extends State<HomeScreen>
                 width: 8,
               ),
               ElevatedButton(
-                onPressed: () async {
-                  await AutoRouter.of(context).push(const SearchRoute());
-                },
+                onPressed: () {},
                 child: const Icon(
                   Icons.search_rounded,
                 ),
