@@ -112,3 +112,219 @@ query userActivityTimelineFull(
   }
 }
 
+# Fragments needed for issueInfo and pullInfo
+# These fragments are defined here to ensure they're included in generated types
+
+fragment repositoryFields on Repository {
+    name
+    description
+    stargazerCount
+    updatedAt
+    url
+    isPrivate
+    isFork
+    owner {
+        login
+    }
+    languages(orderBy: {direction: DESC, field: SIZE}, first: 1) {
+        edges {
+            node {
+                name
+            }
+        }
+    }
+}
+
+fragment actor on Actor {
+    avatarUrl
+    login
+}
+
+fragment label on Label {
+    color
+    name
+}
+
+fragment repoInfo on Repository {
+    name
+    owner {
+        login
+        avatarUrl
+    }
+}
+
+fragment assigneeInfo on UserConnection {
+    totalCount
+    edges {
+        cursor
+        node {
+            ...actor
+        }
+    }
+}
+
+fragment reactionGroups on ReactionGroup {
+    content
+    viewerHasReacted
+    reactors {
+        totalCount
+    }
+    subject {
+        id
+    }
+}
+
+fragment issueInfo on Issue {
+    id
+    activeLockReason
+    assignees(first: 5) {
+        ...assigneeInfo
+    }
+    author {
+        ...actor
+    }
+    authorAssociation
+    bodyHTML
+    body
+    closed
+    closedAt
+    milestone {
+        number
+        description
+        dueOn
+    }
+    createdAt
+    comments {
+        totalCount
+    }
+    includesCreatedEdit
+    isPinned
+    labels(first: 100) {
+        nodes {
+            ...label
+        }
+    }
+    locked
+    trackedIssuesCount
+    number
+    participants(first: 5) {
+        totalCount
+        nodes {
+            ...actor
+        }
+    }
+    projectsV2 {
+        totalCount
+    }
+    reactionGroups {
+        ...reactionGroups
+    }
+    repository {
+        ...repoInfo
+    }
+    state
+    titleHTML
+    timelineItems {
+        totalCount
+    }
+    url
+    userContentEdits {
+        totalCount
+    }
+    viewerCanReact
+    viewerCanUpdate
+    viewerCanSubscribe
+    viewerSubscription
+}
+
+fragment pullInfo on PullRequest {
+    activeLockReason
+    assignees(first: 5) {
+        ...assigneeInfo
+    }
+    author {
+        ...actor
+    }
+    authorAssociation
+    bodyHTML
+    body
+    closed
+    closedAt
+    createdAt
+    comments {
+        totalCount
+    }
+    labels(first: 100) {
+        nodes {
+            ...label
+        }
+    }
+    locked
+    mergedAt
+    resourcePath
+    number
+    participants(first: 5) {
+        totalCount
+        nodes {
+            ...actor
+        }
+    }
+    projectsV2 {
+        totalCount
+    }
+    reactionGroups {
+        ...reactionGroups
+    }
+    repository {
+        ...repoInfo
+    }
+    state
+    timelineItems {
+        totalCount
+    }
+    titleHTML
+    url
+    userContentEdits {
+        totalCount
+    }
+    includesCreatedEdit
+    viewerCanReact
+    additions
+    deletions
+    baseRef {
+        name
+        repository {
+            url
+        }
+    }
+    headRef {
+        name
+        repository {
+            url
+        }
+    }
+    changedFiles
+    closingIssuesReferences(first: 10) {
+        totalCount
+        nodes {
+            title
+            number
+            url
+            state
+            repository {
+                name
+                owner {
+                    login
+                }
+            }
+        }
+    }
+    commits {
+        totalCount
+    }
+    isCrossRepository
+    merged
+    reviewDecision
+    viewerCanUpdate
+}
+

@@ -1,68 +1,53 @@
-import 'package:diohub/common/events/cards/base_card.dart';
 import 'package:diohub/models/commits/commit_card_data_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 
-/// Card widget for displaying commit contributions in timeline
-/// Uses CreatedCommitContribution data (commitCount per day)
-class TimelineCommitCard extends StatelessWidget {
-  const TimelineCommitCard({
+/// Simple card content for commit events in timeline (no nested cards)
+class TimelineCommitContent extends StatelessWidget {
+  const TimelineCommitContent({
     required this.commitData,
-    required this.userLogin,
-    required this.userAvatarUrl,
     super.key,
   });
 
   final CommitCardDataModel commitData;
-  final String userLogin;
-  final String? userAvatarUrl;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return BaseEventCard.singular(
-      isInTimeline: true,
-      eventType: null, // We'll use custom icon
-      actor: null, // Don't show user login on their own profile
-      avatarUrl: null, // Don't show avatar on their own profile
-      date: commitData.date,
-      useNestedCard: false,
-      headerText: const [], // Action text is shown outside the card
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           // Commit count summary
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: colorScheme.outlineVariant.withOpacity(0.3),
-                width: 1,
+          Row(
+            children: [
+              Icon(
+                Octicons.git_commit,
+                size: 16,
+                color: const Color(0xFF2196F3), // Blue for commits
               ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Octicons.git_commit,
-                  size: 16,
-                  color: const Color(0xFF2196F3), // Blue for commits
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '${commitData.count} commit${commitData.count > 1 ? 's' : ''}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${commitData.count} commit${commitData.count > 1 ? 's' : ''}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           // Repository list (if multiple)
           if (commitData.repositoryCount > 1) ...[
@@ -94,3 +79,4 @@ class TimelineCommitCard extends StatelessWidget {
     );
   }
 }
+

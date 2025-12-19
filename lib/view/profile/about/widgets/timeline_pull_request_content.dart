@@ -1,32 +1,32 @@
-import 'package:diohub/common/events/cards/base_card.dart';
 import 'package:diohub/common/markdown_view/trimmable_markdown_content.dart';
 import 'package:diohub/common/pulls/simple_pull_card.dart';
 import 'package:diohub/models/pull_requests/pull_request_card_data_model.dart';
 import 'package:flutter/material.dart';
 
-/// Card widget for displaying pull requests in timeline using BaseEventCard pattern
-class TimelinePullRequestCard extends StatelessWidget {
-  const TimelinePullRequestCard({
+/// Simple card content for pull request events in timeline (no nested cards)
+class TimelinePullRequestContent extends StatelessWidget {
+  const TimelinePullRequestContent({
     required this.prData,
-    required this.userLogin,
-    required this.userAvatarUrl,
     super.key,
   });
 
   final PullRequestCardDataModel prData;
-  final String userLogin;
-  final String? userAvatarUrl;
 
   @override
   Widget build(BuildContext context) {
-    return BaseEventCard.singular(
-      isInTimeline: true,
-      eventType: null, // SimplePullCard handles its own styling
-      actor: null, // Don't show user login on their own profile
-      avatarUrl: null, // Don't show avatar on their own profile
-      date: prData.createdAt,
-      useNestedCard: false,
-      headerText: const [], // Action text is shown outside the card
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context)
+              .colorScheme
+              .outlineVariant
+              .withOpacity(0.3),
+          width: 1,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -67,3 +67,4 @@ class TimelinePullRequestCard extends StatelessWidget {
     );
   }
 }
+

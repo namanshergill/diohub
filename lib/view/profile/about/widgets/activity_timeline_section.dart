@@ -1,5 +1,6 @@
 import 'package:diohub/common/misc/button.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
+import 'package:diohub/models/activity_timeline_progress.dart';
 import 'package:diohub/models/contributions/contribution_query_models.dart';
 import 'package:diohub/providers/users/user_activity_timeline_provider.dart';
 import 'package:diohub/view/profile/about/widgets/activity_timeline_event.dart';
@@ -58,21 +59,43 @@ class ActivityTimelineSection extends ConsumerWidget {
     final timelineAsync = ref.watch(userActivityTimelineProvider(providerKey));
 
     return timelineAsync.when(
-      data: (timelineData) {
-        if (timelineData.events.isEmpty) {
-          return const SizedBox.shrink();
+      data: (state) {
+        // Handle different states
+        if (state is ActivityTimelineLoading) {
+          return SliverToBoxAdapter(
+            child: ActivityTimelineSectionProgress(
+              phase: state.phase,
+              current: state.current,
+              total: state.total,
+              message: state.message,
+              progress: state.progress,
+              eventCount: state.eventCount,
+            ),
+          );
+        } else if (state is ActivityTimelineSuccess) {
+          if (state.data.events.isEmpty) {
+            return const SliverToBoxAdapter(child: SizedBox.shrink());
+          }
+          return _buildTimelineContent(context, state.data);
+        } else if (state is ActivityTimelineError) {
+          return _buildErrorSliver(context, state, ref, providerKey);
         }
-
-        // Feed-like layout without header card
-        return _buildTimelineContent(context, timelineData);
+        return const SliverToBoxAdapter(child: SizedBox.shrink());
       },
-      loading: () => const ActivityTimelineSectionLoading(),
+      loading: () => const SliverToBoxAdapter(
+        child: ActivityTimelineSectionLoading(),
+      ),
       error: (error, stackTrace) {
         if (kDebugMode) {
           debugPrint('Error loading activity timeline: $error');
           debugPrint('Stack trace: $stackTrace');
         }
-        return _buildErrorWidget(context, error, ref, providerKey);
+        return _buildErrorSliver(
+          context,
+          ActivityTimelineError(message: error.toString(), error: error),
+          ref,
+          providerKey,
+        );
       },
     );
   }
@@ -84,65 +107,67 @@ class ActivityTimelineSection extends ConsumerWidget {
     // Use the flat events list directly - it's already sorted and has flags set
     final events = timelineData.events;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: ListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: events.length,
-        itemBuilder: (context, index) {
-          final eventWithFlags = events[index];
-          final event = eventWithFlags.event;
-          final isLast = index == events.length - 1;
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final eventWithFlags = events[index];
+            final event = eventWithFlags.event;
+            final isLast = index == events.length - 1;
 
-          // Check if we need spacing after this event (between months)
-          final needsSpacing =
-              !isLast && _needsSpacingAfter(event, events[index + 1].event);
+            // Check if we need spacing after this event (between months)
+            final needsSpacing =
+                !isLast && _needsSpacingAfter(event, events[index + 1].event);
 
-          // If event has monthHeader, render header + event together
-          if (eventWithFlags.monthHeader != null) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildMonthHeader(
-                  context,
-                  eventWithFlags.monthHeader!.year,
-                  eventWithFlags.monthHeader!.month,
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: ActivityTimelineItem(
+            Widget item;
+
+            // If event has monthHeader, render header + event together
+            if (eventWithFlags.monthHeader != null) {
+              item = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildMonthHeader(
+                    context,
+                    eventWithFlags.monthHeader!.year,
+                    eventWithFlags.monthHeader!.month,
+                  ),
+                  // const SizedBox(height: 4),
+                  ActivityTimelineItem(
                     event: event,
                     userLogin: userName,
                     userAvatarUrl: null, // TODO: Get from userData if available
                     isFirst: eventWithFlags.isFirst,
                     isLast: eventWithFlags.isLast,
                   ),
-                ),
-                if (needsSpacing) const SizedBox(height: 16),
-              ],
-            );
-          }
+                  if (needsSpacing) const SizedBox(height: 20),
+                ],
+              );
+            } else {
+              // Regular event
+              item = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ActivityTimelineItem(
+                    event: event,
+                    userLogin: userName,
+                    userAvatarUrl: null, // TODO: Get from userData if available
+                    isFirst: eventWithFlags.isFirst,
+                    isLast: eventWithFlags.isLast,
+                  ),
+                  if (needsSpacing) const SizedBox(height: 20),
+                ],
+              );
+            }
 
-          // Regular event
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: ActivityTimelineItem(
-                  event: event,
-                  userLogin: userName,
-                  userAvatarUrl: null, // TODO: Get from userData if available
-                  isFirst: eventWithFlags.isFirst,
-                  isLast: eventWithFlags.isLast,
-                ),
-              ),
-              if (needsSpacing) const SizedBox(height: 16),
-            ],
-          );
-        },
+            // Wrap item with staggered animation
+            return _StaggeredTimelineItem(
+              index: index,
+              child: item,
+            );
+          },
+          childCount: events.length,
+        ),
       ),
     );
   }
@@ -175,7 +200,7 @@ class ActivityTimelineSection extends ConsumerWidget {
     ];
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(top: 8),
       child: Text(
         '${monthNames[month - 1]} $year',
         style: theme.textTheme.titleSmall?.copyWith(
@@ -186,22 +211,24 @@ class ActivityTimelineSection extends ConsumerWidget {
     );
   }
 
+  Widget _buildErrorSliver(
+    BuildContext context,
+    ActivityTimelineError errorState,
+    WidgetRef ref,
+    ContributionQueryKey providerKey,
+  ) {
+    return SliverToBoxAdapter(
+      child: _buildErrorWidget(context, errorState, ref, providerKey),
+    );
+  }
+
   Widget _buildErrorWidget(
     BuildContext context,
-    Object error,
+    ActivityTimelineError errorState,
     WidgetRef ref,
     ContributionQueryKey providerKey,
   ) {
     final theme = Theme.of(context);
-    final errorMessage = error.toString();
-
-    // Extract phase information if available
-    String displayMessage = 'Unable to load activity timeline';
-    if (errorMessage.contains('Phase 1 failed')) {
-      displayMessage = 'Failed to fetch activity data (Phase 1)';
-    } else if (errorMessage.contains('Phase 2 failed')) {
-      displayMessage = 'Failed to fetch activity data (Phase 2)';
-    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
@@ -219,7 +246,7 @@ class ActivityTimelineSection extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  displayMessage,
+                  errorState.message,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.error,
                     fontWeight: FontWeight.w600,
@@ -228,10 +255,10 @@ class ActivityTimelineSection extends ConsumerWidget {
               ),
             ],
           ),
-          if (kDebugMode) ...[
+          if (kDebugMode && errorState.stackTrace != null) ...[
             const SizedBox(height: 8),
             Text(
-              errorMessage,
+              errorState.stackTrace.toString(),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.error.withOpacity(0.7),
               ),
@@ -240,12 +267,166 @@ class ActivityTimelineSection extends ConsumerWidget {
           const SizedBox(height: 16),
           Button(
             onTap: () {
-              // Refresh the provider to retry
               ref.invalidate(userActivityTimelineProvider(providerKey));
             },
             child: const Text('Retry'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Progress widget showing loading bar and status
+class ActivityTimelineSectionProgress extends StatefulWidget {
+  const ActivityTimelineSectionProgress({
+    required this.phase,
+    required this.current,
+    required this.total,
+    required this.message,
+    required this.progress,
+    required this.eventCount,
+    super.key,
+  });
+
+  final String phase;
+  final int current;
+  final int total;
+  final String message;
+  final double progress;
+  final int eventCount;
+
+  @override
+  State<ActivityTimelineSectionProgress> createState() =>
+      _ActivityTimelineSectionProgressState();
+}
+
+class _ActivityTimelineSectionProgressState
+    extends State<ActivityTimelineSectionProgress>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+  double _previousProgress = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _animation = Tween<double>(
+      begin: _previousProgress,
+      end: widget.progress,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+    _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(ActivityTimelineSectionProgress oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.progress != widget.progress) {
+      _previousProgress = oldWidget.progress;
+      _animation = Tween<double>(
+        begin: _previousProgress,
+        end: widget.progress,
+      ).animate(CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ));
+      _controller
+        ..reset()
+        ..forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Large circular progress with centered percentage
+            SizedBox(
+              width: 72,
+              height: 72,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, child) {
+                      return SizedBox(
+                        width: 72,
+                        height: 72,
+                        child: CircularProgressIndicator(
+                          value: _animation.value,
+                          strokeWidth: 6,
+                          backgroundColor: theme.colorScheme.surfaceVariant,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            theme.colorScheme.primary,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  AnimatedBuilder(
+                    animation: _animation,
+                    builder: (context, child) {
+                      final percentage = (_animation.value * 100).round();
+                      return Text(
+                        '$percentage%',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Title and subtitle column
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.message,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (widget.eventCount > 0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '${widget.eventCount} event${widget.eventCount == 1 ? '' : 's'} fetched',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -270,6 +451,89 @@ class ActivityTimelineSectionLoading extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Widget that provides staggered fade and slide animation for timeline items
+class _StaggeredTimelineItem extends StatefulWidget {
+  const _StaggeredTimelineItem({
+    required this.index,
+    required this.child,
+  });
+
+  final int index;
+  final Widget child;
+
+  @override
+  State<_StaggeredTimelineItem> createState() => _StaggeredTimelineItemState();
+}
+
+class _StaggeredTimelineItemState extends State<_StaggeredTimelineItem>
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  // Stagger delay: 30ms per item, max delay of 300ms
+  static const _baseDelay = 30;
+  static const _maxDelay = 300;
+  static const _animationDuration = Duration(milliseconds: 400);
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: _animationDuration,
+      vsync: this,
+    );
+
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    // Start animation after staggered delay
+    // With AutomaticKeepAliveClientMixin, initState only runs once,
+    // so animation won't restart when scrolling back up
+    final delay = Duration(
+      milliseconds: (_baseDelay * widget.index).clamp(0, _maxDelay),
+    );
+    Future.delayed(delay, () {
+      if (mounted && _controller.status == AnimationStatus.dismissed) {
+        _controller.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: widget.child,
       ),
     );
   }

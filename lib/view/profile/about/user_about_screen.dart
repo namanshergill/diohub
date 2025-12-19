@@ -17,60 +17,44 @@ import 'package:url_launcher/url_launcher.dart';
 class UserAboutScreen extends ConsumerStatefulWidget {
   const UserAboutScreen(
     this.userData, {
+    this.selectedYear,
+    this.customFromDate,
+    this.customToDate,
+    this.useCustomRange = false,
+    this.onYearChanged,
+    this.onCustomRangeChanged,
     super.key,
   });
 
   final GuserInfoData_user userData;
+  final int? selectedYear;
+  final DateTime? customFromDate;
+  final DateTime? customToDate;
+  final bool useCustomRange;
+  final void Function(int)? onYearChanged;
+  final void Function(DateTime?, DateTime?)? onCustomRangeChanged;
 
   @override
   ConsumerState<UserAboutScreen> createState() => _UserAboutScreenState();
 }
 
 class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
-  int? _selectedYear; // null means current year (default)
-  DateTime? _customFromDate;
-  DateTime? _customToDate;
-  bool _useCustomRange = false;
-
-  // Memoize callbacks to prevent unnecessary rebuilds
-  late final void Function(int) _onYearChanged = (year) {
-    setState(() {
-      _selectedYear = year;
-      _useCustomRange = false;
-      _customFromDate = null;
-      _customToDate = null;
-    });
-  };
-
-  late final void Function(DateTime?, DateTime?) _onCustomRangeChanged =
-      (from, to) {
-    setState(() {
-      if (from == null && to == null) {
-        // Reset to last year
-        _selectedYear = null;
-        _useCustomRange = false;
-        _customFromDate = null;
-        _customToDate = null;
-      } else {
-        _customFromDate = from;
-        _customToDate = to;
-        _useCustomRange = from != null && to != null;
-        if (_useCustomRange) {
-          _selectedYear = null;
-        }
-      }
-    });
-  };
 
   /// Builds a typed provider key based on selected year or custom date range
   /// Only recalculates when date range changes, not on every build
   ContributionQueryKey _getProviderKey() {
-    if (_useCustomRange && _customFromDate != null && _customToDate != null) {
+    if (widget.useCustomRange &&
+        widget.customFromDate != null &&
+        widget.customToDate != null) {
       // Normalize dates to day level for stable keys
       final from = DateTime(
-          _customFromDate!.year, _customFromDate!.month, _customFromDate!.day);
+          widget.customFromDate!.year,
+          widget.customFromDate!.month,
+          widget.customFromDate!.day);
       final to = DateTime(
-          _customToDate!.year, _customToDate!.month, _customToDate!.day);
+          widget.customToDate!.year,
+          widget.customToDate!.month,
+          widget.customToDate!.day);
       return ContributionQueryKey.customRange(
         userName: widget.userData.login,
         from: from,
@@ -78,7 +62,7 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
       );
     }
 
-    final selectedYear = _selectedYear;
+    final selectedYear = widget.selectedYear;
     if (selectedYear == null) {
       // Default: last year from today
       return ContributionQueryKey.lastYear(widget.userData.login);
@@ -102,81 +86,81 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
       userContributionsProvider(providerKey),
     );
 
-    // Build contribution widgets based on async state
+    // Build contribution slivers based on async state
     // Always receive unified ContributionViewModel - no runtime type checking needed
-    final contributionWidgets = contributionsAsync.when(
+    final contributionSlivers = contributionsAsync.when(
       data: (viewModel) {
         return <Widget>[
           // Animated calendar section with fade-in
-          _DelayedFadeAnimation(
-            delay: const Duration(milliseconds: 0),
-            duration: const Duration(milliseconds: 400),
-            child: ContributionCalendarSection(
-              weeks: viewModel.weeks,
-              totalContributions: viewModel.totalContributions,
-              colors: viewModel.colors,
-              availableYears: viewModel.contributionYears,
-              selectedYear: _selectedYear,
-              customFromDate: _customFromDate,
-              customToDate: _customToDate,
-              useCustomRange: _useCustomRange,
-              createdAt: widget.userData.createdAt,
-              onYearChanged: _onYearChanged,
-              onCustomRangeChanged: _onCustomRangeChanged,
+          SliverToBoxAdapter(
+            child: _DelayedFadeAnimation(
+              delay: const Duration(milliseconds: 0),
+              duration: const Duration(milliseconds: 400),
+              child: ContributionCalendarSection(
+                weeks: viewModel.weeks,
+                totalContributions: viewModel.totalContributions,
+                colors: viewModel.colors,
+                availableYears: viewModel.contributionYears,
+                selectedYear: widget.selectedYear,
+                customFromDate: widget.customFromDate,
+                customToDate: widget.customToDate,
+                useCustomRange: widget.useCustomRange,
+                createdAt: widget.userData.createdAt,
+              ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
           // Animated statistics section with staggered delay
-          _DelayedFadeAnimation(
-            delay: const Duration(milliseconds: 100),
-            duration: const Duration(milliseconds: 400),
-            child: ContributionStatisticsSection(
-              commits: viewModel.totalCommitContributions,
-              pullRequests: viewModel.totalPullRequestContributions,
-              issues: viewModel.totalIssueContributions,
-              reviews: viewModel.totalPullRequestReviewContributions,
+          SliverToBoxAdapter(
+            child: _DelayedFadeAnimation(
+              delay: const Duration(milliseconds: 100),
+              duration: const Duration(milliseconds: 400),
+              child: ContributionStatisticsSection(
+                commits: viewModel.totalCommitContributions,
+                pullRequests: viewModel.totalPullRequestContributions,
+                issues: viewModel.totalIssueContributions,
+                reviews: viewModel.totalPullRequestReviewContributions,
+              ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
           // Animated activity overview with more delay
-          _DelayedFadeAnimation(
-            delay: const Duration(milliseconds: 200),
-            duration: const Duration(milliseconds: 400),
-            child: ActivityOverviewSection(
-              repositories: viewModel.commitContributionsByRepository,
-              commits: viewModel.totalCommitContributions,
-              issues: viewModel.totalIssueContributions,
-              pullRequests: viewModel.totalPullRequestContributions,
-              reviews: viewModel.totalPullRequestReviewContributions,
-              onRepositoryTap: (repo) async {
-                final uri = Uri.parse(repo.url);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
-              },
+          SliverToBoxAdapter(
+            child: _DelayedFadeAnimation(
+              delay: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 400),
+              child: ActivityOverviewSection(
+                repositories: viewModel.commitContributionsByRepository,
+                commits: viewModel.totalCommitContributions,
+                issues: viewModel.totalIssueContributions,
+                pullRequests: viewModel.totalPullRequestContributions,
+                reviews: viewModel.totalPullRequestReviewContributions,
+                onRepositoryTap: (repo) async {
+                  final uri = Uri.parse(repo.url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          // Animated activity timeline with delay
-          _DelayedFadeAnimation(
-            delay: const Duration(milliseconds: 300),
-            duration: const Duration(milliseconds: 400),
-            child: ActivityTimelineSection(
-              userName: widget.userData.login,
-              selectedYear: _selectedYear,
-              customFromDate: _customFromDate,
-              customToDate: _customToDate,
-              useCustomRange: _useCustomRange,
-            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 8)),
+          // Activity timeline section (now returns slivers with staggered animations)
+          ActivityTimelineSection(
+            userName: widget.userData.login,
+            selectedYear: widget.selectedYear,
+            customFromDate: widget.customFromDate,
+            customToDate: widget.customToDate,
+            useCustomRange: widget.useCustomRange,
           ),
         ];
       },
       loading: () => [
-        ContributionCalendarSectionLoading(),
-        const SizedBox(height: 8),
-        ContributionStatisticsSectionLoading(),
-        const SizedBox(height: 8),
-        ActivityOverviewSectionLoading(),
+        const SliverToBoxAdapter(child: ContributionCalendarSectionLoading()),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+        const SliverToBoxAdapter(child: ContributionStatisticsSectionLoading()),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+        const SliverToBoxAdapter(child: ActivityOverviewSectionLoading()),
       ],
       error: (error, stackTrace) {
         if (kDebugMode) {
@@ -185,35 +169,37 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
         }
 
         return [
-          NestedCardWithHeader(
-            header: Text(
-              'Contribution Graph',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Unable to load contribution data',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Error: ${error.toString()}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .error
-                              .withOpacity(0.7),
-                        ),
-                  ),
-                ],
+          SliverToBoxAdapter(
+            child: NestedCardWithHeader(
+              header: Text(
+                'Contribution Graph',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Unable to load contribution data',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Error: ${error.toString()}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .error
+                                .withOpacity(0.7),
+                          ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -221,50 +207,52 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
       },
     );
 
-    final List<Widget> children = [
-      ...contributionWidgets,
+    final List<Widget> slivers = [
+      ...contributionSlivers,
     ];
 
     // Pinned Repositories
     if (pinnedItems.isNotEmpty) {
-      children.add(
-        SizedBox(height: 8),
+      slivers.add(
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
       );
-      children.add(
-        NestedCardWithHeader(
-          header: Text(
-            'Pinned Repositories',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: List<Widget>.generate(
-              pinnedItems.length,
-              (final int index) {
-                final node = pinnedItems[index]?.node;
-                // Check if it's a repository by __typename and cast to GrepositoryFields
-                if (node == null || node.G__typename != 'Repository') {
-                  return const SizedBox.shrink();
-                }
-                final repo = node as GrepositoryFields;
-                return Padding(
-                  padding: EdgeInsets.only(
-                    bottom: index < pinnedItems.length - 1 ? 12 : 0,
+      slivers.add(
+        SliverToBoxAdapter(
+          child: NestedCardWithHeader(
+            header: Text(
+              'Pinned Repositories',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                  child: RepositoryCard(
-                    RepoCardDataModel.fromGraphQL(repo),
-                  ),
-                );
-              },
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: List<Widget>.generate(
+                pinnedItems.length,
+                (final int index) {
+                  final node = pinnedItems[index]?.node;
+                  // Check if it's a repository by __typename and cast to GrepositoryFields
+                  if (node == null || node.G__typename != 'Repository') {
+                    return const SizedBox.shrink();
+                  }
+                  final repo = node as GrepositoryFields;
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index < pinnedItems.length - 1 ? 12 : 0,
+                    ),
+                    child: RepositoryCard(
+                      RepoCardDataModel.fromGraphQL(repo),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ),
       );
     }
 
-    if (children.isEmpty) {
+    if (slivers.isEmpty) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(16.0),
@@ -273,9 +261,11 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
       );
     }
 
-    return ListView(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      children: children,
+      child: CustomScrollView(
+        slivers: slivers,
+      ),
     );
   }
 }

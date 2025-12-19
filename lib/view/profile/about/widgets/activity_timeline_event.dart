@@ -23,16 +23,18 @@ class MonthHeader {
 
 /// Wrapper class that holds event with timeline flags (avoids copying events)
 class TimelineEventWithFlags {
-  final ActivityTimelineEvent event;
+  final ActivityTimelineEvent? event;
   final bool isFirst;
   final bool isLast;
   final MonthHeader? monthHeader;
+  final bool isEmpty;
 
   TimelineEventWithFlags({
-    required this.event,
+    this.event,
     this.isFirst = false,
     this.isLast = false,
     this.monthHeader,
+    this.isEmpty = false,
   });
 }
 
@@ -127,10 +129,24 @@ class UserActivityTimelineData {
   final List<TimelineEventWithFlags> events;
   final Map<int, Map<int, List<TimelineEventWithFlags>>> eventsByMonth;
 
-  UserActivityTimelineData({
+  // Private constructor
+  UserActivityTimelineData._({
+    required this.events,
+    required this.eventsByMonth,
+  });
+
+  // Factory constructor that computes grouped events once
+  factory UserActivityTimelineData({
     required List<ActivityTimelineEvent> events,
-  })  : eventsByMonth = _groupByMonth(events),
-        events = _flattenGroupedEvents(_groupByMonth(events));
+    required DateTime from,
+    required DateTime to,
+  }) {
+    final grouped = _groupByMonth(events);
+    return UserActivityTimelineData._(
+      events: _flattenGroupedEvents(grouped, from: from, to: to),
+      eventsByMonth: grouped,
+    );
+  }
 
   /// Group events by year and month and wrap with flags (avoids copying events)
   ///
@@ -187,6 +203,7 @@ class UserActivityTimelineData {
             isFirst: true,
             isLast: false,
             monthHeader: MonthHeader(year, month),
+            isEmpty: false,
           ),
         );
       } else {
@@ -199,6 +216,7 @@ class UserActivityTimelineData {
             isFirst: previousWrapper.isFirst,
             isLast: false, // Update flag
             monthHeader: previousWrapper.monthHeader,
+            isEmpty: previousWrapper.isEmpty,
           );
         }
         // Add new event wrapped (no monthHeader - only first event has it)
@@ -207,6 +225,7 @@ class UserActivityTimelineData {
             event: event, // No copy - just wrap
             isFirst: false,
             isLast: false,
+            isEmpty: false,
             // monthHeader stays null (default)
           ),
         );
@@ -232,6 +251,7 @@ class UserActivityTimelineData {
             isFirst: true,
             isLast: true,
             monthHeader: lastWrapper.monthHeader,
+            isEmpty: lastWrapper.isEmpty,
           );
         } else {
           // Mark last event

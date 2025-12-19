@@ -5,7 +5,9 @@ import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
 import 'package:diohub/common/wrappers/api_wrapper_widget.dart';
 import 'package:diohub/models/issues/issue_model.dart';
+import 'package:diohub/models/pull_requests/pull_request_card_data_model.dart';
 import 'package:diohub/models/pull_requests/pull_request_model.dart';
+import 'package:diohub/models/users/user_info_model.dart';
 import 'package:diohub/services/pulls/pulls_service.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:diohub/view/issues_pulls/issue_pull_screen.dart';
@@ -20,21 +22,30 @@ class SimplePullCard extends StatelessWidget {
     super.key,
   });
 
-  final PullRequestModel item;
+  final PullRequestCardDataModel item;
   final bool showRepoName;
   final bool showDescription;
 
+  // Helper getters to access data
+  String get _title => item.title;
+  String? get _url => item.url;
+  IssueState get _state {
+    if (item.merged == true) return IssueState.OPEN; // Merged shows as open
+    return item.state == 'OPEN' ? IssueState.OPEN : IssueState.CLOSED;
+  }
+  int get _number => item.number;
+  int get _comments => 0; // Comments not in card model
+  String? get _body => item.body;
+  String? get _bodyHtml => item.bodyHtml;
+  UserInfoModel? get _user => item.author;
+  bool? get _merged => item.merged;
+  DateTime? get _mergedAt => item.mergedAt;
+
+  // Extract repo name from repository data
+  String? get _repoName => '${item.repositoryOwner}/${item.repositoryName}';
+
   @override
   Widget build(final BuildContext context) {
-    // Extract repo name from URL
-    final String? repoName = item.url != null
-        ? item.url!
-            .replaceAll('https://api.github.com/repos/', '')
-            .split('/')
-            .sublist(0, 2)
-            .join('/')
-        : null;
-
     // Title-first hierarchy: Title first, then context, then metadata
     final Widget content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -42,7 +53,7 @@ class SimplePullCard extends StatelessWidget {
       children: <Widget>[
         // Pull request title (most prominent - first)
         Text(
-          item.title ?? '',
+          _title,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: context.colorScheme.onSurface,
@@ -58,9 +69,9 @@ class SimplePullCard extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: <Widget>[
             // Repo name (only if showRepoName is true)
-            if (showRepoName && repoName != null)
+            if (showRepoName && _repoName != null)
               Text(
-                repoName,
+                _repoName!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color:
                           context.colorScheme.onSurfaceVariant.withOpacity(0.7),
@@ -70,15 +81,15 @@ class SimplePullCard extends StatelessWidget {
             // Author and Comments (only if showRepoName is false)
             if (!showRepoName) ...[
               // Creator
-              if (item.user?.login != null) ...[
+              if (_user?.login != null) ...[
                 Text(
-                  item.user!.login ?? '',
+                  _user!.login ?? '',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: context.colorScheme.onSurfaceVariant
                             .withOpacity(0.75),
                       ),
                 ),
-                if (item.comments != null && item.comments! > 0)
+                if (_comments > 0)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Container(
@@ -90,7 +101,7 @@ class SimplePullCard extends StatelessWidget {
                   ),
               ],
               // Comments
-              if (item.comments != null && item.comments! > 0)
+              if (_comments > 0)
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
@@ -102,7 +113,7 @@ class SimplePullCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${item.comments}',
+                      '$_comments',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: context.colorScheme.onSurfaceVariant
                                 .withOpacity(0.75),
@@ -118,11 +129,11 @@ class SimplePullCard extends StatelessWidget {
               children: <Widget>[
                 Opacity(
                   opacity: 0.6,
-                  child: _getPullIcon(item.state, item.mergedAt),
+                  child: _getPullIcon(_state, _mergedAt),
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  '${item.number}',
+                  '$_number',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: context.colorScheme.onSurfaceVariant
                             .withOpacity(0.7),
@@ -132,7 +143,7 @@ class SimplePullCard extends StatelessWidget {
               ],
             ),
             // Comments
-            if (item.comments != null && item.comments! > 0)
+            if (_comments > 0)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
@@ -144,7 +155,7 @@ class SimplePullCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '${item.comments}',
+                    '$_comments',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: context.colorScheme.onSurfaceVariant
                               .withOpacity(0.7),
@@ -156,7 +167,7 @@ class SimplePullCard extends StatelessWidget {
         ),
         // PR body preview with markdown rendering
         if (showDescription &&
-            (item.bodyHtml ?? item.body ?? '').trim().isNotEmpty) ...[
+            (_bodyHtml ?? _body ?? '').trim().isNotEmpty) ...[
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(12),
@@ -169,9 +180,9 @@ class SimplePullCard extends StatelessWidget {
               ),
             ),
             child: TrimmableMarkdownContent(
-              text: item.body,
-              textHtml: item.bodyHtml,
-              repo: repoName,
+              text: _body,
+              textHtml: _bodyHtml,
+              repo: _repoName,
             ),
           ),
         ],
@@ -179,12 +190,12 @@ class SimplePullCard extends StatelessWidget {
     );
 
     return InkPot(
-      onTap: () async {
-        if (item.url != null) {
-          await AutoRouter.of(context)
-              .push(issuePullScreenRoute(PathData.fromURL(item.url!)));
-        }
-      },
+      onTap: _url != null
+          ? () async {
+              await AutoRouter.of(context)
+                  .push(issuePullScreenRoute(PathData.fromURL(_url!)));
+            }
+          : null,
       child: SizedBox(
         width: double.infinity,
         child: content,
@@ -236,7 +247,7 @@ class SimplePullLoadingCard extends StatelessWidget {
               PullsService.getPullInformation(fullUrl: url, refresh: refresh),
           builder: (final BuildContext context, final PullRequestModel data) =>
               SimplePullCard(
-            data,
+            PullRequestCardDataModel.fromPullRequestModel(data),
             showRepoName: showRepoName,
             showDescription: showDescription,
           ),

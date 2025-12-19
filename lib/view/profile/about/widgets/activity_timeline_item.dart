@@ -1,9 +1,10 @@
-import 'package:diohub/common/activity/timeline_commit_card.dart';
-import 'package:diohub/common/activity/timeline_issue_card.dart';
-import 'package:diohub/common/activity/timeline_pull_request_card.dart';
-import 'package:diohub/common/activity/timeline_repository_card.dart';
+import 'package:diohub/utils/get_date.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:diohub/view/profile/about/widgets/activity_timeline_event.dart';
+import 'package:diohub/view/profile/about/widgets/timeline_commit_content.dart';
+import 'package:diohub/view/profile/about/widgets/timeline_issue_content.dart';
+import 'package:diohub/view/profile/about/widgets/timeline_pull_request_content.dart';
+import 'package:diohub/view/profile/about/widgets/timeline_repository_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:timeline_tile/timeline_tile.dart';
@@ -29,55 +30,69 @@ class ActivityTimelineItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget card;
+    String actionText;
+    DateTime? eventDate;
 
     switch (event.type) {
       case ActivityEventType.commit:
         if (event.commitData != null) {
-          card = TimelineCommitCard(
+          card = TimelineCommitContent(
             commitData: event.commitData!,
-            userLogin: userLogin,
-            userAvatarUrl: userAvatarUrl,
           );
+          eventDate = event.commitData!.date;
+          // Build action text for commits
+          String repoText;
+          if (event.commitData!.repositoryCount == 1) {
+            final repo = event.commitData!.primaryRepository!;
+            repoText = '${repo.owner}/${repo.name}';
+          } else {
+            repoText = '${event.commitData!.repositoryCount} repositories';
+          }
+          actionText = 'pushed to $repoText';
         } else {
           return const SizedBox.shrink();
         }
         break;
       case ActivityEventType.issue:
         if (event.issueData != null) {
-          card = TimelineIssueCard(
+          card = TimelineIssueContent(
             issueData: event.issueData!,
-            userLogin: userLogin,
-            userAvatarUrl: userAvatarUrl,
           );
+          eventDate = event.issueData!.createdAt;
+          // Build action text for issues
+          final state =
+              event.issueData!.state == 'CLOSED' ? 'closed' : 'opened';
+          actionText =
+              '$state an issue in ${event.issueData!.repositoryOwner}/${event.issueData!.repositoryName}';
         } else {
           return const SizedBox.shrink();
         }
         break;
       case ActivityEventType.pullRequest:
         if (event.pullRequestData != null) {
-          card = TimelinePullRequestCard(
+          card = TimelinePullRequestContent(
             prData: event.pullRequestData!,
-            userLogin: userLogin,
-            userAvatarUrl: userAvatarUrl,
           );
+          eventDate = event.pullRequestData!.createdAt;
+          // Build action text for pull requests
+          actionText =
+              '${event.pullRequestData!.action} a pull request in ${event.pullRequestData!.repositoryOwner}/${event.pullRequestData!.repositoryName}';
         } else {
           return const SizedBox.shrink();
         }
         break;
       case ActivityEventType.repositoryCreated:
         if (event.repositoryData != null) {
-          card = TimelineRepositoryCard(
+          card = TimelineRepositoryContent(
             repoData: event.repositoryData!,
-            userLogin: userLogin,
-            userAvatarUrl: userAvatarUrl,
-            date: event.date,
           );
+          eventDate = event.date;
+          // Build action text for repository creation
+          actionText = 'created ${event.repositoryData!.name}';
         } else {
           return const SizedBox.shrink();
         }
         break;
-      default:
-        return const SizedBox.shrink();
     }
 
     // Wrap with TimelineTile for visual timeline
@@ -88,9 +103,9 @@ class ActivityTimelineItem extends StatelessWidget {
       isFirst: isFirst,
       isLast: isLast,
       indicatorStyle: IndicatorStyle(
-        width: 20,
-        height: 20,
-        indicatorXY: 0.5,
+        width: 24,
+        height: 24,
+        // indicatorXY: 0.5,
         drawGap: true,
         indicator: Container(
           decoration: BoxDecoration(
@@ -118,7 +133,37 @@ class ActivityTimelineItem extends StatelessWidget {
       ),
       endChild: Padding(
         padding: const EdgeInsets.fromLTRB(12, 0, 0, 0),
-        child: card,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Action text and timestamp outside the card
+            Padding(
+              padding: const EdgeInsets.only(top: 16, bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildActionText(context, actionText),
+                  ),
+                  if (eventDate != null) ...[
+                    const SizedBox(width: 8),
+                    Text(
+                      eventDate.toRelativeDate(),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: context.colorScheme.onSurfaceVariant
+                                .withOpacity(0.7),
+                            fontSize: 10,
+                          ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            // Card content
+            card,
+          ],
+        ),
       ),
     );
   }
@@ -147,5 +192,64 @@ class ActivityTimelineItem extends StatelessWidget {
       case ActivityEventType.repositoryCreated:
         return const Color(0xFF009688); // Teal
     }
+  }
+
+  /// Build action text with proper formatting (action verb + bold repository/name)
+  Widget _buildActionText(BuildContext context, String? actionText) {
+    if (actionText == null) {
+      return const SizedBox.shrink();
+    }
+    final theme = Theme.of(context);
+    final parts = actionText.split(' in ');
+
+    if (parts.length == 2) {
+      // Format: "action verb ... in repository"
+      return Text.rich(
+        TextSpan(
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: context.colorScheme.onSurface.withOpacity(0.6),
+            fontSize: 12,
+          ),
+          children: [
+            TextSpan(text: '${parts[0]} in '),
+            TextSpan(
+              text: parts[1],
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Format: "action verb name" (e.g., "created repository-name")
+      final words = actionText.split(' ');
+      if (words.length >= 2) {
+        final action = words[0];
+        final name = words.sublist(1).join(' ');
+        return Text.rich(
+          TextSpan(
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: context.colorScheme.onSurface.withOpacity(0.6),
+              fontSize: 12,
+            ),
+            children: [
+              TextSpan(text: '$action '),
+              TextSpan(
+                text: name,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
+    // Fallback: plain text
+    return Text(
+      actionText,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: context.colorScheme.onSurface.withOpacity(0.6),
+        fontSize: 12,
+      ),
+    );
   }
 }

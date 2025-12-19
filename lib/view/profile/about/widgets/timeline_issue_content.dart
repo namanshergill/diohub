@@ -1,32 +1,29 @@
-import 'package:diohub/common/events/cards/base_card.dart';
 import 'package:diohub/common/issues/issue_list_card.dart';
 import 'package:diohub/common/markdown_view/trimmable_markdown_content.dart';
 import 'package:diohub/models/issues/issue_card_data_model.dart';
 import 'package:flutter/material.dart';
 
-/// Card widget for displaying issues in timeline using BaseEventCard pattern
-class TimelineIssueCard extends StatelessWidget {
-  const TimelineIssueCard({
+/// Simple card content for issue events in timeline (no nested cards)
+class TimelineIssueContent extends StatelessWidget {
+  const TimelineIssueContent({
     required this.issueData,
-    required this.userLogin,
-    required this.userAvatarUrl,
     super.key,
   });
 
   final IssueCardDataModel issueData;
-  final String userLogin;
-  final String? userAvatarUrl;
 
   @override
   Widget build(BuildContext context) {
-    return BaseEventCard.singular(
-      isInTimeline: true,
-      eventType: null, // IssueListCard handles its own styling
-      actor: null, // Don't show user login on their own profile
-      avatarUrl: null, // Don't show avatar on their own profile
-      date: issueData.createdAt,
-      useNestedCard: false,
-      headerText: const [], // Action text is shown outside the card
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,

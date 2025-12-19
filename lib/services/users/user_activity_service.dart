@@ -4,6 +4,7 @@ import 'package:diohub/graphql/queries/users/__generated__/user_activity_timelin
 import 'package:diohub/graphql/queries/users/__generated__/user_activity_timeline_minimal.req.gql.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_activity_timeline_full.data.gql.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_activity_timeline_full.req.gql.dart';
+import 'package:diohub/models/activity_timeline_progress.dart';
 import 'package:diohub/view/profile/about/widgets/activity_timeline_converter.dart';
 import 'package:diohub/view/profile/about/widgets/activity_timeline_event.dart';
 
@@ -112,52 +113,73 @@ class UserActivityService {
       final data = parsedData.user!;
 
       // Process repositories
-      _processCollectionType(
-        state: state,
-        results: results,
-        resultKey: 'repos',
-        currentResult: state.reposResult,
-        setResult: (result) => state.reposResult = result,
-        edges: data.repositories.edges,
-        pageInfo: data.repositories.pageInfo,
-        processFunction: _processRepositories,
-        setFirst: (value) => state.firstRepos = value,
-        setAfter: (value) => state.afterRepos = value,
-        from: from,
-        to: to,
-      );
+      if (state.reposResult == null && data.repositories.edges != null) {
+        final reposResult = _processRepositories(
+          data.repositories.edges!,
+          data.repositories.pageInfo,
+          from,
+          to,
+        );
+        if (reposResult != null) {
+          state.reposResult = reposResult;
+          results['repos'] = reposResult;
+          state.firstRepos = 0; // Stop fetching repos
+        } else {
+          // Only continue pagination if there are more pages
+          if (data.repositories.pageInfo.hasNextPage) {
+            state.afterRepos = data.repositories.pageInfo.endCursor;
+          } else {
+            // Exhausted but range not found - stop fetching
+            state.firstRepos = 0;
+          }
+        }
+      }
 
       // Process pull requests
-      _processCollectionType(
-        state: state,
-        results: results,
-        resultKey: 'prs',
-        currentResult: state.prsResult,
-        setResult: (result) => state.prsResult = result,
-        edges: data.pullRequests.edges,
-        pageInfo: data.pullRequests.pageInfo,
-        processFunction: _processPullRequests,
-        setFirst: (value) => state.firstPRs = value,
-        setAfter: (value) => state.afterPRs = value,
-        from: from,
-        to: to,
-      );
+      if (state.prsResult == null && data.pullRequests.edges != null) {
+        final prsResult = _processPullRequests(
+          data.pullRequests.edges!,
+          data.pullRequests.pageInfo,
+          from,
+          to,
+        );
+        if (prsResult != null) {
+          state.prsResult = prsResult;
+          results['prs'] = prsResult;
+          state.firstPRs = 0; // Stop fetching PRs
+        } else {
+          // Only continue pagination if there are more pages
+          if (data.pullRequests.pageInfo.hasNextPage) {
+            state.afterPRs = data.pullRequests.pageInfo.endCursor;
+          } else {
+            // Exhausted but range not found - stop fetching
+            state.firstPRs = 0;
+          }
+        }
+      }
 
       // Process issues
-      _processCollectionType(
-        state: state,
-        results: results,
-        resultKey: 'issues',
-        currentResult: state.issuesResult,
-        setResult: (result) => state.issuesResult = result,
-        edges: data.issues.edges,
-        pageInfo: data.issues.pageInfo,
-        processFunction: _processIssues,
-        setFirst: (value) => state.firstIssues = value,
-        setAfter: (value) => state.afterIssues = value,
-        from: from,
-        to: to,
-      );
+      if (state.issuesResult == null && data.issues.edges != null) {
+        final issuesResult = _processIssues(
+          data.issues.edges!,
+          data.issues.pageInfo,
+          from,
+          to,
+        );
+        if (issuesResult != null) {
+          state.issuesResult = issuesResult;
+          results['issues'] = issuesResult;
+          state.firstIssues = 0; // Stop fetching issues
+        } else {
+          // Only continue pagination if there are more pages
+          if (data.issues.pageInfo.hasNextPage) {
+            state.afterIssues = data.issues.pageInfo.endCursor;
+          } else {
+            // Exhausted but range not found - stop fetching
+            state.firstIssues = 0;
+          }
+        }
+      }
 
       // Check if we should continue
       // Only check hasNextPage for collections that are still being fetched
@@ -176,82 +198,6 @@ class UserActivityService {
     }
 
     return results;
-  }
-
-  /// Generic handler for processing a collection type (repos, PRs, issues)
-  ///
-  /// Handles the common pattern of:
-  /// 1. Processing edges to find date range
-  /// 2. Updating pagination state based on results
-  /// 3. Handling edge cases like empty edges with inconsistent API responses
-  ///
-  /// **API Inconsistency Note:**
-  /// GitHub's GraphQL API can return `edges: []` (empty array) with
-  /// `hasNextPage: true` and `endCursor: null` when filtering by date ranges.
-  /// This happens because:
-  /// - `hasNextPage` is based on the unfiltered result set
-  /// - If all items in a page are outside the date range, `edges` is empty
-  /// - But `hasNextPage` may still be `true` if there are more items in the unfiltered set
-  /// - However, `endCursor: null` indicates there's no valid cursor to continue
-  ///
-  /// We handle this by treating `endCursor: null` with empty edges as exhausted,
-  /// preventing infinite loops while still allowing valid pagination when a cursor exists.
-  static void _processCollectionType<TEdges, TPageInfo>({
-    required Phase1State state,
-    required Map<String, Phase1Result> results,
-    required String resultKey,
-    required Phase1Result? currentResult,
-    required void Function(Phase1Result) setResult,
-    required BuiltList<TEdges>? edges,
-    required TPageInfo pageInfo,
-    required Phase1Result? Function(
-      BuiltList<TEdges>,
-      TPageInfo,
-      DateTime,
-      DateTime,
-    ) processFunction,
-    required void Function(int?) setFirst,
-    required void Function(String?) setAfter,
-    required DateTime from,
-    required DateTime to,
-  }) {
-    // Skip if already found or no edges
-    if (currentResult != null || edges == null) return;
-
-    // Handle empty edges edge case (API inconsistency)
-    if (edges.isEmpty) {
-      // Empty edges: if no cursor, we can't paginate (treat as exhausted)
-      // This prevents infinite loops when API returns hasNextPage=true but endCursor=null
-      final hasNextPage = (pageInfo as dynamic).hasNextPage as bool;
-      final endCursor = (pageInfo as dynamic).endCursor as String?;
-
-      if (!hasNextPage || endCursor == null) {
-        setFirst(0); // Exhausted
-      } else {
-        setAfter(endCursor); // Valid cursor - continue pagination
-      }
-      return;
-    }
-
-    // Process edges to find date range
-    final result = processFunction(edges, pageInfo, from, to);
-
-    if (result != null) {
-      // Range found - stop fetching
-      setResult(result);
-      results[resultKey] = result;
-      setFirst(0);
-    } else {
-      // Range not found - continue pagination if possible
-      final hasNextPage = (pageInfo as dynamic).hasNextPage as bool;
-      final endCursor = (pageInfo as dynamic).endCursor as String?;
-
-      if (hasNextPage) {
-        setAfter(endCursor);
-      } else {
-        setFirst(0); // Exhausted
-      }
-    }
   }
 
   /// Process repositories to find range
@@ -486,6 +432,169 @@ class UserActivityService {
     }
 
     return parsedData.user!;
+  }
+
+  /// Stream-based version that reports progress
+  /// Emits ActivityTimelineState updates as data is fetched
+  static Stream<ActivityTimelineState> getUserActivityTimelineWithProgress({
+    required String login,
+    required DateTime from,
+    required DateTime to,
+    bool refreshCache = false,
+  }) async* {
+    try {
+      // Check if range exceeds GitHub's 1-year API limit
+      final daysDiff = to.difference(from).inDays;
+      final exceedsOneYear = daysDiff > 365;
+
+      if (!exceedsOneYear) {
+        // Fast path: Single chunk
+        yield ActivityTimelineLoading(
+          phase: 'loading',
+          current: 0,
+          total: 100,
+          message: 'Loading $login\'s activity...',
+          eventCount: 0,
+        );
+
+        final phase1Results = await _fetchMinimalData(
+          login,
+          from,
+          to,
+          refreshCache: refreshCache,
+        );
+
+        yield ActivityTimelineLoading(
+          phase: 'loading',
+          current: 50,
+          total: 100,
+          message: 'Getting activity details...',
+          eventCount: 0,
+        );
+
+        final fullData = await _fetchDetailedData(
+          phase1Results,
+          login,
+          from,
+          to,
+          refreshCache: refreshCache,
+        );
+
+        final events = ActivityTimelineConverter.convertToEvents(fullData);
+        final eventCount = events.length;
+
+        yield ActivityTimelineLoading(
+          phase: 'loading',
+          current: 90,
+          total: 100,
+          message: 'Almost ready...',
+          eventCount: eventCount,
+        );
+
+        final timelineData = _buildTimelineData(fullData, from, to);
+        yield ActivityTimelineSuccess(timelineData);
+        return;
+      }
+
+      // Multi-year path: Split into chunks
+      final chunks = _splitDateRangeIntoYearChunks(from, to);
+      final totalSteps = chunks.length * 2; // Each chunk has 2 phases
+      final progressPerStep =
+          90 / totalSteps; // Reserve 10% for final processing
+      var currentProgress = 0.0;
+      var totalEventCount = 0;
+
+      yield ActivityTimelineLoading(
+        phase: 'loading',
+        current: 0,
+        total: 100,
+        message:
+            'Loading ${chunks.length} year${chunks.length > 1 ? 's' : ''} of $login\'s activity...',
+        eventCount: 0,
+      );
+
+      final chunkEventLists = <List<ActivityTimelineEvent>>[];
+
+      for (var i = 0; i < chunks.length; i++) {
+        final (chunkFrom, chunkTo) = chunks[i];
+        final yearLabel = chunkFrom.year == chunkTo.year
+            ? '${chunkFrom.year}'
+            : '${chunkFrom.year}-${chunkTo.year}';
+
+        // Phase 1 for this chunk
+        yield ActivityTimelineLoading(
+          phase: 'loading',
+          current: currentProgress.round(),
+          total: 100,
+          message: 'Loading $yearLabel activity...',
+          eventCount: totalEventCount,
+        );
+
+        try {
+          final phase1Results = await _fetchMinimalData(
+            login,
+            chunkFrom,
+            chunkTo,
+            refreshCache: refreshCache,
+          );
+
+          currentProgress += progressPerStep;
+
+          // Phase 2 for this chunk
+          yield ActivityTimelineLoading(
+            phase: 'loading',
+            current: currentProgress.round(),
+            total: 100,
+            message: 'Getting details for $yearLabel...',
+            eventCount: totalEventCount,
+          );
+
+          final fullData = await _fetchDetailedData(
+            phase1Results,
+            login,
+            chunkFrom,
+            chunkTo,
+            refreshCache: refreshCache,
+          );
+
+          final events = ActivityTimelineConverter.convertToEvents(fullData);
+          chunkEventLists.add(events);
+          totalEventCount += events.length;
+
+          currentProgress += progressPerStep;
+        } catch (e) {
+          yield ActivityTimelineError(
+            message: 'Failed to load activity for $yearLabel',
+            error: e,
+          );
+          return;
+        }
+      }
+
+      // Final step: Merging chunks
+      yield ActivityTimelineLoading(
+        phase: 'loading',
+        current: 95,
+        total: 100,
+        message: 'Organizing your timeline...',
+        eventCount: totalEventCount,
+      );
+
+      final allEvents = chunkEventLists.length == 1
+          ? chunkEventLists.first
+          : _mergeSortedChunks(chunkEventLists);
+
+      final timelineData = UserActivityTimelineData(events: allEvents);
+      yield ActivityTimelineSuccess(timelineData);
+    } catch (e, stackTrace) {
+      yield ActivityTimelineError(
+        message: e.toString().contains('Phase')
+            ? e.toString()
+            : 'Failed to fetch activity timeline for user "$login": $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   /// Main entry point: Two-phase fetch with combined queries

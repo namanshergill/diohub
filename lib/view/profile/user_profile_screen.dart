@@ -18,6 +18,7 @@ import 'package:diohub/providers/users/user_provider.dart';
 import 'package:diohub/utils/get_date.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:diohub/view/profile/about/user_about_screen.dart';
+import 'package:diohub/view/profile/about/widgets/date_range_selector_widget.dart';
 import 'package:diohub/view/profile/repositories/user_repositories.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dynamic_tabs/flutter_dynamic_tabs.dart';
@@ -42,6 +43,93 @@ class UserProfileScreenState extends State<UserProfileScreen>
     duration: const Duration(milliseconds: 300),
     vsync: this,
   );
+
+  // Date range state for Activity tab (contribution graph)
+  int? _selectedYear; // null means last year (default)
+  DateTime? _customFromDate;
+  DateTime? _customToDate;
+  bool _useCustomRange = false;
+
+  /// Gets the display label for the current date range selection
+  String _getDateRangeLabel() {
+    if (_useCustomRange) {
+      final isSinceJoining = _customFromDate != null &&
+          data?.createdAt != null &&
+          _customFromDate!.year == data!.createdAt!.year &&
+          _customFromDate!.month == data!.createdAt!.month &&
+          _customFromDate!.day == data!.createdAt!.day;
+      return isSinceJoining ? 'Since joining' : 'Custom';
+    }
+    return _selectedYear?.toString() ?? 'Last Year';
+  }
+
+  /// Handles year selection change
+  void _onYearChanged(int year) {
+    setState(() {
+      _selectedYear = year;
+      _useCustomRange = false;
+      _customFromDate = null;
+      _customToDate = null;
+    });
+  }
+
+  /// Handles custom date range change
+  void _onCustomRangeChanged(DateTime? from, DateTime? to) {
+    setState(() {
+      if (from == null && to == null) {
+        // Reset to last year
+        _selectedYear = null;
+        _useCustomRange = false;
+        _customFromDate = null;
+        _customToDate = null;
+      } else {
+        _customFromDate = from;
+        _customToDate = to;
+        _useCustomRange = from != null && to != null;
+        if (_useCustomRange) {
+          _selectedYear = null;
+        }
+      }
+    });
+  }
+
+  /// Builds the expanded content for the date range selector
+  Widget _buildDateRangeExpandedContent(
+    BuildContext context,
+    GuserInfoData_user userData,
+    VoidCallback onCollapse,
+  ) {
+    // Get available years from contributions provider if available
+    // For now, we'll use a placeholder - this will be updated when we have access to the provider
+    final availableYears = <int>[]; // Will be populated from contribution data
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Time Range',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 12),
+          DateRangeSelectorWidget(
+            selectedYear: _selectedYear,
+            availableYears: availableYears,
+            customFromDate: _customFromDate,
+            customToDate: _customToDate,
+            useCustomRange: _useCustomRange,
+            createdAt: userData.createdAt,
+            onYearChanged: _onYearChanged,
+            onCustomRangeChanged: _onCustomRangeChanged,
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -511,6 +599,21 @@ class UserProfileScreenState extends State<UserProfileScreen>
     final currentTab = tabController?.activeIdentifier ?? 'Activity';
 
     return [
+      // Time range selector - only visible on Activity tab
+      if (currentTab == 'Activity')
+        ExpandableActionButton(
+          icon: Icons.date_range,
+          label: _getDateRangeLabel(),
+          category: 'Primary',
+          visibilityState: ActionButtonVisibilityState.both,
+          expandableWidgetBuilder: (onCollapse) {
+            return _buildDateRangeExpandedContent(
+              context,
+              userData,
+              onCollapse,
+            );
+          },
+        ),
       // Primary - always visible in collapsed state
       MinorActionButton(
         icon: Octicons.pulse,
@@ -694,7 +797,7 @@ class UserProfileScreenState extends State<UserProfileScreen>
               childBuilder: (context, value) {
                 data = value.data;
 
-                return _UserProfileTabsContent(
+                return                 _UserProfileTabsContent(
                   userData: value.data,
                   parentState: this,
                   expandAnimationController: _expandAnimationController,
@@ -702,6 +805,12 @@ class UserProfileScreenState extends State<UserProfileScreen>
                   buildExpandedHeader: _buildExpandedHeader,
                   buildToolbarActions: _buildToolbarActions,
                   buildActionButtons: _buildActionButtons,
+                  selectedYear: _selectedYear,
+                  customFromDate: _customFromDate,
+                  customToDate: _customToDate,
+                  useCustomRange: _useCustomRange,
+                  onYearChanged: _onYearChanged,
+                  onCustomRangeChanged: _onCustomRangeChanged,
                 );
               },
             ),
@@ -721,6 +830,12 @@ class _UserProfileTabsContent extends StatefulWidget {
     required this.buildExpandedHeader,
     required this.buildToolbarActions,
     required this.buildActionButtons,
+    required this.selectedYear,
+    required this.customFromDate,
+    required this.customToDate,
+    required this.useCustomRange,
+    required this.onYearChanged,
+    required this.onCustomRangeChanged,
   });
 
   final GuserInfoData_user userData;
@@ -742,6 +857,12 @@ class _UserProfileTabsContent extends StatefulWidget {
     GuserInfoData_user,
     DynamicTabsController?,
   ) buildActionButtons;
+  final int? selectedYear;
+  final DateTime? customFromDate;
+  final DateTime? customToDate;
+  final bool useCustomRange;
+  final void Function(int) onYearChanged;
+  final void Function(DateTime?, DateTime?) onCustomRangeChanged;
 
   @override
   State<_UserProfileTabsContent> createState() =>
@@ -766,7 +887,15 @@ class _UserProfileTabsContentState extends State<_UserProfileTabsContent>
         identifier: 'Activity',
         isDismissible: false,
         isFocusedOnInit: true,
-        tabViewBuilder: (context) => UserAboutScreen(userData),
+        tabViewBuilder: (context) => UserAboutScreen(
+          userData,
+          selectedYear: widget.selectedYear,
+          customFromDate: widget.customFromDate,
+          customToDate: widget.customToDate,
+          useCustomRange: widget.useCustomRange,
+          onYearChanged: widget.onYearChanged,
+          onCustomRangeChanged: widget.onCustomRangeChanged,
+        ),
       ),
       DynamicTab(
         identifier: 'Repositories',

@@ -2,6 +2,7 @@ import 'package:diohub/common/events/cards/base_card.dart';
 import 'package:diohub/common/issues/issue_list_card.dart';
 import 'package:diohub/common/markdown_view/trimmable_markdown_content.dart';
 import 'package:diohub/models/events/events_model.dart' hide Key;
+import 'package:diohub/models/issues/issue_card_data_model.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:flutter/material.dart';
 
@@ -36,8 +37,9 @@ class IssuesEventCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             // Show issue card (without description for comment events)
+            // Convert REST model to card data model
             IssueListCard(
-              event.payload!.issue!,
+              IssueCardDataModel.fromIssueModel(event.payload!.issue!),
               commentsSince: time,
               showRepoName: true,
               showDescription: time == null,

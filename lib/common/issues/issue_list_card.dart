@@ -5,7 +5,9 @@ import 'package:diohub/common/misc/ink_pot.dart';
 import 'package:diohub/common/misc/shimmer_widget.dart';
 import 'package:diohub/common/pulls/simple_pull_card.dart';
 import 'package:diohub/common/wrappers/api_wrapper_widget.dart';
+import 'package:diohub/models/issues/issue_card_data_model.dart';
 import 'package:diohub/models/issues/issue_model.dart';
+import 'package:diohub/models/users/user_info_model.dart';
 import 'package:diohub/services/issues/issues_service.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:diohub/view/issues_pulls/issue_pull_screen.dart';
@@ -21,30 +23,27 @@ class IssueListCard extends StatelessWidget {
     super.key,
   });
 
-  final IssueModel item;
+  final IssueCardDataModel item;
   final DateTime? commentsSince;
   final bool showRepoName;
   final bool showDescription;
 
+  // Helper getters to access data
+  String get _title => item.title;
+  String? get _url => item.url;
+  IssueState get _state =>
+      item.state == 'OPEN' ? IssueState.OPEN : IssueState.CLOSED;
+  int get _number => item.number;
+  int get _comments => item.commentCount ?? 0;
+  String? get _body => item.body;
+  String? get _bodyHtml => item.bodyHtml;
+  UserInfoModel? get _user => item.author;
+
+  // Extract repo name from repository data
+  String? get _repoName => '${item.repositoryOwner}/${item.repositoryName}';
+
   @override
   Widget build(final BuildContext context) {
-    if (item.pullRequest != null) {
-      return SimplePullLoadingCard(
-        item.pullRequest!.url!,
-        showRepoName: showRepoName,
-        showDescription: showDescription,
-      );
-    }
-
-    // Extract repo name from URL
-    final String? repoName = item.url != null
-        ? item.url!
-            .replaceAll('https://api.github.com/repos/', '')
-            .split('/')
-            .sublist(0, 2)
-            .join('/')
-        : null;
-
     // Title-first hierarchy: Title first, then context, then metadata
     final Widget content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,7 +51,7 @@ class IssueListCard extends StatelessWidget {
       children: <Widget>[
         // Issue title (most prominent - first)
         Text(
-          item.title!,
+          _title,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: context.colorScheme.onSurface,
@@ -68,9 +67,9 @@ class IssueListCard extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: <Widget>[
             // Repo name (only if showRepoName is true)
-            if (showRepoName && repoName != null)
+            if (showRepoName && _repoName != null)
               Text(
-                repoName,
+                _repoName!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color:
                           context.colorScheme.onSurfaceVariant.withOpacity(0.7),
@@ -80,15 +79,15 @@ class IssueListCard extends StatelessWidget {
             // Author and Comments (only if showRepoName is false)
             if (!showRepoName) ...[
               // Creator
-              if (item.user?.login != null) ...[
+              if (_user?.login != null) ...[
                 Text(
-                  item.user!.login ?? '',
+                  _user!.login ?? '',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: context.colorScheme.onSurfaceVariant
                             .withOpacity(0.75),
                       ),
                 ),
-                if (item.comments != 0)
+                if (_comments != 0)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Container(
@@ -100,7 +99,7 @@ class IssueListCard extends StatelessWidget {
                   ),
               ],
               // Comments
-              if (item.comments != 0)
+              if (_comments != 0)
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
@@ -112,7 +111,7 @@ class IssueListCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${item.comments}',
+                      '$_comments',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: context.colorScheme.onSurfaceVariant
                                 .withOpacity(0.75),
@@ -128,11 +127,11 @@ class IssueListCard extends StatelessWidget {
               children: <Widget>[
                 Opacity(
                   opacity: 0.6,
-                  child: getIcon(item.state!),
+                  child: getIcon(_state!),
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  '${item.number}',
+                  '$_number',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: context.colorScheme.onSurfaceVariant
                             .withOpacity(0.7),
@@ -142,7 +141,7 @@ class IssueListCard extends StatelessWidget {
               ],
             ),
             // Comments
-            if (item.comments != 0)
+            if (_comments != 0)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
@@ -154,7 +153,7 @@ class IssueListCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '${item.comments}',
+                    '$_comments',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: context.colorScheme.onSurfaceVariant
                               .withOpacity(0.7),
@@ -166,7 +165,7 @@ class IssueListCard extends StatelessWidget {
         ),
         // Issue body preview with markdown rendering
         if (showDescription &&
-            (item.bodyHtml ?? item.body ?? '').trim().isNotEmpty) ...[
+            (_bodyHtml ?? _body ?? '').trim().isNotEmpty) ...[
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -175,9 +174,9 @@ class IssueListCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: TrimmableMarkdownContent(
-              text: item.body,
-              textHtml: item.bodyHtml,
-              repo: repoName,
+              text: _body,
+              textHtml: _bodyHtml,
+              repo: _repoName,
             ),
           ),
         ],
@@ -185,10 +184,12 @@ class IssueListCard extends StatelessWidget {
     );
 
     return InkPot(
-      onTap: () async {
-        await AutoRouter.of(context)
-            .push(issuePullScreenRoute(PathData.fromURL(item.url!)));
-      },
+      onTap: _url != null
+          ? () async {
+              await AutoRouter.of(context)
+                  .push(issuePullScreenRoute(PathData.fromURL(_url!)));
+            }
+          : null,
       child: SizedBox(
         width: double.infinity,
         child: content,
@@ -231,7 +232,7 @@ class IssueLoadingCard extends StatelessWidget {
             IssuesService.getIssueInfo(fullUrl: url, refresh: refresh),
         builder: (final BuildContext context, final IssueModel data) =>
             IssueListCard(
-          data,
+          IssueCardDataModel.fromIssueModel(data),
           showRepoName: showRepoName,
         ),
         loadingBuilder: (final BuildContext context) => SizedBox(

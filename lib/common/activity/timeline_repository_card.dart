@@ -23,19 +23,11 @@ class TimelineRepositoryCard extends StatelessWidget {
     return BaseEventCard.singular(
       isInTimeline: true,
       eventType: null, // RepositoryCard handles its own styling
-      actor: userLogin,
-      avatarUrl: userAvatarUrl,
+      actor: null, // Don't show user login on their own profile
+      avatarUrl: null, // Don't show avatar on their own profile
       date: date,
       useNestedCard: false,
-      headerText: [
-        const TextSpan(
-          text: 'created ',
-        ),
-        TextSpan(
-          text: repoData.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ],
+      headerText: const [], // Action text is shown outside the card
       child: RepoCardLoading(
         repoData.url,
         repoData.name,

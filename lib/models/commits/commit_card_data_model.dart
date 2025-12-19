@@ -1,3 +1,5 @@
+import 'package:diohub/models/repositories/repo_card_data_model.dart';
+
 /// Unified data model for CommitCard
 /// Note: Uses CreatedCommitContribution which provides commitCount per day
 /// Individual commit details can be fetched on-demand
@@ -33,6 +35,7 @@ class CommitRepositoryInfo {
     required this.url,
     required this.count,
     this.id,
+    this.repoData, // Full repository metadata from GraphQL
   });
 
   final String owner;
@@ -40,5 +43,6 @@ class CommitRepositoryInfo {
   final String url;
   final int count; // Commit count for this repository on this date
   final String? id; // Repository ID from GraphQL (for future use)
+  final RepoCardDataModel? repoData; // Full repository metadata preserved from GraphQL
 }
 

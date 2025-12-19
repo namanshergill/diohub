@@ -1,4 +1,5 @@
 import 'package:diohub/graphql/queries/users/__generated__/user_activity_timeline_full.data.gql.dart';
+import 'package:diohub/graphql/queries/users/__generated__/user_info.data.gql.dart';
 import 'package:diohub/models/commits/commit_card_data_model.dart';
 import 'package:diohub/models/issues/issue_card_data_model.dart';
 import 'package:diohub/models/pull_requests/pull_request_card_data_model.dart';
@@ -12,6 +13,8 @@ class _RepoData {
   final String name;
   final String url;
   final String? id; // Repository ID from GraphQL
+  final RepoCardDataModel?
+      repoData; // Full repository metadata preserved from GraphQL
   int count;
 
   _RepoData({
@@ -19,6 +22,7 @@ class _RepoData {
     required this.name,
     required this.url,
     this.id,
+    this.repoData,
     this.count = 0,
   });
 }
@@ -77,15 +81,9 @@ class ActivityTimelineConverter {
       final name = repo.name;
       final url = repo.url.toString();
 
-      // Create unified repository data model
-      final repoData = RepoCardDataModel(
-        name: name,
-        url: url,
-        description: repo.description,
-        language: repo.primaryLanguage?.name,
-        private: null, // Not available in this query
-        fork: null, // Not available in this query
-      );
+      // Create unified repository data model using fromGraphQL to preserve all metadata
+      // Cast to GrepositoryFields since the query includes ...repositoryFields fragment
+      final repoData = RepoCardDataModel.fromGraphQL(repo as GrepositoryFields);
 
       events.add(
         ActivityTimelineEvent(
@@ -219,6 +217,10 @@ class ActivityTimelineConverter {
     for (final repoContributions in repos) {
       final repo = repoContributions.repository;
 
+      // Create RepoCardDataModel using fromGraphQL to preserve all metadata
+      // Cast to GrepositoryFields since the query includes ...repositoryFields fragment
+      final repoData = RepoCardDataModel.fromGraphQL(repo as GrepositoryFields);
+
       // Extract all repo fields ONCE - store for later use
       final owner = repo.owner.login;
       final name = repo.name;
@@ -244,6 +246,7 @@ class ActivityTimelineConverter {
 
         // Ensure repo entry exists for this date, initialize with repo data
         // This is where we capture ALL repo fields to avoid lookups later
+        // Store RepoCardDataModel for full metadata preservation
         contributionsByDate[dateKey]!.putIfAbsent(
           repoKey,
           () => _RepoData(
@@ -251,6 +254,7 @@ class ActivityTimelineConverter {
             name: name,
             url: repoUrl,
             id: repoId,
+            repoData: repoData, // Store full repository metadata
             count: 0,
           ),
         );
@@ -276,7 +280,7 @@ class ActivityTimelineConverter {
       final firstRepo = reposForDate.values.first;
 
       // Build repository info list for commit card display
-      // All repo data (owner, name, url, id) already stored - no lookups needed
+      // All repo data (owner, name, url, id, full metadata) already stored - no lookups needed
       final repoInfos = <CommitRepositoryInfo>[];
       for (final repoData in reposForDate.values) {
         repoInfos.add(
@@ -286,6 +290,8 @@ class ActivityTimelineConverter {
             url: repoData.url,
             id: repoData.id, // Store ID for future UI use (navigation, etc.)
             count: repoData.count,
+            repoData: repoData
+                .repoData, // Preserve full repository metadata from GraphQL
           ),
         );
       }
