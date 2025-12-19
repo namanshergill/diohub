@@ -29,6 +29,8 @@ class RepositoryCard extends StatelessWidget {
     this.repo, {
     // this.isThemed = true,
     this.branch,
+    this.commitSha,
+    this.commitShaUrl,
     this.contributionCount,
     this.withBackground = false,
     // this.padding = const EdgeInsets.symmetric(vertical: 8),
@@ -39,6 +41,8 @@ class RepositoryCard extends StatelessWidget {
 
   // final bool isThemed;
   final String? branch;
+  final String? commitSha;
+  final String? commitShaUrl;
   final int? contributionCount;
   final bool withBackground;
 
@@ -110,39 +114,81 @@ class RepositoryCard extends StatelessWidget {
           // Branch display - styled to match fork indicator but more prominent
           if (branch != null) ...[
             const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: context.colorScheme.surfaceVariant.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: context.colorScheme.primary.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(
-                    Octicons.git_branch,
-                    size: 13,
-                    color: context.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      branch!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: context.colorScheme.primary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: <Widget>[
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: context.colorScheme.surfaceVariant.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: context.colorScheme.primary.withOpacity(0.3),
+                      width: 1,
                     ),
                   ),
-                ],
-              ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(
+                        Octicons.git_branch,
+                        size: 13,
+                        color: context.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          branch!,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: context.colorScheme.primary,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Commit SHA indicator - inline with branch
+                if (commitSha != null)
+                  InkPot(
+                    onTap: commitShaUrl != null
+                        ? () async {
+                            await AutoRouter.of(context).push(
+                              CommitInfoRoute(commitURL: commitShaUrl!),
+                            );
+                          }
+                        : null,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Octicons.git_commit,
+                          size: 11,
+                          color: context.colorScheme.onSurfaceVariant
+                              .withOpacity(0.6),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          commitSha!.substring(0, 7),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: context.colorScheme.onSurfaceVariant
+                                        .withOpacity(0.6),
+                                    fontFamily: 'monospace',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ],
           // Description
@@ -257,6 +303,8 @@ class RepoCardLoading extends StatelessWidget {
     this.repoURL,
     this.repoName, {
     this.branch,
+    this.commitSha,
+    this.commitShaUrl,
     this.refresh = false,
     super.key,
   });
@@ -267,6 +315,8 @@ class RepoCardLoading extends StatelessWidget {
   // final double elevation;
   final bool refresh;
   final String? branch;
+  final String? commitSha;
+  final String? commitShaUrl;
 
   @override
   Widget build(final BuildContext context) =>
@@ -279,6 +329,8 @@ class RepoCardLoading extends StatelessWidget {
             RepositoryCard(
           RepoCardDataModel.fromRepositoryModel(repo),
           branch: branch,
+          commitSha: commitSha,
+          commitShaUrl: commitShaUrl,
         ),
       );
 
