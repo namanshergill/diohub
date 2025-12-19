@@ -1106,76 +1106,106 @@ class _DateRangeExpandedContent extends ConsumerWidget {
         useCustomRange && _isSinceJoining(customFromDate, createdAt);
     final isCustomSelected = useCustomRange && !isSinceJoiningSelected;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      constraints: const BoxConstraints(maxWidth: 300),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Last Year option
+    // Build all options into a list
+    final List<Widget> optionTiles = [];
+
+    // Last Year option
+    optionTiles.add(
+      _buildOptionTile(
+        context: context,
+        theme: theme,
+        colorScheme: colorScheme,
+        icon: Icons.calendar_today,
+        title: 'Last Year',
+        isSelected: isLastYearSelected,
+        onTap: () {
+          onCustomRangeChanged(null, null);
+          onCollapse();
+        },
+      ),
+    );
+
+    // Year options
+    if (availableYears.isNotEmpty) {
+      for (final year in availableYears) {
+        optionTiles.add(
           _buildOptionTile(
             context: context,
             theme: theme,
             colorScheme: colorScheme,
-            icon: Icons.calendar_today,
-            title: 'Last Year',
-            isSelected: isLastYearSelected,
+            icon: Icons.calendar_month,
+            title: year.toString(),
+            isSelected: !useCustomRange && selectedYear == year,
             onTap: () {
-              onCustomRangeChanged(null, null);
+              onYearChanged(year);
               onCollapse();
             },
           ),
-          // Year options
-          if (availableYears.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            ...availableYears.map((year) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: _buildOptionTile(
-                    context: context,
-                    theme: theme,
-                    colorScheme: colorScheme,
-                    icon: Icons.calendar_month,
-                    title: year.toString(),
-                    isSelected: !useCustomRange && selectedYear == year,
-                    onTap: () {
-                      onYearChanged(year);
-                      onCollapse();
-                    },
-                  ),
-                )),
-          ],
-          // Since joining GitHub option
-          if (createdAt != null) ...[
-            const SizedBox(height: 8),
-            _buildOptionTile(
-              context: context,
-              theme: theme,
-              colorScheme: colorScheme,
-              icon: Icons.cake,
-              title: 'Since joining GitHub',
-              isSelected: isSinceJoiningSelected,
-              onTap: () {
-                final now = DateTime.now();
-                onCustomRangeChanged(createdAt, now);
-                onCollapse();
-              },
-            ),
-          ],
-          // Custom Range option
-          const SizedBox(height: 8),
-          _buildOptionTile(
-            context: context,
-            theme: theme,
-            colorScheme: colorScheme,
-            icon: Icons.date_range,
-            title: 'Custom Range',
-            isSelected: isCustomSelected,
-            onTap: () {
-              _showCustomDateRangePicker(context, createdAt);
-            },
-          ),
-        ],
+        );
+      }
+    }
+
+    // Since joining GitHub option
+    if (createdAt != null) {
+      optionTiles.add(
+        _buildOptionTile(
+          context: context,
+          theme: theme,
+          colorScheme: colorScheme,
+          icon: Icons.cake,
+          title: 'Since joining GitHub',
+          isSelected: isSinceJoiningSelected,
+          onTap: () {
+            final now = DateTime.now();
+            onCustomRangeChanged(createdAt, now);
+            onCollapse();
+          },
+        ),
+      );
+    }
+
+    // Custom Range option
+    optionTiles.add(
+      _buildOptionTile(
+        context: context,
+        theme: theme,
+        colorScheme: colorScheme,
+        icon: Icons.date_range,
+        title: 'Custom Range',
+        isSelected: isCustomSelected,
+        onTap: () {
+          _showCustomDateRangePicker(context, createdAt);
+        },
+      ),
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      constraints: const BoxConstraints(maxWidth: 300),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: optionTiles.asMap().entries.map((entry) {
+            final index = entry.key;
+            final tile = entry.value;
+            final isLast = index == optionTiles.length - 1;
+
+            return Container(
+              decoration: BoxDecoration(
+                border: isLast
+                    ? null
+                    : Border(
+                        bottom: BorderSide(
+                          color: colorScheme.outline.withOpacity(0.1),
+                          width: 0.5,
+                        ),
+                      ),
+              ),
+              child: tile,
+            );
+          }).toList(),
+        ),
       ),
     );
   }
