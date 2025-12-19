@@ -279,7 +279,7 @@ class RepositoryCard extends StatelessWidget {
           await pushToRepo(context);
         },
         backgroundColor:
-            withBackground ? context.colorScheme.surfaceContainerHigh : null,
+            withBackground ? context.colorScheme.surfaceContainer : null,
         child: withBackground
             ? Padding(
                 padding: const EdgeInsets.all(12),

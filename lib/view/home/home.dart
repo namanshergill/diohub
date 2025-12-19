@@ -576,7 +576,9 @@ class HomeScreenState extends State<HomeScreen>
               ),
               const SizedBox(width: 8),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  AutoRouter.of(context).push(const SearchRoute());
+                },
                 child: const Icon(Icons.search_rounded),
               ),
             ],
