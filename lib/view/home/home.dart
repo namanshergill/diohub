@@ -31,11 +31,7 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 
 @RoutePage()
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({
-    super.key,
-    this.deepLinkData,
-    this.buildThemePZero,
-  });
+  const HomeScreen({super.key, this.deepLinkData, this.buildThemePZero});
 
   final dynamic buildThemePZero;
   final PathData? deepLinkData;
@@ -72,9 +68,8 @@ class HomeScreenState extends State<HomeScreen>
         DynamicTab(
           identifier: 'Events',
           isDismissible: false,
-          tabViewBuilder: (final BuildContext context) => const Events(
-            isTimeline: false,
-          ),
+          tabViewBuilder: (final BuildContext context) =>
+              const Events(isTimeline: false),
         ),
         DynamicTab(
           identifier: 'Issues',
@@ -110,9 +105,7 @@ class HomeScreenState extends State<HomeScreen>
               after: data.lastItem?.cursor,
             ),
             separatorBuilder: (final BuildContext context, final int index) =>
-                const Divider(
-              height: 8,
-            ),
+                const Divider(height: 8),
             listEndIndicator: false,
             // divider: false,
             builder: (
@@ -184,20 +177,6 @@ class HomeScreenState extends State<HomeScreen>
 
                   final isEventsTab = currentTab == 'Events';
 
-                  // Navigation category - Events action (visible in both states)
-                  allActions.add(
-                    MinorActionButton(
-                      icon: Icons.timeline_rounded,
-                      label: 'Events',
-                      actionType: ActionButtonActionType.tab,
-                      visibilityState: isEventsTab
-                          ? ActionButtonVisibilityState.none
-                          : ActionButtonVisibilityState.both,
-                      category: 'Navigation',
-                      onTap: () => tabsController.openTab('Events'),
-                    ),
-                  );
-
                   // Search & Filter category - Search bar as major action
                   allActions.add(
                     MinorActionButton(
@@ -225,6 +204,38 @@ class HomeScreenState extends State<HomeScreen>
                       visibilityState: hasSearchTab
                           ? ActionButtonVisibilityState.both
                           : ActionButtonVisibilityState.none,
+                    ),
+                  );
+
+                  // New Issue button - visible only on Issues tab in both states
+                  allActions.add(
+                    MajorActionButton(
+                      icon: Octicons.plus,
+                      label: 'New Issue',
+                      isPositive: true,
+                      category: 'Actions',
+                      visibilityState: isIssuesTab
+                          ? ActionButtonVisibilityState.both
+                          : ActionButtonVisibilityState.none,
+                      onTap: () {
+                        // TODO: Navigate to repository selection or issue creation
+                        // For now, this is a placeholder that can be implemented
+                        // to show a repository selection dialog or navigate to a repo
+                      },
+                    ),
+                  );
+
+                  // Navigation category - Events action (visible in both states)
+                  allActions.add(
+                    MinorActionButton(
+                      icon: Octicons.pulse,
+                      label: 'Events',
+                      actionType: ActionButtonActionType.tab,
+                      visibilityState: isEventsTab
+                          ? ActionButtonVisibilityState.none
+                          : ActionButtonVisibilityState.both,
+                      category: 'Navigation',
+                      onTap: () => tabsController.openTab('Events'),
                     ),
                   );
 
@@ -315,7 +326,8 @@ class HomeScreenState extends State<HomeScreen>
                         currentSearchData?.filterStrings.contains(filterKey) ??
                             false;
                     print(
-                        '[Home] Creating checkbox for: ${entry.value}, key: $filterKey, isSelected: $isSelected');
+                      '[Home] Creating checkbox for: ${entry.value}, key: $filterKey, isSelected: $isSelected',
+                    );
                     allActions.add(
                       CheckboxActionButton(
                         icon: isSelected
@@ -327,11 +339,13 @@ class HomeScreenState extends State<HomeScreen>
                         onChanged: (bool value) {
                           if (searchWrapperState == null) return;
                           print(
-                              '[Home] Checkbox onChanged called! value: $value, filterKey: $filterKey');
+                            '[Home] Checkbox onChanged called! value: $value, filterKey: $filterKey',
+                          );
                           final currentData =
                               searchWrapperState.currentSearchData;
                           print(
-                              '[Home] Current filters before: ${currentData.filterStrings}');
+                            '[Home] Current filters before: ${currentData.filterStrings}',
+                          );
                           final filters = currentData.filterStrings.toList();
                           if (value) {
                             // Only add if not already present (prevent duplicates)
@@ -340,7 +354,8 @@ class HomeScreenState extends State<HomeScreen>
                               filters.add(filterKey);
                             } else {
                               print(
-                                  '[Home] Filter already exists, skipping: $filterKey');
+                                '[Home] Filter already exists, skipping: $filterKey',
+                              );
                             }
                           } else {
                             print('[Home] Removing filter: $filterKey');
@@ -351,7 +366,8 @@ class HomeScreenState extends State<HomeScreen>
                             filterStrings: filters,
                           );
                           print(
-                              '[Home] Calling updateSearchData with: ${newSearchData.filterStrings}');
+                            '[Home] Calling updateSearchData with: ${newSearchData.filterStrings}',
+                          );
                           searchWrapperState.updateSearchData(newSearchData);
                           // Trigger rebuild to update checkbox state
                           setState(() {});
@@ -438,9 +454,9 @@ class HomeScreenState extends State<HomeScreen>
                       actionType: ActionButtonActionType.navigation,
                       visibilityState: ActionButtonVisibilityState.expandedOnly,
                       onTap: () {
-                        AutoRouter.of(context).push(
-                          UserProfileRoute(login: currentUserLogin),
-                        );
+                        AutoRouter.of(
+                          context,
+                        ).push(UserProfileRoute(login: currentUserLogin));
                       },
                     ),
                     MinorActionButton(
@@ -474,7 +490,9 @@ class HomeScreenState extends State<HomeScreen>
                     title: context.provider<CurrentUserProvider>().data.login,
 
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     scrollNotificationNotifier: scrollNotificationNotifier,
                     onExpandChanged: (isExpanded) {
                       if (isExpanded) {
@@ -492,8 +510,11 @@ class HomeScreenState extends State<HomeScreen>
         child: SafeArea(
           child: DynamicTabsParent(
             controller: tabsController,
-            builder: (final BuildContext context,
-                    final PreferredSizeWidget tabBar, final Widget tabView) =>
+            builder: (
+              final BuildContext context,
+              final PreferredSizeWidget tabBar,
+              final Widget tabView,
+            ) =>
                 DynamicScroll(
               expandedByDefault: true,
               animationController: _expandAnimationController,
@@ -507,9 +528,7 @@ class HomeScreenState extends State<HomeScreen>
               expandedWidget: Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: Column(
-                  children: <Widget>[
-                    buildProfileCard(context),
-                  ],
+                  children: <Widget>[buildProfileCard(context)],
                 ),
               ),
               body: tabView,
@@ -544,9 +563,7 @@ class HomeScreenState extends State<HomeScreen>
                     context.provider<CurrentUserProvider>().data.name!,
                     style: context.textTheme.titleMedium?.asBold(),
                   ),
-                  Text(
-                    context.provider<CurrentUserProvider>().data.login,
-                  ),
+                  Text(context.provider<CurrentUserProvider>().data.login),
                 ],
               ),
             ],
@@ -555,18 +572,12 @@ class HomeScreenState extends State<HomeScreen>
             children: <Widget>[
               ElevatedButton(
                 onPressed: () {},
-                child: const Icon(
-                  Icons.notifications_rounded,
-                ),
+                child: const Icon(Icons.notifications_rounded),
               ),
-              const SizedBox(
-                width: 8,
-              ),
+              const SizedBox(width: 8),
               ElevatedButton(
                 onPressed: () {},
-                child: const Icon(
-                  Icons.search_rounded,
-                ),
+                child: const Icon(Icons.search_rounded),
               ),
             ],
           ),
@@ -586,17 +597,13 @@ class HomeScreenState extends State<HomeScreen>
                 imageUrl: context.viewer.avatarUrl.toString(),
                 placeholder: (final BuildContext context, final _) =>
                     ShimmerWidget(
-                  child: Container(
-                    color: context.colorScheme.surface,
-                  ),
+                  child: Container(color: context.colorScheme.surface),
                 ),
                 // )
               ),
             ),
           ),
-          const SizedBox(
-            width: 8,
-          ),
+          const SizedBox(width: 8),
           Text(
             context.provider<CurrentUserProvider>().data.login,
             style: context.textTheme.bodyMedium?.asBold(),
@@ -617,30 +624,35 @@ class HomeScreenState extends State<HomeScreen>
 
     // Debug: Print SearchData state
     print(
-        '[Home] _buildQuickFiltersWidget: currentSearchData.quickFilters=${currentSearchData.quickFilters}');
+      '[Home] _buildQuickFiltersWidget: currentSearchData.quickFilters=${currentSearchData.quickFilters}',
+    );
     print(
-        '[Home] _buildQuickFiltersWidget: currentSearchData.filterStrings=${currentSearchData.filterStrings}');
+      '[Home] _buildQuickFiltersWidget: currentSearchData.filterStrings=${currentSearchData.filterStrings}',
+    );
     print(
-        '[Home] _buildQuickFiltersWidget: activeQuickFilter=$activeQuickFilter');
+      '[Home] _buildQuickFiltersWidget: activeQuickFilter=$activeQuickFilter',
+    );
     print(
-        '[Home] _buildQuickFiltersWidget: quickFilters.keys=${quickFilters.keys.toList()}');
+      '[Home] _buildQuickFiltersWidget: quickFilters.keys=${quickFilters.keys.toList()}',
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: quickFilters.entries.map((entry) {
         // Print activeQuickFilter and entry.key for debugging
         print(
-            '[Home] QuickFilter: activeQuickFilter=$activeQuickFilter, entry.key=${entry.key}');
+          '[Home] QuickFilter: activeQuickFilter=$activeQuickFilter, entry.key=${entry.key}',
+        );
         final isSelected = activeQuickFilter != null &&
             StringFunctions(activeQuickFilter).isStringEqual(entry.key);
         print('[Home] QuickFilter: isSelected=$isSelected for ${entry.key}');
         return ListTile(
           dense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 4,
           ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
           selected: isSelected,
           selectedTileColor: isSelected ? context.colorScheme.primary : null,
           title: Text(
@@ -661,19 +673,22 @@ class HomeScreenState extends State<HomeScreen>
               : null,
           onTap: () {
             print(
-                '[Home] QuickFilter tapped: ${entry.key}, isSelected: $isSelected');
+              '[Home] QuickFilter tapped: ${entry.key}, isSelected: $isSelected',
+            );
             SearchData newSearchData;
             if (isSelected) {
               // Deselecting: remove the current quick filter from filterStrings
               final filters = currentSearchData.filterStrings.toList();
               final activeFilter = currentSearchData.activeQuickFilter;
               print(
-                  '[Home] Deselecting filter. Current active: $activeFilter, Filters before: $filters');
+                '[Home] Deselecting filter. Current active: $activeFilter, Filters before: $filters',
+              );
               if (activeFilter != null) {
                 filters.removeWhere((filter) {
                   for (final quickFilter in quickFilters.keys) {
-                    final match =
-                        StringFunctions(quickFilter).isStringEqual(filter);
+                    final match = StringFunctions(
+                      quickFilter,
+                    ).isStringEqual(filter);
                     if (match)
                       print('[Home] Removing matching quick filter: $filter');
                     if (match) return true;
@@ -684,7 +699,8 @@ class HomeScreenState extends State<HomeScreen>
               // Preserve quickFilters list when deselecting
               final quickFiltersList = quickFilters.keys.toList();
               print(
-                  '[Home] Preserving quickFilters list on deselect: $quickFiltersList');
+                '[Home] Preserving quickFilters list on deselect: $quickFiltersList',
+              );
               newSearchData = currentSearchData.copyWith(
                 filterStrings: filters,
                 quickFilters: quickFiltersList,
@@ -702,11 +718,14 @@ class HomeScreenState extends State<HomeScreen>
               );
             }
             print(
-                '[Home] QuickFilter newSearchData filters: ${newSearchData.filterStrings}');
+              '[Home] QuickFilter newSearchData filters: ${newSearchData.filterStrings}',
+            );
             print(
-                '[Home] QuickFilter newSearchData.quickFilters: ${newSearchData.quickFilters}');
+              '[Home] QuickFilter newSearchData.quickFilters: ${newSearchData.quickFilters}',
+            );
             print(
-                '[Home] QuickFilter newSearchData.activeQuickFilter: ${newSearchData.activeQuickFilter}');
+              '[Home] QuickFilter newSearchData.activeQuickFilter: ${newSearchData.activeQuickFilter}',
+            );
             searchWrapperState.updateSearchData(newSearchData);
             // Trigger rebuild to update button label
             setState(() {});
@@ -736,8 +755,10 @@ class HomeScreenState extends State<HomeScreen>
           final isSelected = currentSearchData.sort == entry.key;
           return ListTile(
             dense: true,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 4,
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(6),
             ),
