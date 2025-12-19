@@ -17,7 +17,7 @@ class PullsService {
   PullsService(this.temp);
 
   static final GraphqlHandler _gqlHandler = GraphqlHandler();
-  static final RESTHandler _restHandler = RESTHandler();
+  static final RESTHandler _restHandler = RESTHandler(apiLogSettings: APILoggingSettings.comprehensive());
   final String temp;
   // Ref: https://docs.github.com/en/rest/reference/pulls#get-a-pull-request
   static Future<PullRequestModel> getPullInformation({
