@@ -260,6 +260,7 @@ class UserActivityTimelineData {
             isFirst: lastWrapper.isFirst,
             isLast: true, // Update flag
             monthHeader: lastWrapper.monthHeader,
+            isEmpty: lastWrapper.isEmpty,
           );
         }
       }
@@ -269,22 +270,75 @@ class UserActivityTimelineData {
   }
 
   /// Flatten grouped events into a single list (maintains order)
+  /// Fills in empty months with "No activity" placeholders
   static List<TimelineEventWithFlags> _flattenGroupedEvents(
-    Map<int, Map<int, List<TimelineEventWithFlags>>> grouped,
-  ) {
+    Map<int, Map<int, List<TimelineEventWithFlags>>> grouped, {
+    required DateTime from,
+    required DateTime to,
+  }) {
     final flattened = <TimelineEventWithFlags>[];
 
-    // Iterate through years (already in insertion order - newest first)
-    for (final yearEntry in grouped.entries) {
-      final months = yearEntry.value;
+    // Generate all months in the date range (newest first)
+    final allMonths = _generateMonthsInRange(from, to);
+    
+    // Extract months that have events
+    final monthsWithEvents = _extractMonthsFromGrouped(grouped);
 
-      // Iterate through months (already in insertion order - newest first)
-      for (final monthEntry in months.entries) {
-        // Add all events for this month
-        flattened.addAll(monthEntry.value);
+    // Iterate through all months and merge with events
+    for (final (year, month) in allMonths) {
+      if (monthsWithEvents.contains((year, month))) {
+        // Month has events - add them
+        final monthEvents = grouped[year]?[month] ?? [];
+        flattened.addAll(monthEvents);
+      } else {
+        // Empty month - add placeholder
+        flattened.add(
+          TimelineEventWithFlags(
+            event: null,
+            isFirst: true,
+            isLast: true,
+            monthHeader: MonthHeader(year, month),
+            isEmpty: true,
+          ),
+        );
       }
     }
 
     return flattened;
+  }
+
+  /// Generate all (year, month) pairs in the date range (newest first)
+  static List<(int year, int month)> _generateMonthsInRange(
+    DateTime from,
+    DateTime to,
+  ) {
+    final months = <(int, int)>[];
+    var current = DateTime(to.year, to.month, 1);
+    final start = DateTime(from.year, from.month, 1);
+
+    while (!current.isBefore(start)) {
+      months.add((current.year, current.month));
+      // Move to previous month
+      if (current.month == 1) {
+        current = DateTime(current.year - 1, 12, 1);
+      } else {
+        current = DateTime(current.year, current.month - 1, 1);
+      }
+    }
+
+    return months;
+  }
+
+  /// Extract all (year, month) pairs that have events from grouped structure
+  static Set<(int year, int month)> _extractMonthsFromGrouped(
+    Map<int, Map<int, List<TimelineEventWithFlags>>> grouped,
+  ) {
+    final months = <(int, int)>{};
+    for (final yearEntry in grouped.entries) {
+      for (final monthEntry in yearEntry.value.entries) {
+        months.add((yearEntry.key, monthEntry.key));
+      }
+    }
+    return months;
   }
 }
