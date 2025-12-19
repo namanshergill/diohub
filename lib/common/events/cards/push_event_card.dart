@@ -43,9 +43,13 @@ class PushEventCard extends StatelessWidget {
         ],
         avatarUrl: event.actor!.avatarUrl,
         child: RepoCardLoading(
-          event.repo?.url,
-          event.repo?.name,
-          branch: data.ref?.split('/').last,
+              event.repo?.url,
+              event.repo?.name,
+              branch: data.ref?.split('/').last,
+          commitSha: data.head,
+          commitShaUrl: event.repo?.url != null && data.head != null
+              ? '${event.repo!.url!}/commits/${data.head}'
+              : null,
         ),
       );
 }
