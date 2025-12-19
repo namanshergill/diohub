@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
+import 'package:contribution_heatmap/contribution_heatmap.dart';
+import 'package:diohub/utils/utils.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 /// A single day in the contribution calendar
 class ContributionDay {
@@ -28,25 +28,24 @@ enum ContributionLevel {
 
 /// A reusable contribution calendar widget (GitHub-style heatmap).
 ///
-/// This widget displays a grid of days showing contribution activity.
-/// It's generic and can be used for any time-based activity visualization.
+/// This widget wraps the contribution_heatmap library for high-performance rendering.
+/// It maintains the same API as before but uses an optimized library implementation.
 ///
 /// Example usage:
 /// ```dart
 /// ContributionCalendarWidget(
-///   days: contributionDays,
-///   colors: ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'],
+///   weeks: contributionWeeks,
 ///   onDayTap: (day) => showDayDetails(day),
 /// )
 /// ```
-class ContributionCalendarWidget extends StatelessWidget {
+class ContributionCalendarWidget extends StatefulWidget {
   const ContributionCalendarWidget({
     required this.weeks,
     this.colors,
     this.onDayTap,
     this.onDayLongPress,
     this.showMonthLabels = true,
-    this.showDayLabels = false,
+    this.showDayLabels = true,
     this.cellSize = 11.0,
     this.cellSpacing = 2.0,
     this.monthLabelHeight = 20.0,
@@ -62,14 +61,14 @@ class ContributionCalendarWidget extends StatelessWidget {
   /// Each week should have 7 days (Mon-Sun)
   final List<List<ContributionDay>> weeks;
 
-  /// Color scheme for contribution levels
-  /// Should be ordered from lowest to highest activity
+  /// Color scheme for contribution levels (ignored - using library's green scheme)
+  /// Kept for API compatibility
   final List<Color>? colors;
 
   /// Callback when a day is tapped
   final void Function(ContributionDay day)? onDayTap;
 
-  /// Callback when a day is long-pressed
+  /// Callback when a day is long-pressed (not supported by library, ignored)
   final void Function(ContributionDay day)? onDayLongPress;
 
   /// Whether to show month labels above the calendar
@@ -84,19 +83,19 @@ class ContributionCalendarWidget extends StatelessWidget {
   /// Spacing between cells in pixels
   final double cellSpacing;
 
-  /// Height reserved for month labels
+  /// Height reserved for month labels (ignored - library handles this)
   final double monthLabelHeight;
 
-  /// Width reserved for day labels
+  /// Width reserved for day labels (ignored - library handles this)
   final double dayLabelWidth;
 
-  /// Colors for the legend (defaults to colors if not provided)
+  /// Colors for the legend (ignored - using library's colors)
   final List<Color>? legendColors;
 
-  /// Whether to show the legend
+  /// Whether to show the legend (not supported by library, ignored)
   final bool showLegend;
 
-  /// Labels for the legend (e.g., ['Less', 'More'])
+  /// Labels for the legend (not supported by library, ignored)
   final List<String> legendLabels;
 
   /// Whether the calendar should be horizontally scrollable
@@ -104,495 +103,201 @@ class ContributionCalendarWidget extends StatelessWidget {
   final bool shouldScroll;
 
   @override
-  Widget build(BuildContext context) {
-    debugPrint(
-        '[ContributionCalendarWidget] Building with ${weeks.length} weeks');
-    if (weeks.isNotEmpty) {
-      final totalDays = weeks.fold<int>(0, (sum, week) => sum + week.length);
-      debugPrint(
-          '[ContributionCalendarWidget] Total days: $totalDays (${weeks.length} weeks × ~7 days)');
-      debugPrint(
-          '[ContributionCalendarWidget] First week: ${weeks.first.length} days, first day: ${weeks.first.first.date}');
-      debugPrint(
-          '[ContributionCalendarWidget] Last week: ${weeks.last.length} days, first day: ${weeks.last.first.date}');
+  State<ContributionCalendarWidget> createState() =>
+      _ContributionCalendarWidgetState();
+}
+
+class _ContributionCalendarWidgetState
+    extends State<ContributionCalendarWidget> {
+  // Cached conversion results - only recalculate when weeks change
+  List<ContributionEntry>? _cachedEntries;
+  DateTime? _cachedMinDate;
+  DateTime? _cachedMaxDate;
+  Map<String, ContributionDay>? _cachedDayMap; // For O(1) lookup in onCellTap
+  List<List<ContributionDay>>? _cachedWeeks;
+  double? _cachedCalendarWidth;
+
+  void _updateCacheIfNeeded() {
+    // Only recalculate if weeks have changed
+    if (_cachedWeeks == widget.weeks && _cachedEntries != null) {
+      return;
     }
 
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    // Convert weeks format to entries format for the library
+    final entries = <ContributionEntry>[];
+    final dayMap = <String, ContributionDay>{};
+    DateTime? minDate;
+    DateTime? maxDate;
 
-    // Default colors (GitHub-style green)
-    final defaultColors = colors ??
-        [
-          Color(0xFFEBEDF0), // No contributions
-          Color(0xFF9BE9A8), // Low
-          Color(0xFF40C463), // Medium
-          Color(0xFF30A14E), // High
-          Color(0xFF216E39), // Very high
-        ];
+    for (final week in widget.weeks) {
+      for (final day in week) {
+        entries.add(ContributionEntry(day.date, day.count));
 
-    // Extract months from weeks for labels
-    final months = _extractMonths(weeks);
+        // Create a key for O(1) lookup: "YYYY-MM-DD"
+        final dateKey = '${day.date.year}-${day.date.month}-${day.date.day}';
+        dayMap[dateKey] = day;
 
-    // Calculate calendar grid width for proper month label positioning
-    final calendarWidth = weeks.length * (cellSize + cellSpacing);
+        if (minDate == null || day.date.isBefore(minDate)) {
+          minDate = day.date;
+        }
+        if (maxDate == null || day.date.isAfter(maxDate)) {
+          maxDate = day.date;
+        }
+      }
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Calendar grid with month labels and scrollable content
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Day labels (Mon, Tue, etc.) - fixed, doesn't scroll
-            if (showDayLabels)
-              SizedBox(
-                width: dayLabelWidth,
-                child: _buildDayLabels(context),
-              ),
+    _cachedEntries = entries;
+    _cachedMinDate = minDate;
+    _cachedMaxDate = maxDate;
+    _cachedDayMap = dayMap;
+    _cachedWeeks = widget.weeks;
+    _cachedCalendarWidth =
+        widget.weeks.length * (widget.cellSize + widget.cellSpacing);
+  }
 
-            // Calendar with month labels (scrollable only if shouldScroll is true)
-            Expanded(
-              child: shouldScroll
-                  ? SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Year labels row (above month labels)
-                          if (showMonthLabels && months.isNotEmpty)
-                            SizedBox(
-                              height: 16.0,
-                              width: calendarWidth,
-                              child: _buildYearLabels(context, weeks),
-                            ),
-                          // Month labels - scrolls with calendar
-                          if (showMonthLabels && months.isNotEmpty)
-                            SizedBox(
-                              height: monthLabelHeight,
-                              width: calendarWidth,
-                              child: _buildMonthLabels(context, months, weeks),
-                            ),
+  @override
+  Widget build(BuildContext context) {
+    // Update cache if needed (only recalculates when weeks change)
+    _updateCacheIfNeeded();
 
-                          // Calendar grid
-                          SizedBox(
-                            width: calendarWidth,
-                            child: _buildCalendarGrid(
-                              context,
-                              defaultColors,
-                              colorScheme,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Month labels - fits on screen (use simple Row layout)
-                        if (showMonthLabels && months.isNotEmpty)
-                          SizedBox(
-                            height: monthLabelHeight,
-                            child: _buildMonthLabelsSimple(context, months),
-                          ),
+    // Build the heatmap widget
+    final heatmap = ContributionHeatmap(
+      entries: _cachedEntries!,
+      minDate: _cachedMinDate,
+      maxDate: _cachedMaxDate,
+      cellSize: widget.cellSize,
+      cellSpacing: widget.cellSpacing,
+      // splittedMonthView: true,
+      showCellDate: true,
+      cellRadius: 2,
+      showMonthLabels: widget.showMonthLabels,
+      weekdayLabel: WeekdayLabel.none,
+      heatmapColor: HeatmapColor.green, // GitHub-style green
+      onCellTap: widget.onDayTap != null
+          ? (date, value) {
+              // O(1) lookup using cached map
+              final dateKey = '${date.year}-${date.month}-${date.day}';
+              final day = _cachedDayMap![dateKey];
+              if (day != null) {
+                widget.onDayTap!(day);
+              }
+            }
+          : null,
+    );
 
-                        // Calendar grid - fits on screen
-                        _buildCalendarGrid(
-                          context,
-                          defaultColors,
-                          colorScheme,
-                        ),
-                      ],
-                    ),
-            ),
-          ],
-        ),
+    // Use cached calendar width
+    final calendarWidth = _cachedCalendarWidth!;
 
-        // Legend
-        if (showLegend)
+    // Wrap heatmap in scrollable container if needed
+    // Use LayoutBuilder to handle overflow on small screens
+    final heatmapWidget = LayoutBuilder(
+      builder: (context, constraints) {
+        // If shouldScroll is true, always make it scrollable
+        if (widget.shouldScroll) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: heatmap,
+          );
+        }
+
+        // If calendar is wider than available space, make it scrollable
+        if (calendarWidth > constraints.maxWidth) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: heatmap,
+          );
+        }
+
+        // Fits on screen - use ConstrainedBox to ensure it respects max width
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: constraints.maxWidth,
+          ),
+          child: heatmap,
+        );
+      },
+    );
+
+    // Build legend if enabled
+    if (widget.showLegend) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          heatmapWidget,
           Padding(
             padding: const EdgeInsets.only(top: 8.0),
-            child: _buildLegend(context, defaultColors, colorScheme),
-          ),
-      ],
-    );
-  }
-
-  /// Build year labels row (shown above month labels for multi-year calendars)
-  Widget _buildYearLabels(
-    BuildContext context,
-    List<List<ContributionDay>> weeks,
-  ) {
-    final theme = Theme.of(context);
-    final textStyle = theme.textTheme.labelSmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-      fontSize: 9,
-      fontWeight: FontWeight.w500,
-    );
-
-    // Calculate year positions based on actual week positions
-    final weekWidth = cellSize + cellSpacing;
-    final yearPositions = <int, double>{};
-    int? lastYear;
-
-    // Track which year each week belongs to
-    for (int weekIndex = 0; weekIndex < weeks.length; weekIndex++) {
-      final week = weeks[weekIndex];
-      if (week.isEmpty) continue;
-
-      // Get the first day of the week to determine the year
-      final firstDay = week.first.date;
-      final year = firstDay.year;
-
-      // Only show year label when year changes
-      if (lastYear == null || year != lastYear) {
-        final weekX = weekIndex * weekWidth;
-        // Only set position if we haven't set it yet for this year
-        if (!yearPositions.containsKey(year)) {
-          yearPositions[year] = weekX;
-        }
-        lastYear = year;
-      }
-    }
-
-    // Build positioned year labels
-    return Stack(
-      children: yearPositions.entries.map((entry) {
-        final year = entry.key;
-        final x = entry.value;
-
-        return Positioned(
-          left: x,
-          child: Text(
-            year.toString(),
-            style: textStyle,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildMonthLabels(
-    BuildContext context,
-    List<DateTime> months,
-    List<List<ContributionDay>> weeks,
-  ) {
-    final theme = Theme.of(context);
-    final textStyle = theme.textTheme.labelSmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-      fontSize: 10,
-    );
-
-    // Calculate month positions based on actual week positions
-    // Each week takes (cellSize + cellSpacing) width
-    final weekWidth = cellSize + cellSpacing;
-    final monthPositions = <DateTime, double>{};
-
-    // Track which month each week belongs to
-    for (int weekIndex = 0; weekIndex < weeks.length; weekIndex++) {
-      final week = weeks[weekIndex];
-      if (week.isEmpty) continue;
-
-      // Get the first day of the week to determine the month
-      final firstDay = week.first.date;
-      final month = DateTime(firstDay.year, firstDay.month, 1);
-
-      // Calculate the x position of this week
-      final weekX = weekIndex * weekWidth;
-
-      // Only set position if this is the first week of the month or if we haven't set it yet
-      if (!monthPositions.containsKey(month) ||
-          weekX < monthPositions[month]!) {
-        monthPositions[month] = weekX;
-      }
-    }
-
-    // Build positioned month labels
-    return Stack(
-      children: monthPositions.entries.map((entry) {
-        final month = entry.key;
-        final x = entry.value;
-
-        return Positioned(
-          left: x,
-          child: Text(
-            DateFormat('MMM').format(month),
-            style: textStyle,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  /// Build month labels for non-scrollable calendar (uses simple Row layout)
-  Widget _buildMonthLabelsSimple(
-    BuildContext context,
-    List<DateTime> months,
-  ) {
-    final theme = Theme.of(context);
-    final textStyle = theme.textTheme.labelSmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-      fontSize: 10,
-    );
-
-    // Simple Row layout for single-year calendars
-    return Row(
-      children: months.map((month) {
-        return Expanded(
-          child: Text(
-            DateFormat('MMM').format(month),
-            style: textStyle,
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildDayLabels(BuildContext context) {
-    final theme = Theme.of(context);
-    final textStyle = theme.textTheme.labelSmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-      fontSize: 10,
-    );
-
-    final dayNames = ['Mon', 'Wed', 'Fri'];
-
-    return Column(
-      children: List.generate(7, (index) {
-        if (index % 2 == 0 && index < dayNames.length) {
-          return SizedBox(
-            height: cellSize + cellSpacing,
-            child: Center(
-              child: Text(
-                dayNames[index ~/ 2],
-                style: textStyle,
-              ),
-            ),
-          );
-        }
-        return SizedBox(height: cellSize + cellSpacing);
-      }),
-    );
-  }
-
-  Widget _buildCalendarGrid(
-    BuildContext context,
-    List<Color> colors,
-    ColorScheme colorScheme,
-  ) {
-    return Wrap(
-      spacing: cellSpacing,
-      runSpacing: cellSpacing,
-      children: weeks.expand((week) {
-        return week.map((day) {
-          return _buildDayCell(context, day, colors, colorScheme);
-        });
-      }).toList(),
-    );
-  }
-
-  Widget _buildDayCell(
-    BuildContext context,
-    ContributionDay day,
-    List<Color> colors,
-    ColorScheme colorScheme,
-  ) {
-    // Determine color based on count
-    final color = day.color ?? _getColorForCount(day.count, colors);
-
-    return Tooltip(
-      message: _getTooltipMessage(day),
-      waitDuration: const Duration(milliseconds: 500),
-      child: _AnimatedDayCell(
-        day: day,
-        color: color,
-        cellSize: cellSize,
-        onTap: onDayTap != null ? () => onDayTap!(day) : null,
-        onLongPress: onDayLongPress != null ? () => onDayLongPress!(day) : null,
-      ),
-    );
-  }
-
-  Widget _buildLegend(
-    BuildContext context,
-    List<Color> colors,
-    ColorScheme colorScheme,
-  ) {
-    final theme = Theme.of(context);
-    final textStyle = theme.textTheme.labelSmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-      fontSize: 10,
-    );
-
-    final legendColorsToShow = legendColors ?? colors;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (legendLabels.isNotEmpty)
-          Text(
-            legendLabels.first,
-            style: textStyle,
-          ),
-        const SizedBox(width: 4),
-        ...legendColorsToShow.map((color) {
-          return Container(
-            width: cellSize,
-            height: cellSize,
-            margin: const EdgeInsets.symmetric(horizontal: 1),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          );
-        }),
-        if (legendLabels.length > 1) ...[
-          const SizedBox(width: 4),
-          Text(
-            legendLabels.last,
-            style: textStyle,
+            child: _buildLegend(context),
           ),
         ],
-      ],
-    );
-  }
-
-  Color _getColorForCount(int count, List<Color> colors) {
-    if (count == 0) return colors[0];
-    if (count == 1) return colors[1];
-    if (count <= 3) return colors[2];
-    if (count <= 6) return colors[3];
-    return colors[4];
-  }
-
-  String _getTooltipMessage(ContributionDay day) {
-    final dateStr = DateFormat('MMM d, yyyy').format(day.date);
-    if (day.count == 0) {
-      return 'No contributions on $dateStr';
-    } else if (day.count == 1) {
-      return '1 contribution on $dateStr';
-    } else {
-      return '${day.count} contributions on $dateStr';
+      );
     }
+
+    return heatmapWidget;
   }
 
-  List<DateTime> _extractMonths(List<List<ContributionDay>> weeks) {
-    final months = <DateTime>{};
-    for (final week in weeks) {
-      for (final day in week) {
-        final month = DateTime(day.date.year, day.date.month, 1);
-        months.add(month);
-      }
-    }
-    return months.toList()..sort();
-  }
-}
+  // Cached legend widget - only rebuilds when cellSize or legendLabels change
+  Widget? _cachedLegend;
+  double? _cachedLegendCellSize;
+  List<String>? _cachedLegendLabels;
 
-/// Animated day cell with scale and color transitions
-class _AnimatedDayCell extends StatefulWidget {
-  const _AnimatedDayCell({
-    required this.day,
-    required this.color,
-    required this.cellSize,
-    this.onTap,
-    this.onLongPress,
-  });
+  /// Build the legend showing color gradient with "Less" and "More" labels
+  Widget _buildLegend(BuildContext context) {
+    // Cache legend widget - only rebuild when cellSize or legendLabels change
+    if (_cachedLegend == null ||
+        _cachedLegendCellSize != widget.cellSize ||
+        _cachedLegendLabels != widget.legendLabels) {
+      final theme = Theme.of(context);
+      final textStyle = theme.textTheme.labelSmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+        fontSize: 10,
+      );
 
-  final ContributionDay day;
-  final Color color;
-  final double cellSize;
-  final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
+      // Get the green color palette (matching HeatmapColor.green)
+      // Using a subset of colors for the legend (0%, 25%, 50%, 75%, 100%)
+      final legendColors = [
+        const Color(0xFFE8F5E8), // 0% - no contributions
+        const Color(0xFFB0D1B1), // ~30% - low
+        const Color(0xFF78AD7B), // ~60% - medium
+        const Color(0xFF539556), // ~80% - high
+        const Color(0xFF2E7D32), // 100% - very high
+      ];
 
-  @override
-  State<_AnimatedDayCell> createState() => _AnimatedDayCellState();
-}
-
-class _AnimatedDayCellState extends State<_AnimatedDayCell>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  bool _isHovered = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.15,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _handleTapDown(TapDownDetails details) {
-    _controller.forward();
-  }
-
-  void _handleTapUp(TapUpDetails details) {
-    _controller.reverse();
-    widget.onTap?.call();
-  }
-
-  void _handleTapCancel() {
-    _controller.reverse();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: _handleTapDown,
-      onTapUp: _handleTapUp,
-      onTapCancel: _handleTapCancel,
-      onLongPress: widget.onLongPress,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
+      // Pre-build color containers list
+      final colorContainers = legendColors.map((color) {
+        return Container(
           width: widget.cellSize,
           height: widget.cellSize,
+          margin: const EdgeInsets.symmetric(horizontal: 1),
           decoration: BoxDecoration(
-            color: widget.color,
+            color: color,
             borderRadius: BorderRadius.circular(2),
-            boxShadow: _isHovered
-                ? [
-                    BoxShadow(
-                      color: widget.color.withOpacity(0.5),
-                      blurRadius: 4,
-                      spreadRadius: 1,
-                    ),
-                  ]
-                : null,
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(2),
-              onTap: widget.onTap,
-              onLongPress: widget.onLongPress,
-              onHover: (hovering) {
-                setState(() {
-                  _isHovered = hovering;
-                });
-              },
-              child: Container(),
+        );
+      }).toList();
+
+      _cachedLegend = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (widget.legendLabels.isNotEmpty)
+            Text(
+              widget.legendLabels.first,
+              style: textStyle,
             ),
-          ),
-        ),
-      ),
-    );
+          const SizedBox(width: 4),
+          ...colorContainers,
+          if (widget.legendLabels.length > 1) ...[
+            const SizedBox(width: 4),
+            Text(
+              widget.legendLabels.last,
+              style: textStyle,
+            ),
+          ],
+        ],
+      );
+      _cachedLegendCellSize = widget.cellSize;
+      _cachedLegendLabels = widget.legendLabels;
+    }
+
+    return _cachedLegend!;
   }
 }
