@@ -108,7 +108,7 @@ class ActivityTimelineSection extends ConsumerWidget {
     final events = timelineData.events;
 
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
           (context, index) {
@@ -116,9 +116,28 @@ class ActivityTimelineSection extends ConsumerWidget {
             final event = eventWithFlags.event;
             final isLast = index == events.length - 1;
 
+            // Handle empty months
+            if (eventWithFlags.isEmpty) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildMonthHeader(
+                    context,
+                    eventWithFlags.monthHeader!.year,
+                    eventWithFlags.monthHeader!.month,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildNoActivityPlaceholder(context),
+                  if (!isLast) const SizedBox(height: 20),
+                ],
+              );
+            }
+
             // Check if we need spacing after this event (between months)
-            final needsSpacing =
-                !isLast && _needsSpacingAfter(event, events[index + 1].event);
+            final needsSpacing = !isLast &&
+                event != null &&
+                events[index + 1].event != null &&
+                _needsSpacingAfter(event, events[index + 1].event!);
 
             Widget item;
 
@@ -132,9 +151,9 @@ class ActivityTimelineSection extends ConsumerWidget {
                     eventWithFlags.monthHeader!.year,
                     eventWithFlags.monthHeader!.month,
                   ),
-                  // const SizedBox(height: 4),
+                  const SizedBox(height: 12),
                   ActivityTimelineItem(
-                    event: event,
+                    event: event!,
                     userLogin: userName,
                     userAvatarUrl: null, // TODO: Get from userData if available
                     isFirst: eventWithFlags.isFirst,
@@ -149,7 +168,7 @@ class ActivityTimelineSection extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ActivityTimelineItem(
-                    event: event,
+                    event: event!,
                     userLogin: userName,
                     userAvatarUrl: null, // TODO: Get from userData if available
                     isFirst: eventWithFlags.isFirst,
@@ -180,6 +199,21 @@ class ActivityTimelineSection extends ConsumerWidget {
     // Need spacing if we're moving to a different month/year
     return current.date.year != next.date.year ||
         current.date.month != next.date.month;
+  }
+
+  /// Build placeholder widget for months with no activity
+  Widget _buildNoActivityPlaceholder(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(left: 40), // Align with timeline items
+      child: Text(
+        'No activity',
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+          fontStyle: FontStyle.italic,
+        ),
+      ),
+    );
   }
 
   Widget _buildMonthHeader(BuildContext context, int year, int month) {

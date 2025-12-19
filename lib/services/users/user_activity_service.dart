@@ -584,7 +584,11 @@ class UserActivityService {
           ? chunkEventLists.first
           : _mergeSortedChunks(chunkEventLists);
 
-      final timelineData = UserActivityTimelineData(events: allEvents);
+      final timelineData = UserActivityTimelineData(
+        events: allEvents,
+        from: from,
+        to: to,
+      );
       yield ActivityTimelineSuccess(timelineData);
     } catch (e, stackTrace) {
       yield ActivityTimelineError(
@@ -678,7 +682,11 @@ class UserActivityService {
           : _mergeSortedChunks(chunkEventLists);
 
       // Create data structure - flags will be set per month in _groupByMonth
-      return UserActivityTimelineData(events: allEvents);
+      return UserActivityTimelineData(
+        events: allEvents,
+        from: from,
+        to: to,
+      );
     } catch (e) {
       // Re-throw with context if it's already our formatted exception
       if (e is Exception && e.toString().contains('Phase')) {
@@ -885,6 +893,10 @@ class UserActivityService {
     final events = ActivityTimelineConverter.convertToEvents(fullData);
 
     // Create data structure - flags will be set per month in _groupByMonth
-    return UserActivityTimelineData(events: events);
+    return UserActivityTimelineData(
+      events: events,
+      from: from,
+      to: to,
+    );
   }
 }

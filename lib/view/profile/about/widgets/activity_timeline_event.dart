@@ -280,7 +280,7 @@ class UserActivityTimelineData {
 
     // Generate all months in the date range (newest first)
     final allMonths = _generateMonthsInRange(from, to);
-    
+
     // Extract months that have events
     final monthsWithEvents = _extractMonthsFromGrouped(grouped);
 

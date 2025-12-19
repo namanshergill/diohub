@@ -17,11 +17,9 @@ class ContributionCalendarSection extends StatelessWidget {
     this.onDayTap,
     this.selectedYear,
     this.availableYears,
-    this.onYearChanged,
     this.customFromDate,
     this.customToDate,
     this.useCustomRange = false,
-    this.onCustomRangeChanged,
     this.createdAt,
     super.key,
   });

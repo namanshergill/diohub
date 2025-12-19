@@ -13,17 +13,19 @@ import 'package:diohub/common/wrappers/provider_loading_progress_wrapper.dart';
 import 'package:diohub/common/animations/size_expanded_widget.dart';
 import 'package:diohub/common/wrappers/dynamic_tabs_parent.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_info.data.gql.dart';
+import 'package:diohub/models/contributions/contribution_query_models.dart';
 import 'package:diohub/providers/base_provider.dart';
+import 'package:diohub/providers/users/user_contributions_provider.dart';
 import 'package:diohub/providers/users/user_provider.dart';
 import 'package:diohub/utils/get_date.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:diohub/view/profile/about/user_about_screen.dart';
-import 'package:diohub/view/profile/about/widgets/date_range_selector_widget.dart';
 import 'package:diohub/view/profile/repositories/user_repositories.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dynamic_tabs/flutter_dynamic_tabs.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as provider;
 
 @RoutePage()
 class UserProfileScreen extends StatefulWidget {
@@ -52,13 +54,15 @@ class UserProfileScreenState extends State<UserProfileScreen>
 
   /// Gets the display label for the current date range selection
   String _getDateRangeLabel() {
-    if (_useCustomRange) {
-      final isSinceJoining = _customFromDate != null &&
-          data?.createdAt != null &&
-          _customFromDate!.year == data!.createdAt!.year &&
-          _customFromDate!.month == data!.createdAt!.month &&
-          _customFromDate!.day == data!.createdAt!.day;
-      return isSinceJoining ? 'Since joining' : 'Custom';
+    if (_useCustomRange && _customFromDate != null) {
+      final createdAt = data?.createdAt;
+      if (createdAt != null) {
+        final isSinceJoining = _customFromDate!.year == createdAt.year &&
+            _customFromDate!.month == createdAt.month &&
+            _customFromDate!.day == createdAt.day;
+        return isSinceJoining ? 'Since joining' : 'Custom';
+      }
+      return 'Custom';
     }
     return _selectedYear?.toString() ?? 'Last Year';
   }
@@ -93,41 +97,44 @@ class UserProfileScreenState extends State<UserProfileScreen>
     });
   }
 
+  /// Builds a provider key for contributions (same logic as UserAboutScreen)
+  ContributionQueryKey _getContributionProviderKey(String userName) {
+    if (_useCustomRange && _customFromDate != null && _customToDate != null) {
+      final from = DateTime(
+          _customFromDate!.year, _customFromDate!.month, _customFromDate!.day);
+      final to = DateTime(
+          _customToDate!.year, _customToDate!.month, _customToDate!.day);
+      return ContributionQueryKey.customRange(
+        userName: userName,
+        from: from,
+        to: to,
+      );
+    }
+
+    if (_selectedYear == null) {
+      return ContributionQueryKey.lastYear(userName);
+    } else {
+      return ContributionQueryKey.year(userName, _selectedYear!);
+    }
+  }
+
   /// Builds the expanded content for the date range selector
   Widget _buildDateRangeExpandedContent(
     BuildContext context,
     GuserInfoData_user userData,
     VoidCallback onCollapse,
   ) {
-    // Get available years from contributions provider if available
-    // For now, we'll use a placeholder - this will be updated when we have access to the provider
-    final availableYears = <int>[]; // Will be populated from contribution data
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Time Range',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 12),
-          DateRangeSelectorWidget(
-            selectedYear: _selectedYear,
-            availableYears: availableYears,
-            customFromDate: _customFromDate,
-            customToDate: _customToDate,
-            useCustomRange: _useCustomRange,
-            createdAt: userData.createdAt,
-            onYearChanged: _onYearChanged,
-            onCustomRangeChanged: _onCustomRangeChanged,
-          ),
-        ],
-      ),
+    // Use a ConsumerWidget wrapper to watch the contributions provider for available years
+    return _DateRangeExpandedContent(
+      userName: userData.login,
+      selectedYear: _selectedYear,
+      customFromDate: _customFromDate,
+      customToDate: _customToDate,
+      useCustomRange: _useCustomRange,
+      createdAt: userData.createdAt,
+      onYearChanged: _onYearChanged,
+      onCustomRangeChanged: _onCustomRangeChanged,
+      getProviderKey: _getContributionProviderKey,
     );
   }
 
@@ -603,7 +610,8 @@ class UserProfileScreenState extends State<UserProfileScreen>
       if (currentTab == 'Activity')
         ExpandableActionButton(
           icon: Icons.date_range,
-          label: _getDateRangeLabel(),
+          label: 'Time Range',
+          subtitle: _getDateRangeLabel(),
           category: 'Primary',
           visibilityState: ActionButtonVisibilityState.both,
           expandableWidgetBuilder: (onCollapse) {
@@ -643,7 +651,8 @@ class UserProfileScreenState extends State<UserProfileScreen>
         icon: Octicons.star,
         label: 'Stars',
         category: 'Primary',
-        iconColor: const Color(0xFFFFC107), // Amber/Yellow for stars
+        iconColor:
+            const Color(0xFFFFC107).withOpacity(0.65), // Amber/Yellow for stars
         trailing: buildActionButtonTrailingCount(
           context,
           userData.starredRepositories.totalCount,
@@ -785,11 +794,12 @@ class UserProfileScreenState extends State<UserProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<UserProvider>(
+    return provider.ChangeNotifierProvider<UserProvider>(
       create: (_) => UserProvider(widget.login),
       builder: (context, _) => SafeArea(
         child: Scaffold(
-          appBar: Provider.of<UserProvider>(context).status != Status.loaded
+          appBar: provider.Provider.of<UserProvider>(context).status !=
+                  Status.loaded
               ? AppBar(elevation: 0)
               : null,
           body: ScaffoldBody(
@@ -797,7 +807,7 @@ class UserProfileScreenState extends State<UserProfileScreen>
               childBuilder: (context, value) {
                 data = value.data;
 
-                return                 _UserProfileTabsContent(
+                return _UserProfileTabsContent(
                   userData: value.data,
                   parentState: this,
                   expandAnimationController: _expandAnimationController,
@@ -814,6 +824,233 @@ class UserProfileScreenState extends State<UserProfileScreen>
                 );
               },
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ConsumerWidget wrapper for date range expanded content
+/// This allows us to watch the contributions provider for available years
+class _DateRangeExpandedContent extends ConsumerWidget {
+  const _DateRangeExpandedContent({
+    required this.userName,
+    required this.selectedYear,
+    required this.customFromDate,
+    required this.customToDate,
+    required this.useCustomRange,
+    required this.createdAt,
+    required this.onYearChanged,
+    required this.onCustomRangeChanged,
+    required this.getProviderKey,
+  });
+
+  final String userName;
+  final int? selectedYear;
+  final DateTime? customFromDate;
+  final DateTime? customToDate;
+  final bool useCustomRange;
+  final DateTime? createdAt;
+  final void Function(int) onYearChanged;
+  final void Function(DateTime?, DateTime?) onCustomRangeChanged;
+  final ContributionQueryKey Function(String) getProviderKey;
+
+  /// Checks if the current custom range matches "Since joining GitHub"
+  bool _isSinceJoining(DateTime? customFrom, DateTime? created) {
+    if (!useCustomRange || customFrom == null || created == null) {
+      return false;
+    }
+    return customFrom.year == created.year &&
+        customFrom.month == created.month &&
+        customFrom.day == created.day;
+  }
+
+  Future<void> _showCustomDateRangePicker(
+    BuildContext context,
+    DateTime? earliestDate,
+  ) async {
+    final now = DateTime.now();
+    final initialFrom =
+        customFromDate ?? now.subtract(const Duration(days: 365));
+    final initialTo = customToDate ?? now;
+
+    // Use createdAt as earliest date, or default to year 2000 if not available
+    final earliest = earliestDate ?? DateTime(2000);
+
+    final pickedFrom = await showDatePicker(
+      context: context,
+      initialDate: initialFrom,
+      firstDate: earliest,
+      lastDate: now,
+      helpText: 'Select start date',
+    );
+
+    if (pickedFrom == null) return;
+
+    final pickedTo = await showDatePicker(
+      context: context,
+      initialDate: pickedFrom.isAfter(initialTo) ? pickedFrom : initialTo,
+      firstDate: pickedFrom,
+      lastDate: now,
+      helpText: 'Select end date',
+    );
+
+    if (pickedTo != null) {
+      onCustomRangeChanged(pickedFrom, pickedTo);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final providerKey = getProviderKey(userName);
+    final contributionsAsync = ref.watch(
+      userContributionsProvider(providerKey),
+    );
+
+    // Get available years from the provider, or empty list if loading/error
+    final availableYears = contributionsAsync.when(
+      data: (viewModel) => viewModel.contributionYears,
+      loading: () => <int>[],
+      error: (_, __) => <int>[],
+    );
+
+    // Determine which option is currently selected
+    final isLastYearSelected = !useCustomRange && selectedYear == null;
+    final isSinceJoiningSelected =
+        useCustomRange && _isSinceJoining(customFromDate, createdAt);
+    final isCustomSelected = useCustomRange && !isSinceJoiningSelected;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      constraints: const BoxConstraints(maxWidth: 300),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Last Year option
+          _buildOptionTile(
+            context: context,
+            theme: theme,
+            colorScheme: colorScheme,
+            icon: Icons.calendar_today,
+            title: 'Last Year',
+            isSelected: isLastYearSelected,
+            onTap: () {
+              onCustomRangeChanged(null, null);
+            },
+          ),
+          // Year options
+          if (availableYears.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...availableYears.map((year) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: _buildOptionTile(
+                    context: context,
+                    theme: theme,
+                    colorScheme: colorScheme,
+                    icon: Icons.calendar_month,
+                    title: year.toString(),
+                    isSelected: !useCustomRange && selectedYear == year,
+                    onTap: () {
+                      onYearChanged(year);
+                    },
+                  ),
+                )),
+          ],
+          // Since joining GitHub option
+          if (createdAt != null) ...[
+            const SizedBox(height: 8),
+            _buildOptionTile(
+              context: context,
+              theme: theme,
+              colorScheme: colorScheme,
+              icon: Icons.cake,
+              title: 'Since joining GitHub',
+              isSelected: isSinceJoiningSelected,
+              onTap: () {
+                final now = DateTime.now();
+                onCustomRangeChanged(createdAt, now);
+              },
+            ),
+          ],
+          // Custom Range option
+          const SizedBox(height: 8),
+          _buildOptionTile(
+            context: context,
+            theme: theme,
+            colorScheme: colorScheme,
+            icon: Icons.date_range,
+            title: 'Custom Range',
+            isSelected: isCustomSelected,
+            onTap: () {
+              _showCustomDateRangePicker(context, createdAt);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOptionTile({
+    required BuildContext context,
+    required ThemeData theme,
+    required ColorScheme colorScheme,
+    required IconData icon,
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primaryContainer.withOpacity(0.3)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: isSelected
+                ? Border.all(
+                    color: colorScheme.primary.withOpacity(0.5),
+                    width: 1,
+                  )
+                : null,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isSelected
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.onSurface,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ),
+              if (isSelected)
+                Icon(
+                  Icons.check_circle,
+                  size: 20,
+                  color: colorScheme.primary,
+                ),
+            ],
           ),
         ),
       ),
