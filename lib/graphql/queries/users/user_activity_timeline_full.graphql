@@ -1,17 +1,45 @@
 # import './user_info.graphql'
+# import '../issues_pulls/issue_pull_info.graphql'
 
 # Combined Phase 2 query: Fetch all event types in a single query
 # Uses cursors and counts from Phase 1 to fetch exactly what we need
+# Includes commits via contributionsCollection (already date-filtered)
+# Uses shared fragments (issueInfo, pullInfo, repositoryFields) for type compatibility with card adapters
 query userActivityTimelineFull(
   $user: String!
+  $from: DateTime!
+  $to: DateTime!
   $firstRepos: Int
   $afterRepos: String
   $firstPRs: Int
   $afterPRs: String
   $firstIssues: Int
   $afterIssues: String
+  $firstContributions: Int = 100
+  $afterContributions: String
 ) {
   user(login: $user) {
+    __typename
+    id
+    contributionsCollection(from: $from, to: $to) {
+      commitContributionsByRepository(maxRepositories: 50) {
+        repository {
+          __typename
+          id
+          ...repositoryFields
+        }
+        contributions(first: $firstContributions, after: $afterContributions) {
+          nodes {
+            occurredAt
+            commitCount
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    }
     repositories(
       first: $firstRepos
       after: $afterRepos
@@ -31,10 +59,7 @@ query userActivityTimelineFull(
             name
             color
           }
-          owner {
-            login
-            avatarUrl
-          }
+          ...repositoryFields
         }
       }
       pageInfo {
@@ -51,20 +76,9 @@ query userActivityTimelineFull(
       edges {
         cursor
         node {
-          id
-          number
-          title
-          url
-          state
-          merged
-          mergedAt
-          createdAt
-          updatedAt
+          ...pullInfo
+          # Ensure repository has url field (repoInfo fragment doesn't include it)
           repository {
-            name
-            owner {
-              login
-            }
             url
           }
         }
@@ -83,21 +97,9 @@ query userActivityTimelineFull(
       edges {
         cursor
         node {
-          id
-          number
-          title
-          url
-          state
-          createdAt
-          updatedAt
-          comments {
-            totalCount
-          }
+          ...issueInfo
+          # Ensure repository has url field (repoInfo fragment doesn't include it)
           repository {
-            name
-            owner {
-              login
-            }
             url
           }
         }

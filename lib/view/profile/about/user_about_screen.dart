@@ -1,14 +1,12 @@
-import 'package:diohub/common/charts/contribution_calendar_widget.dart';
 import 'package:diohub/common/misc/nested_card_with_header.dart';
 import 'package:diohub/common/misc/repository_card.dart';
-import 'package:diohub/common/utils/contribution_utils.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_info.data.gql.dart';
-import 'package:diohub/graphql/queries/users/__generated__/user_contributions.data.gql.dart';
+import 'package:diohub/models/contributions/contribution_query_models.dart';
 import 'package:diohub/models/repositories/repo_card_data_model.dart';
 import 'package:diohub/providers/users/user_contributions_provider.dart';
 import 'package:diohub/view/profile/about/widgets/activity_overview_section.dart';
+import 'package:diohub/view/profile/about/widgets/activity_timeline_section.dart';
 import 'package:diohub/view/profile/about/widgets/contribution_calendar_section.dart';
-import 'package:diohub/view/profile/about/widgets/contribution_data_converter.dart';
 import 'package:diohub/view/profile/about/widgets/contribution_statistics_section.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -64,28 +62,29 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
     });
   };
 
-  /// Builds a stable provider key based on selected year or custom date range
+  /// Builds a typed provider key based on selected year or custom date range
   /// Only recalculates when date range changes, not on every build
-  String _getProviderKey() {
+  ContributionQueryKey _getProviderKey() {
     if (_useCustomRange && _customFromDate != null && _customToDate != null) {
       // Normalize dates to day level for stable keys
       final from = DateTime(
           _customFromDate!.year, _customFromDate!.month, _customFromDate!.day);
       final to = DateTime(
           _customToDate!.year, _customToDate!.month, _customToDate!.day);
-      // Use date-only format (YYYY-MM-DD) to avoid colons in ISO string breaking key parsing
-      final fromStr = formatDateOnly(from);
-      final toStr = formatDateOnly(to);
-      return '${widget.userData.login}:custom:$fromStr:$toStr';
+      return ContributionQueryKey.customRange(
+        userName: widget.userData.login,
+        from: from,
+        to: to,
+      );
     }
 
     final selectedYear = _selectedYear;
     if (selectedYear == null) {
-      // Use "lastYear" for default (current year)
-      return '${widget.userData.login}:lastYear';
+      // Default: last year from today
+      return ContributionQueryKey.lastYear(widget.userData.login);
     } else {
-      // Use specific year range
-      return '${widget.userData.login}:$selectedYear:$selectedYear';
+      // Specific year
+      return ContributionQueryKey.year(widget.userData.login, selectedYear);
     }
   }
 
@@ -95,8 +94,8 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
     final pinnedItems = widget.userData.pinnedItems.edges?.toList() ??
         <GuserInfoData_user_pinnedItems_edges?>[];
 
-    // Fetch contributions data using Riverpod with stable string key
-    // Key only changes when year changes, preventing unnecessary rebuilds
+    // Fetch contributions data using Riverpod with typed key
+    // Key only changes when date range changes, preventing unnecessary rebuilds
     final providerKey = _getProviderKey();
 
     final contributionsAsync = ref.watch(
@@ -104,157 +103,73 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
     );
 
     // Build contribution widgets based on async state
+    // Always receive unified ContributionViewModel - no runtime type checking needed
     final contributionWidgets = contributionsAsync.when(
-      data: (contributionsData) {
-        // Handle both single-year (GuserContributionsData_user) and multi-year (CombinedContributionsData)
-        if (contributionsData is CombinedContributionsData) {
-          // Multi-year combined data - use directly, no need for extraction
-          final combined = contributionsData;
-
-          return <Widget>[
-            // Animated calendar section with fade-in
-            _DelayedFadeAnimation(
-              delay: const Duration(milliseconds: 0),
-              duration: const Duration(milliseconds: 400),
-              child: ContributionCalendarSection(
-                weeks: combined.weeks,
-                totalContributions: combined.totalContributions,
-                colors: combined.colors,
-                availableYears: combined.contributionYears,
-                selectedYear: _selectedYear,
-                customFromDate: _customFromDate,
-                customToDate: _customToDate,
-                useCustomRange: _useCustomRange,
-                createdAt: widget.userData.createdAt,
-                onYearChanged: _onYearChanged,
-                onCustomRangeChanged: _onCustomRangeChanged,
-              ),
+      data: (viewModel) {
+        return <Widget>[
+          // Animated calendar section with fade-in
+          _DelayedFadeAnimation(
+            delay: const Duration(milliseconds: 0),
+            duration: const Duration(milliseconds: 400),
+            child: ContributionCalendarSection(
+              weeks: viewModel.weeks,
+              totalContributions: viewModel.totalContributions,
+              colors: viewModel.colors,
+              availableYears: viewModel.contributionYears,
+              selectedYear: _selectedYear,
+              customFromDate: _customFromDate,
+              customToDate: _customToDate,
+              useCustomRange: _useCustomRange,
+              createdAt: widget.userData.createdAt,
+              onYearChanged: _onYearChanged,
+              onCustomRangeChanged: _onCustomRangeChanged,
             ),
-            const SizedBox(height: 8),
-            // Animated statistics section with staggered delay
-            _DelayedFadeAnimation(
-              delay: const Duration(milliseconds: 100),
-              duration: const Duration(milliseconds: 400),
-              child: ContributionStatisticsSection(
-                commits: combined.totalCommitContributions,
-                pullRequests: combined.totalPullRequestContributions,
-                issues: combined.totalIssueContributions,
-                reviews: combined.totalPullRequestReviewContributions,
-              ),
+          ),
+          const SizedBox(height: 8),
+          // Animated statistics section with staggered delay
+          _DelayedFadeAnimation(
+            delay: const Duration(milliseconds: 100),
+            duration: const Duration(milliseconds: 400),
+            child: ContributionStatisticsSection(
+              commits: viewModel.totalCommitContributions,
+              pullRequests: viewModel.totalPullRequestContributions,
+              issues: viewModel.totalIssueContributions,
+              reviews: viewModel.totalPullRequestReviewContributions,
             ),
-            const SizedBox(height: 8),
-            // Animated activity overview with more delay
-            _DelayedFadeAnimation(
-              delay: const Duration(milliseconds: 200),
-              duration: const Duration(milliseconds: 400),
-              child: ActivityOverviewSection(
-                repositories: combined.commitContributionsByRepository,
-                commits: combined.totalCommitContributions,
-                issues: combined.totalIssueContributions,
-                pullRequests: combined.totalPullRequestContributions,
-                reviews: combined.totalPullRequestReviewContributions,
-                onRepositoryTap: (repo) async {
-                  final uri = Uri.parse(repo.url);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  }
-                },
-              ),
+          ),
+          const SizedBox(height: 8),
+          // Animated activity overview with more delay
+          _DelayedFadeAnimation(
+            delay: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 400),
+            child: ActivityOverviewSection(
+              repositories: viewModel.commitContributionsByRepository,
+              commits: viewModel.totalCommitContributions,
+              issues: viewModel.totalIssueContributions,
+              pullRequests: viewModel.totalPullRequestContributions,
+              reviews: viewModel.totalPullRequestReviewContributions,
+              onRepositoryTap: (repo) async {
+                final uri = Uri.parse(repo.url);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
             ),
-          ];
-        } else if (contributionsData is GuserContributionsData_user) {
-          // Single-year data
-          final contributionsCollection =
-              contributionsData.contributionsCollection;
-
-          // Memoize expensive conversions using providers to prevent recalculation on every rebuild
-          final weeks = ref.watch(_weeksMemoProvider(contributionsCollection));
-          final colors =
-              ref.watch(_colorsMemoProvider(contributionsCollection));
-          final totalContributions =
-              contributionsCollection.contributionCalendar.totalContributions;
-          final availableYears =
-              contributionsCollection.contributionYears.toList();
-          final repositories =
-              ref.watch(_repositoriesMemoProvider(contributionsCollection));
-
-          return <Widget>[
-            // Animated calendar section with fade-in
-            _DelayedFadeAnimation(
-              delay: const Duration(milliseconds: 0),
-              duration: const Duration(milliseconds: 400),
-              child: ContributionCalendarSection(
-                weeks: weeks,
-                totalContributions: totalContributions,
-                colors: colors,
-                availableYears: availableYears,
-                selectedYear: _selectedYear,
-                customFromDate: _customFromDate,
-                customToDate: _customToDate,
-                useCustomRange: _useCustomRange,
-                createdAt: widget.userData.createdAt,
-                onYearChanged: _onYearChanged,
-                onCustomRangeChanged: _onCustomRangeChanged,
-              ),
+          ),
+          const SizedBox(height: 8),
+          // Animated activity timeline with delay
+          _DelayedFadeAnimation(
+            delay: const Duration(milliseconds: 300),
+            duration: const Duration(milliseconds: 400),
+            child: ActivityTimelineSection(
+              userName: widget.userData.login,
+              selectedYear: _selectedYear,
+              customFromDate: _customFromDate,
+              customToDate: _customToDate,
+              useCustomRange: _useCustomRange,
             ),
-            const SizedBox(height: 8),
-            // Animated statistics section with staggered delay
-            _DelayedFadeAnimation(
-              delay: const Duration(milliseconds: 100),
-              duration: const Duration(milliseconds: 400),
-              child: ContributionStatisticsSection(
-                commits: contributionsCollection.totalCommitContributions,
-                pullRequests:
-                    contributionsCollection.totalPullRequestContributions,
-                issues: contributionsCollection.totalIssueContributions,
-                reviews:
-                    contributionsCollection.totalPullRequestReviewContributions,
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Animated activity overview with more delay
-            _DelayedFadeAnimation(
-              delay: const Duration(milliseconds: 200),
-              duration: const Duration(milliseconds: 400),
-              child: ActivityOverviewSection(
-                repositories: repositories,
-                commits: contributionsCollection.totalCommitContributions,
-                issues: contributionsCollection.totalIssueContributions,
-                pullRequests:
-                    contributionsCollection.totalPullRequestContributions,
-                reviews:
-                    contributionsCollection.totalPullRequestReviewContributions,
-                onRepositoryTap: (repo) async {
-                  final uri = Uri.parse(repo.url);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  }
-                },
-              ),
-            ),
-          ];
-        } else {
-          // Unknown type - should not happen
-          return <Widget>[
-            NestedCardWithHeader(
-              header: Text(
-                'Contribution Graph',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'Unexpected data type',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                ),
-              ),
-            ),
-          ];
-        }
+          ),
+        ];
       },
       loading: () => [
         ContributionCalendarSectionLoading(),
@@ -420,26 +335,3 @@ class _DelayedFadeAnimationState extends State<_DelayedFadeAnimation>
     );
   }
 }
-
-// Memoization providers for expensive data conversions
-// These prevent recalculation on every rebuild by caching results based on the contributions collection
-final _weeksMemoProvider = Provider.family<List<List<ContributionDay>>,
-    GuserContributionsData_user_contributionsCollection>((ref, collection) {
-  return ContributionDataConverter.convertWeeks(
-    collection.contributionCalendar.weeks.toList(),
-  );
-});
-
-final _colorsMemoProvider = Provider.family<List<Color>,
-    GuserContributionsData_user_contributionsCollection>((ref, collection) {
-  return ContributionDataConverter.convertColors(
-    collection.contributionCalendar.colors.toList(),
-  );
-});
-
-final _repositoriesMemoProvider = Provider.family<List<ContributedRepository>,
-    GuserContributionsData_user_contributionsCollection>((ref, collection) {
-  return ContributionDataConverter.convertRepositories(
-    collection.commitContributionsByRepository.toList(),
-  );
-});
