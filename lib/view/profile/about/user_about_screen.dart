@@ -1,3 +1,4 @@
+import 'package:diohub/common/charts/contribution_calendar_widget.dart';
 import 'package:diohub/common/misc/nested_card_with_header.dart';
 import 'package:diohub/common/misc/repository_card.dart';
 import 'package:diohub/common/utils/contribution_utils.dart';
@@ -33,6 +34,36 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
   DateTime? _customToDate;
   bool _useCustomRange = false;
 
+  // Memoize callbacks to prevent unnecessary rebuilds
+  late final void Function(int) _onYearChanged = (year) {
+    setState(() {
+      _selectedYear = year;
+      _useCustomRange = false;
+      _customFromDate = null;
+      _customToDate = null;
+    });
+  };
+
+  late final void Function(DateTime?, DateTime?) _onCustomRangeChanged =
+      (from, to) {
+    setState(() {
+      if (from == null && to == null) {
+        // Reset to last year
+        _selectedYear = null;
+        _useCustomRange = false;
+        _customFromDate = null;
+        _customToDate = null;
+      } else {
+        _customFromDate = from;
+        _customToDate = to;
+        _useCustomRange = from != null && to != null;
+        if (_useCustomRange) {
+          _selectedYear = null;
+        }
+      }
+    });
+  };
+
   /// Builds a stable provider key based on selected year or custom date range
   /// Only recalculates when date range changes, not on every build
   String _getProviderKey() {
@@ -60,6 +91,7 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Pinned items rarely change, but toList() is cheap - no need to cache
     final pinnedItems = widget.userData.pinnedItems.edges?.toList() ??
         <GuserInfoData_user_pinnedItems_edges?>[];
 
@@ -94,32 +126,8 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
                 customToDate: _customToDate,
                 useCustomRange: _useCustomRange,
                 createdAt: widget.userData.createdAt,
-                onYearChanged: (year) {
-                  setState(() {
-                    _selectedYear = year;
-                    _useCustomRange = false;
-                    _customFromDate = null;
-                    _customToDate = null;
-                  });
-                },
-                onCustomRangeChanged: (from, to) {
-                  setState(() {
-                    if (from == null && to == null) {
-                      // Reset to last year
-                      _selectedYear = null;
-                      _useCustomRange = false;
-                      _customFromDate = null;
-                      _customToDate = null;
-                    } else {
-                      _customFromDate = from;
-                      _customToDate = to;
-                      _useCustomRange = from != null && to != null;
-                      if (_useCustomRange) {
-                        _selectedYear = null;
-                      }
-                    }
-                  });
-                },
+                onYearChanged: _onYearChanged,
+                onCustomRangeChanged: _onCustomRangeChanged,
               ),
             ),
             const SizedBox(height: 8),
@@ -159,22 +167,16 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
           final contributionsCollection =
               contributionsData.contributionsCollection;
 
-          // Contribution Calendar Section
-          final weeks = ContributionDataConverter.convertWeeks(
-            contributionsCollection.contributionCalendar.weeks.toList(),
-          );
-          final colors = ContributionDataConverter.convertColors(
-            contributionsCollection.contributionCalendar.colors.toList(),
-          );
+          // Memoize expensive conversions using providers to prevent recalculation on every rebuild
+          final weeks = ref.watch(_weeksMemoProvider(contributionsCollection));
+          final colors =
+              ref.watch(_colorsMemoProvider(contributionsCollection));
           final totalContributions =
               contributionsCollection.contributionCalendar.totalContributions;
           final availableYears =
               contributionsCollection.contributionYears.toList();
-
-          // Convert repositories for Activity Overview
-          final repositories = ContributionDataConverter.convertRepositories(
-            contributionsCollection.commitContributionsByRepository.toList(),
-          );
+          final repositories =
+              ref.watch(_repositoriesMemoProvider(contributionsCollection));
 
           return <Widget>[
             // Animated calendar section with fade-in
@@ -191,32 +193,8 @@ class _UserAboutScreenState extends ConsumerState<UserAboutScreen> {
                 customToDate: _customToDate,
                 useCustomRange: _useCustomRange,
                 createdAt: widget.userData.createdAt,
-                onYearChanged: (year) {
-                  setState(() {
-                    _selectedYear = year;
-                    _useCustomRange = false;
-                    _customFromDate = null;
-                    _customToDate = null;
-                  });
-                },
-                onCustomRangeChanged: (from, to) {
-                  setState(() {
-                    if (from == null && to == null) {
-                      // Reset to last year
-                      _selectedYear = null;
-                      _useCustomRange = false;
-                      _customFromDate = null;
-                      _customToDate = null;
-                    } else {
-                      _customFromDate = from;
-                      _customToDate = to;
-                      _useCustomRange = from != null && to != null;
-                      if (_useCustomRange) {
-                        _selectedYear = null;
-                      }
-                    }
-                  });
-                },
+                onYearChanged: _onYearChanged,
+                onCustomRangeChanged: _onCustomRangeChanged,
               ),
             ),
             const SizedBox(height: 8),
@@ -442,3 +420,26 @@ class _DelayedFadeAnimationState extends State<_DelayedFadeAnimation>
     );
   }
 }
+
+// Memoization providers for expensive data conversions
+// These prevent recalculation on every rebuild by caching results based on the contributions collection
+final _weeksMemoProvider = Provider.family<List<List<ContributionDay>>,
+    GuserContributionsData_user_contributionsCollection>((ref, collection) {
+  return ContributionDataConverter.convertWeeks(
+    collection.contributionCalendar.weeks.toList(),
+  );
+});
+
+final _colorsMemoProvider = Provider.family<List<Color>,
+    GuserContributionsData_user_contributionsCollection>((ref, collection) {
+  return ContributionDataConverter.convertColors(
+    collection.contributionCalendar.colors.toList(),
+  );
+});
+
+final _repositoriesMemoProvider = Provider.family<List<ContributedRepository>,
+    GuserContributionsData_user_contributionsCollection>((ref, collection) {
+  return ContributionDataConverter.convertRepositories(
+    collection.commitContributionsByRepository.toList(),
+  );
+});
