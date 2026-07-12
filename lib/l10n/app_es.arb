@@ -1,0 +1,7 @@
+{
+    "@@locale": "es",
+    "appName": "DioHub",
+    "@appName": {
+        "description": "El nombre de la app"
+    }
+}
