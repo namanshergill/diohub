@@ -8,12 +8,15 @@ import 'package:diohub/common/misc/button.dart';
 import 'package:diohub/common/misc/info_card.dart';
 import 'package:diohub/common/misc/profile_card.dart';
 import 'package:diohub/common/misc/repository_card.dart';
+import 'package:diohub/providers/users/current_user_provider.dart';
+import 'package:diohub/services/authentication/auth_service.dart';
 import 'package:diohub/utils/http_to_api.dart';
 import 'package:diohub/view/settings/widgets/color_setting_card.dart';
 import 'package:diohub/view/settings/widgets/language_setting_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -95,6 +98,46 @@ class _GeneralSettings extends StatelessWidget {
             ),
             const FontSettingCard(),
             const ColorSettingCard(),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: InfoCard.children(
+                title: 'GitHub Connection',
+                leading: InfoCard.leadingIcon(icon: Icons.link_rounded),
+                children: <Widget>[
+                  ListTile(
+                    dense: true,
+                    title: Text('Connected as @${context.viewer.login}'),
+                    subtitle: const Text(
+                      'DioHub reads organizations and repositories that this '
+                      'account can access.',
+                    ),
+                  ),
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(
+                      Icons.business_rounded,
+                      size: 20,
+                    ),
+                    title: const Text('Manage organization access'),
+                    subtitle: const Text(
+                      'Organization owners must approve third-party apps '
+                      'before their private repositories become visible.',
+                    ),
+                    trailing: const Icon(
+                      Icons.open_in_new_rounded,
+                      size: 18,
+                    ),
+                    onTap: () async {
+                      await launchUrl(
+                        AuthRepository.organizationAccessSettingsUri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
             const Divider(),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),

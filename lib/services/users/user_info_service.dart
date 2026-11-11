@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:diohub/app/api_handler/dio.dart';
 import 'package:diohub/graphql/__generated__/schema.schema.gql.dart';
+import 'package:diohub/graphql/queries/users/__generated__/organization_members.data.gql.dart';
+import 'package:diohub/graphql/queries/users/__generated__/organization_members.req.gql.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_contributions.data.gql.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_contributions.req.gql.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_info.data.gql.dart';
@@ -61,18 +63,79 @@ class UserInfoService {
     return UserInfoModel.fromJson(response.data!);
   }
 
-  static Future<GuserInfoData_user> getUserInfoGraphQL(
+  /// Fetches a profile for a user or an organization.
+  ///
+  /// GitHub's `user` query only resolves User accounts, so the `userInfo`
+  /// operation uses `repositoryOwner` and returns either fragment.
+  static Future<GuserInfoData_repositoryOwner> getUserInfoGraphQL(
     final String login,
-  ) async =>
-      GuserInfoData.fromJson(
-        (await _gqlHandler.query(
-          GuserInfoReq(
-            (final GuserInfoReqBuilder b) => b..vars.user = login,
-          ),
-        ))
-            .data!,
-      )!
-          .user!;
+  ) async {
+    final GQLResponse response = await _gqlHandler.query(
+      GuserInfoReq(
+        (final GuserInfoReqBuilder b) => b..vars.user = login,
+      ),
+    );
+    final GuserInfoData_repositoryOwner? owner =
+        GuserInfoData.fromJson(response.data!)!.repositoryOwner;
+    if (owner == null) {
+      throw Exception(
+        'Could not find a user or organization with the login "$login".',
+      );
+    }
+    return owner;
+  }
+
+  /// Organizations a user is a public member of.
+  static Future<List<GgetUserOrganizationsData_user_organizations_edges?>>
+      getUserOrganizations(
+    final String user, {
+    required final bool refresh,
+    final String? after,
+  }) async {
+    final GQLResponse response = await _gqlHandler.query(
+      GgetUserOrganizationsReq(
+        (final GgetUserOrganizationsReqBuilder b) {
+          b
+            ..vars.user = user
+            ..vars.cursor = after;
+        },
+      ),
+      refreshCache: refresh,
+    );
+    return GgetUserOrganizationsData.fromJson(response.data!)!
+        .user!
+        .organizations
+        .edges!
+        .toList();
+  }
+
+  /// Members of an organization, paginated by cursor.
+  static Future<
+          List<
+              GgetOrganizationMembersData_organization_membersWithRole_edges?>>
+      getOrganizationMembers(
+    final String organization, {
+    required final int first,
+    required final bool refresh,
+    final String? after,
+  }) async {
+    final GQLResponse response = await _gqlHandler.query(
+      GgetOrganizationMembersReq(
+        (final GgetOrganizationMembersReqBuilder b) {
+          b
+            ..vars.org = organization
+            ..vars.first = first
+            ..vars.after = after;
+        },
+      ),
+      refreshCache: refresh,
+    );
+    return GgetOrganizationMembersData.fromJson(response.data!)!
+        .organization!
+        .membersWithRole
+        .edges!
+        .toList();
+  }
 
   static Future<List<GgetViewerOrgsData_viewer_organizations_edges?>>
       getViewerOrgs({required final bool refresh, final String? after}) async {

@@ -30,6 +30,8 @@ No, there is a big update that has been in works for a while now, progress has j
 
 - User/Home Activity Timeline
 
+- Organization profiles with member lists, repository filters and pinned repositories
+
 - Commits and patch viewer
 
 - GitHub Flavored Markdown Support
@@ -58,6 +60,7 @@ No, there is a big update that has been in works for a while now, progress has j
 - [Install Flutter on your system.](https://flutter.dev/docs/get-started/install)
 - [Create a GitHub OAuth application.](https://docs.github.com/en/developers/apps/building-oauth-apps/creating-an-oauth-app)
   - Set the `Authorization callback URL` to `auth.felix.diohub://login-callback`.
+  - Grant organization access on the authorization screen for any organizations whose repositories you want to browse. Organization owners approve OAuth apps separately; existing grants can be managed from the app's **Settings → GitHub Connection** card or at `https://github.com/settings/connections/applications/<client-id>`.
 - Run `git submodule update --init` in the project directory. 
 - Create a file under `lib/app` named `keys.dart` with the following content:
     ```dart

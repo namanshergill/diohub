@@ -1,11 +1,18 @@
 query getViewerOrgs($cursor:String){
     viewer{
-        organizations(first: 10, after: $cursor){
+        organizations(first: 20, after: $cursor){
             edges{
                 cursor
                 node{
                     avatarUrl
                     login
+                    name
+                    description
+                    url
+                    isVerified
+                    repositories{
+                        totalCount
+                    }
                 }
             }
         }

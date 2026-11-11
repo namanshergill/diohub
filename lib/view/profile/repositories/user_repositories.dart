@@ -7,10 +7,17 @@ class UserRepositories extends StatelessWidget {
   const UserRepositories(
     this.login, {
     this.currentUser = false,
+    this.isOrganization = false,
     super.key,
   });
   final String login;
   final bool? currentUser;
+
+  /// Organization repositories are filtered with the `org:` search qualifier
+  /// instead of `user:`. Both work for organizations today, but `org:` is the
+  /// documented qualifier and behaves consistently for private repositories
+  /// the token can see.
+  final bool isOrganization;
 
   @override
   Widget build(final BuildContext context) => SearchScrollWrapper(
@@ -22,7 +29,9 @@ class UserRepositories extends StatelessWidget {
             ],
           ),
           defaultHiddenFilters: <String>[
-            SearchQueries().user.toQueryString(login),
+            isOrganization
+                ? SearchQueries().org.toQueryString(login)
+                : SearchQueries().user.toQueryString(login),
           ],
         ),
         quickFilters: <String, String>{
@@ -37,13 +46,5 @@ class UserRepositories extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         searchBarMessage: "Search in $login's repositories",
         searchHeroTag: '${login}Search',
-        // nonSearchFuture: (pageNumber, pageSize, refresh, _, sort, order) {
-        //   if (currentUser!)
-        //     return UserInfoService.getCurrentUserRepos(
-        //         pageSize, pageNumber, refresh,
-        //         sort: sort, ascending: order);
-        //   return UserInfoService.getUserRepos(
-        //       userInfoModel.login, pageSize, pageNumber, refresh, sort);
-        // },
       );
 }

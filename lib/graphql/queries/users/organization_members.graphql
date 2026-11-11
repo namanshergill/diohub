@@ -1,0 +1,21 @@
+# Members of an organization. Requires the `read:org` OAuth scope.
+query getOrganizationMembers($org: String!, $first: Int!, $after: String) {
+    organization(login: $org) {
+        id
+        membersWithRole(first: $first, after: $after) {
+            totalCount
+            edges {
+                cursor
+                role
+                node {
+                    id
+                    login
+                    name
+                    avatarUrl
+                    bio
+                    url
+                }
+            }
+        }
+    }
+}

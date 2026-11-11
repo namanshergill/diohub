@@ -30,6 +30,33 @@ query getUserPinnedRepos($user: String!){
     }
 }
 
+# Organizations a user is a public member of. Used by the profile
+# Organizations tab.
+query getUserOrganizations($user: String!, $cursor: String) {
+    user(login: $user) {
+        organizations(first: 20, after: $cursor) {
+            edges {
+                cursor
+                node {
+                    ...organizationSummary
+                }
+            }
+        }
+    }
+}
+
+fragment organizationSummary on Organization {
+    avatarUrl
+    login
+    name
+    description
+    url
+    isVerified
+    repositories {
+        totalCount
+    }
+}
+
 
 query followStatusInfo($user:String!){
     user(login: $user) {
@@ -51,47 +78,50 @@ query followStatusInfo($user:String!){
     }
 }
 
+# Fetches a profile for either a user or an organization. GitHub's `user`
+# query only resolves User accounts, so `repositoryOwner` is used instead.
 query userInfo($user: String!) {
-    user(login: $user) {
+    repositoryOwner(login: $user) {
         __typename
         id
         login
-        name
         avatarUrl
-        bio
-        location
-        websiteUrl
-        twitterUsername
-        createdAt
-        updatedAt
-        isViewer
-        viewerIsFollowing
-        viewerCanFollow
-        followers {
-            totalCount
-        }
+        url
         repositories {
             totalCount
         }
-        pullRequests {
-            totalCount
-        }
-        issues {
-            totalCount
-        }
-        starredRepositories {
-            totalCount
-        }
-        pinnedItems(first: 6, types:[REPOSITORY,]){
-            edges {
-                node {
-                    __typename ... on Repository {
-                        ...repositoryFields
+        ... on User {
+            name
+            bio
+            location
+            websiteUrl
+            twitterUsername
+            createdAt
+            updatedAt
+            isViewer
+            viewerIsFollowing
+            viewerCanFollow
+            followers {
+                totalCount
+            }
+            pullRequests {
+                totalCount
+            }
+            issues {
+                totalCount
+            }
+            starredRepositories {
+                totalCount
+            }
+            pinnedItems(first: 6, types:[REPOSITORY,]){
+                edges {
+                    node {
+                        __typename ... on Repository {
+                            ...repositoryFields
+                        }
                     }
                 }
             }
-        }
-        ... on User {
             company
             email
             pronouns
@@ -109,6 +139,37 @@ query userInfo($user: String!) {
             }
             gists {
                 totalCount
+            }
+        }
+        ... on Organization {
+            name
+            description
+            location
+            websiteUrl
+            twitterUsername
+            email
+            createdAt
+            updatedAt
+            isVerified
+            viewerCanAdminister
+            viewerIsAMember
+            membersWithRole {
+                totalCount
+            }
+            publicRepositories: repositories(privacy: PUBLIC) {
+                totalCount
+            }
+            privateRepositories: repositories(privacy: PRIVATE) {
+                totalCount
+            }
+            pinnedItems(first: 6, types:[REPOSITORY,]){
+                edges {
+                    node {
+                        __typename ... on Repository {
+                            ...repositoryFields
+                        }
+                    }
+                }
             }
         }
     }

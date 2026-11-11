@@ -17,17 +17,15 @@ import 'package:diohub/common/search_overlay/search_bar.dart';
 import 'package:diohub/style/surface_style_theme.dart';
 import 'package:diohub/common/search_overlay/search_overlay.dart';
 import 'package:diohub/common/wrappers/dynamic_tabs_parent.dart';
-import 'package:diohub/common/wrappers/infinite_scroll_wrapper.dart';
 import 'package:diohub/common/wrappers/search_scroll_wrapper.dart';
-import 'package:diohub/graphql/queries/viewer/__generated__/viewer.query.data.gql.dart';
 import 'package:diohub/providers/base_provider.dart';
 import 'package:diohub/providers/search_data_provider.dart';
 import 'package:diohub/providers/users/current_user_provider.dart';
 import 'package:diohub/routes/router.gr.dart';
-import 'package:diohub/services/users/user_info_service.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:diohub/utils/string_compare.dart';
 import 'package:diohub/view/home/widgets/issues_tab.dart';
+import 'package:diohub/view/home/widgets/organizations_tab.dart';
 import 'package:diohub/view/home/widgets/pulls_tab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dynamic_tabs/flutter_dynamic_tabs.dart';
@@ -90,40 +88,8 @@ class HomeScreenState extends State<HomeScreen>
         DynamicTab(
           identifier: 'orgs',
           tab: TabBarItem(label: 'Organizations'),
-          tabViewBuilder: (final BuildContext context) => InfiniteScrollWrapper<
-              GgetViewerOrgsData_viewer_organizations_edges?>(
-            future: (
-              final ScrollWrapperFutureArguments<
-                      GgetViewerOrgsData_viewer_organizations_edges?>
-                  data,
-            ) async =>
-                UserInfoService.getViewerOrgs(
-              refresh: data.refresh,
-              after: data.lastItem?.cursor,
-            ),
-            separatorBuilder: (final BuildContext context, final int index) =>
-                const Divider(height: 8),
-            listEndIndicator: false,
-            // divider: false,
-            builder: (
-              final BuildContext context,
-              final ScrollWrapperBuilderData<
-                      GgetViewerOrgsData_viewer_organizations_edges?>
-                  data,
-            ) =>
-                Row(
-              children: <Widget>[
-                Expanded(
-                  child: ProfileTile.login(
-                    avatarUrl: data.item?.node?.avatarUrl.toString(),
-                    userLogin: data.item?.node?.login,
-                    padding: const EdgeInsets.all(16),
-                    size: 30,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          tabViewBuilder: (final BuildContext context) =>
+              const OrganizationsTab(),
         ),
       ];
 
