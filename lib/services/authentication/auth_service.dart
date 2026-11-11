@@ -64,7 +64,11 @@ class AuthRepository {
         'repo',
         'public_repo',
         'repo:invite',
-        'write:org',
+        // `read:org` is the least-privileged scope that still lets us list
+        // organizations, their members and their repositories. GitHub asks
+        // organization owners to approve OAuth apps separately, so keeping
+        // this narrow makes that approval much more likely.
+        'read:org',
         'gist',
         'notifications',
         'user',
@@ -73,6 +77,14 @@ class AuthRepository {
         'read:packages',
         'delete:packages',
       ];
+
+  /// GitHub's OAuth app settings page. Users can grant or revoke this app's
+  /// access to individual organizations here when an organization restricts
+  /// third-party applications.
+  static Uri get organizationAccessSettingsUri => Uri.parse(
+        'https://github.com/settings/connections/applications/'
+        '${PrivateKeys.clientID}',
+      );
 
   Future<TypeMap> getAccessToken({final String? deviceCode}) async {
     final FormData formData = FormData.fromMap(<String, dynamic>{

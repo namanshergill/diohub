@@ -16,6 +16,7 @@ import 'package:diohub/common/animations/size_expanded_widget.dart';
 import 'package:diohub/common/wrappers/dynamic_tabs_parent.dart';
 import 'package:diohub/graphql/queries/users/__generated__/user_info.data.gql.dart';
 import 'package:diohub/models/contributions/contribution_query_models.dart';
+import 'package:diohub/models/users/profile_owner.dart';
 import 'package:diohub/providers/base_provider.dart';
 import 'package:diohub/providers/users/user_contributions_provider.dart';
 import 'package:diohub/providers/users/user_provider.dart';
@@ -24,12 +25,16 @@ import 'package:diohub/style/surface_style_theme.dart';
 import 'package:diohub/utils/get_date.dart';
 import 'package:diohub/utils/utils.dart';
 import 'package:diohub/view/profile/about/user_about_screen.dart';
+import 'package:diohub/view/profile/organization/organization_about_screen.dart';
+import 'package:diohub/view/profile/organization/organization_members.dart';
+import 'package:diohub/view/profile/organizations/user_organizations.dart';
 import 'package:diohub/view/profile/repositories/user_repositories.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dynamic_tabs/flutter_dynamic_tabs.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:provider/provider.dart' as provider;
+import 'package:url_launcher/url_launcher.dart';
 
 @RoutePage()
 class UserProfileScreen extends StatefulWidget {
@@ -43,7 +48,7 @@ class UserProfileScreen extends StatefulWidget {
 
 class UserProfileScreenState extends State<UserProfileScreen>
     with TickerProviderStateMixin {
-  GuserInfoData_user? data;
+  GuserInfoData_repositoryOwner? data;
 
   // Date range state for Activity tab (contribution graph)
   int? _selectedYear; // null means last year (default)
@@ -120,7 +125,7 @@ class UserProfileScreenState extends State<UserProfileScreen>
   /// Builds the expanded content for the date range selector
   Widget _buildDateRangeExpandedContent(
     BuildContext context,
-    GuserInfoData_user userData,
+    GuserInfoData_repositoryOwner userData,
     VoidCallback onCollapse,
   ) {
     // Use a ConsumerWidget wrapper to watch the contributions provider for available years
@@ -139,7 +144,7 @@ class UserProfileScreenState extends State<UserProfileScreen>
   }
 
   Widget _buildCollapsedHeader(
-      BuildContext context, GuserInfoData_user userData) {
+      BuildContext context, GuserInfoData_repositoryOwner userData) {
     return Row(
       children: <Widget>[
         ProfileTile.avatar(
@@ -154,11 +159,11 @@ class UserProfileScreenState extends State<UserProfileScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                userData.name ?? userData.login,
+                userData.nameOrLogin,
                 style: context.textTheme.bodyLarge,
                 overflow: TextOverflow.ellipsis,
               ),
-              if (userData.name != null)
+              if (userData.displayName != null)
                 Text(
                   userData.login,
                   style: context.textTheme.bodySmall,
@@ -171,7 +176,7 @@ class UserProfileScreenState extends State<UserProfileScreen>
     );
   }
 
-  Widget _buildExpandedHeader(BuildContext context, GuserInfoData_user userData,
+  Widget _buildExpandedHeader(BuildContext context, GuserInfoData_repositoryOwner userData,
       DynamicTabsController? tabController) {
     const double leadingWidth = 56.0;
     return Padding(
@@ -180,21 +185,46 @@ class UserProfileScreenState extends State<UserProfileScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          // User name
+          // Profile name
           Padding(
             padding: EdgeInsets.only(left: leadingWidth),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  userData.name ?? userData.login,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.headlineSmall!.copyWith(
-                        fontWeight: FontWeight.bold,
+                Row(
+                  children: <Widget>[
+                    Flexible(
+                      child: Text(
+                        userData.nameOrLogin,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineSmall!
+                            .copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
+                    ),
+                    if (userData.isOrganization) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                        Octicons.organization,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ],
+                    if (userData.isVerifiedOrganization) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        Octicons.verified,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
-                  userData.login,
+                  '@${userData.login}',
                   style: Theme.of(context).textTheme.bodyMedium,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -213,15 +243,17 @@ class UserProfileScreenState extends State<UserProfileScreen>
   }
 
   Widget _buildDetailTilesSection(
-      BuildContext context, GuserInfoData_user userData) {
+      BuildContext context, GuserInfoData_repositoryOwner userData) {
     return userData.when(
       user: (user) => _buildUserDetailTiles(context, user),
-      orElse: () => _buildOrganizationDetailTiles(context, userData),
+      organization: (organization) =>
+          _buildOrganizationDetailTiles(context, organization),
+      orElse: () => const SizedBox.shrink(),
     );
   }
 
   Widget _buildUserDetailTiles(
-      BuildContext context, GuserInfoData_user__asUser userData) {
+      BuildContext context, GuserInfoData_repositoryOwner__asUser userData) {
     final List<Widget> alwaysVisibleTiles = [];
 
     // Bio
@@ -395,27 +427,30 @@ class UserProfileScreenState extends State<UserProfileScreen>
   }
 
   Widget _buildOrganizationDetailTiles(
-      BuildContext context, GuserInfoData_user userData) {
+    BuildContext context,
+    GuserInfoData_repositoryOwner__asOrganization organization,
+  ) {
     final List<Widget> alwaysVisibleTiles = [];
 
-    // Bio
-    if (userData.bio != null) {
+    // About / description
+    final String? description = organization.description?.trim();
+    if (description != null && description.isNotEmpty) {
       alwaysVisibleTiles.add(
         DetailTile(
-          title: 'Bio',
+          title: 'About',
           actionType: DetailTileActionType.none,
-          child: DetailTileText(userData.bio!),
+          child: DetailTileText(description),
         ),
       );
     }
 
     // Location
-    if (userData.location != null) {
+    if (organization.location != null) {
       alwaysVisibleTiles.add(
         DetailTile(
           title: 'Location',
           actionType: DetailTileActionType.none,
-          child: DetailTileText(userData.location!),
+          child: DetailTileText(organization.location!),
         ),
       );
     }
@@ -426,37 +461,110 @@ class UserProfileScreenState extends State<UserProfileScreen>
         title: 'Created',
         actionType: DetailTileActionType.none,
         child: DetailTileText(
-          getDate(userData.createdAt.toString(), shorten: false),
+          getDate(organization.createdAt.toString(), shorten: false),
+        ),
+      ),
+    );
+
+    // Members
+    alwaysVisibleTiles.add(
+      DetailTile(
+        title: 'Members',
+        actionType: DetailTileActionType.none,
+        child: DetailTileText(
+          '${organization.membersWithRole.totalCount} '
+          '${organization.membersWithRole.totalCount == 1 ? 'member' : 'members'}',
+        ),
+      ),
+    );
+
+    // Repository visibility breakdown
+    alwaysVisibleTiles.add(
+      DetailTile(
+        title: 'Repositories',
+        actionType: DetailTileActionType.none,
+        child: DetailTileText(
+          '${organization.publicRepositories.totalCount} public'
+          '${organization.privateRepositories.totalCount > 0 ? ' · ${organization.privateRepositories.totalCount} private' : ''}',
         ),
       ),
     );
 
     final List<Widget> expandableTiles = [];
 
+    // Verified status
+    if (organization.isVerified) {
+      expandableTiles.add(
+        const DetailTile(
+          title: 'Verified',
+          actionType: DetailTileActionType.none,
+          child: DetailTileText('Verified organization'),
+        ),
+      );
+    }
+
+    // Viewer's membership
+    if (organization.viewerIsAMember) {
+      expandableTiles.add(
+        DetailTile(
+          title: 'Your role',
+          actionType: DetailTileActionType.none,
+          child: DetailTileText(
+            organization.viewerCanAdminister ? 'Owner / admin' : 'Member',
+          ),
+        ),
+      );
+    }
+
     // Twitter
-    if (userData.twitterUsername != null) {
+    if (organization.twitterUsername != null) {
       expandableTiles.add(
         DetailTile(
           title: 'Twitter',
           actionType: DetailTileActionType.navigation,
           onTap: () async {
-            // Handle Twitter tap
+            await launchUrl(
+              Uri.parse(
+                'https://twitter.com/${organization.twitterUsername}',
+              ),
+              mode: LaunchMode.externalApplication,
+            );
           },
-          child: DetailTileText('@${userData.twitterUsername}'),
+          child: DetailTileText('@${organization.twitterUsername}'),
         ),
       );
     }
 
-    // Blog
-    if (userData.websiteUrl != null) {
+    // Website
+    if (organization.websiteUrl != null) {
       expandableTiles.add(
         DetailTile(
-          title: 'Blog',
+          title: 'Website',
           actionType: DetailTileActionType.navigation,
-          onTap: () {
-            // Handle blog tap
+          onTap: () async {
+            await launchUrl(
+              organization.websiteUrl!,
+              mode: LaunchMode.externalApplication,
+            );
           },
-          child: DetailTileText(userData.websiteUrl!.toString()),
+          child: DetailTileText(organization.websiteUrl!.toString()),
+        ),
+      );
+    }
+
+    // Public email
+    final String? email = organization.email;
+    if (email != null && email.isNotEmpty) {
+      expandableTiles.add(
+        DetailTile(
+          title: 'Email',
+          actionType: DetailTileActionType.navigation,
+          onTap: () async {
+            await launchUrl(
+              Uri(scheme: 'mailto', path: email),
+            );
+          },
+          child: DetailTileText(email),
         ),
       );
     }
@@ -475,62 +583,61 @@ class UserProfileScreenState extends State<UserProfileScreen>
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, GuserInfoData_user userData,
-      DynamicTabsController? tabController) {
-    final isViewer = userData.isViewer;
-
+  Widget _buildActionButtons(
+    BuildContext context,
+    GuserInfoData_repositoryOwner userData,
+    DynamicTabsController? tabController,
+  ) {
     final List<ActionButtonData> primaryActions = [];
+    final List<ActionButtonData> secondaryActions = [];
 
-    // Follow/Unfollow button (only for other users)
-    if (!isViewer && userData.viewerCanFollow) {
-      primaryActions.add(
-        MinorActionButton(
-          icon: Octicons.person_add,
-          label: userData.viewerIsFollowing ? 'Unfollow' : 'Follow',
-          trailing: buildActionButtonTrailingCount(
-            context,
-            userData.followers.totalCount,
-          ),
-          onTap: () async {
-            // TODO: Implement follow/unfollow logic
-            // Use UserInfoService.changeFollowStatus
-          },
-        ),
-      );
-    }
-
-    // Repositories count
-    primaryActions.add(
-      MinorActionButton(
-        icon: Octicons.repo,
-        label: 'Repositories',
-        trailing: buildActionButtonTrailingCount(
-          context,
-          userData.repositories.totalCount,
-        ),
-        actionType: ActionButtonActionType.tab,
-        onTap: () => tabController?.openTab('Repositories'),
-      ),
-    );
-
-    // Followers count
-    primaryActions.add(
-      MinorActionButton(
-        icon: Octicons.people,
-        label: 'Followers',
-        trailing: buildActionButtonTrailingCount(
-          context,
-          userData.followers.totalCount,
-        ),
-        onTap: () {
-          // TODO: Navigate to followers list
-        },
-      ),
-    );
-
-    // Following count (only for users, not organizations)
     userData.when(
-      user: (user) {
+      user: (final GuserInfoData_repositoryOwner__asUser user) {
+        // Follow/Unfollow button (only for other users)
+        if (!user.isViewer && user.viewerCanFollow) {
+          primaryActions.add(
+            MinorActionButton(
+              icon: Octicons.person_add,
+              label: user.viewerIsFollowing ? 'Unfollow' : 'Follow',
+              trailing: buildActionButtonTrailingCount(
+                context,
+                user.followers.totalCount,
+              ),
+              onTap: () async {
+                // TODO: Implement follow/unfollow logic
+                // Use UserInfoService.changeFollowStatus
+              },
+            ),
+          );
+        }
+
+        primaryActions.add(
+          MinorActionButton(
+            icon: Octicons.repo,
+            label: 'Repositories',
+            trailing: buildActionButtonTrailingCount(
+              context,
+              user.repositories.totalCount,
+            ),
+            actionType: ActionButtonActionType.tab,
+            onTap: () => tabController?.openTab('Repositories'),
+          ),
+        );
+
+        primaryActions.add(
+          MinorActionButton(
+            icon: Octicons.people,
+            label: 'Followers',
+            trailing: buildActionButtonTrailingCount(
+              context,
+              user.followers.totalCount,
+            ),
+            onTap: () {
+              // TODO: Navigate to followers list
+            },
+          ),
+        );
+
         primaryActions.add(
           MinorActionButton(
             icon: Octicons.person,
@@ -545,16 +652,48 @@ class UserProfileScreenState extends State<UserProfileScreen>
           ),
         );
       },
-      orElse: () {
-        // Organizations don't have following
+      organization: (final GuserInfoData_repositoryOwner__asOrganization org) {
+        primaryActions.add(
+          MinorActionButton(
+            icon: Octicons.repo,
+            label: 'Repositories',
+            trailing: buildActionButtonTrailingCount(
+              context,
+              org.repositories.totalCount,
+            ),
+            actionType: ActionButtonActionType.tab,
+            onTap: () => tabController?.openTab('Repositories'),
+          ),
+        );
+
+        primaryActions.add(
+          MinorActionButton(
+            icon: Octicons.people,
+            label: 'People',
+            trailing: buildActionButtonTrailingCount(
+              context,
+              org.membersWithRole.totalCount,
+            ),
+            actionType: ActionButtonActionType.tab,
+            onTap: () => tabController?.openTab('People'),
+          ),
+        );
+
+        secondaryActions.add(
+          MinorActionButton(
+            icon: Icons.open_in_new_rounded,
+            label: 'GitHub',
+            onTap: () async {
+              await launchUrl(
+                org.url,
+                mode: LaunchMode.externalApplication,
+              );
+            },
+          ),
+        );
       },
+      orElse: () {},
     );
-
-    final List<ActionButtonData> secondaryActions = [];
-
-    // More actions can go here
-    // Note: publicGists is not available in GraphQL user query
-    // If needed, it can be added to the query
 
     if (primaryActions.isEmpty) {
       return const SizedBox.shrink();
@@ -577,22 +716,20 @@ class UserProfileScreenState extends State<UserProfileScreen>
     );
   }
 
-  List<ActionButtonData> _buildToolbarActions(BuildContext context,
-      GuserInfoData_user userData, DynamicTabsController? tabController) {
-    final currentTab = tabController?.activeIdentifier ?? 'Activity';
+  List<ActionButtonData> _buildToolbarActions(
+    BuildContext context,
+    GuserInfoData_repositoryOwner userData,
+    DynamicTabsController? tabController,
+  ) {
+    final bool isOrganization = userData.isOrganization;
+    final String currentTab = tabController?.activeIdentifier ??
+        (isOrganization ? 'Overview' : 'Activity');
 
     // Get pinned repositories
-    final pinnedItems = userData.pinnedItems.edges?.toList() ??
-        <GuserInfoData_user_pinnedItems_edges?>[];
-    final pinnedRepos = pinnedItems
-        .map((edge) => edge?.node)
-        .whereType<GuserInfoData_user_pinnedItems_edges_node>()
-        .where((node) => node.G__typename == 'Repository')
-        .map((node) => node as GrepositoryFields)
-        .toList();
-    final pinnedReposCount = pinnedRepos.length;
+    final List<GrepositoryFields> pinnedRepos = userData.pinnedRepositories;
+    final int pinnedReposCount = pinnedRepos.length;
 
-    return [
+    return <ActionButtonData>[
       // Pinned Repos - visible on all tabs
       if (pinnedReposCount > 0)
         ExpandableActionButton(
@@ -719,8 +856,8 @@ class UserProfileScreenState extends State<UserProfileScreen>
                                     const SizedBox(width: 4),
                                     Text(
                                       repo.stargazerCount.toString(),
-                                      style:
-                                          context.textTheme.bodySmall?.copyWith(
+                                      style: context.textTheme.bodySmall
+                                          ?.copyWith(
                                         color: context
                                             .colorScheme.onSurfaceVariant
                                             .withOpacity(0.7),
@@ -741,42 +878,59 @@ class UserProfileScreenState extends State<UserProfileScreen>
             },
           ),
         ),
-      // Time range selector - only visible on Activity tab
 
-      ExpandableActionButton(
-        icon: Icons.date_range,
-        label: _getDateRangeLabel(),
-        subtitle: 'Time Range',
-        category: 'Primary',
-        visibilityState: currentTab == 'Activity'
-            ? ActionButtonVisibilityState.both
-            : ActionButtonVisibilityState.none,
-        expandableWidgetBuilder: (onCollapse) {
-          return _buildDateRangeExpandedContent(
-            context,
-            userData,
-            onCollapse,
-          );
-        },
-      ),
-      // Primary - always visible in collapsed state
-      MinorActionButton(
-        icon: Octicons.pulse,
-        label: 'Activity',
-        category: 'Primary',
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Activity'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.both,
-        onTap: () => tabController?.openTab('Activity'),
-      ),
+      // Organization overview
+      if (isOrganization)
+        MinorActionButton(
+          icon: Icons.info_outline_rounded,
+          label: 'Overview',
+          category: 'Primary',
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Overview'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.both,
+          onTap: () => tabController?.openTab('Overview'),
+        ),
+
+      // Time range selector - only visible on Activity tab
+      if (!isOrganization)
+        ExpandableActionButton(
+          icon: Icons.date_range,
+          label: _getDateRangeLabel(),
+          subtitle: 'Time Range',
+          category: 'Primary',
+          visibilityState: currentTab == 'Activity'
+              ? ActionButtonVisibilityState.both
+              : ActionButtonVisibilityState.none,
+          expandableWidgetBuilder: (onCollapse) {
+            return _buildDateRangeExpandedContent(
+              context,
+              userData,
+              onCollapse,
+            );
+          },
+        ),
+
+      // Activity is only available for users. Organizations have an Overview.
+      if (!isOrganization)
+        MinorActionButton(
+          icon: Octicons.pulse,
+          label: 'Activity',
+          category: 'Primary',
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Activity'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.both,
+          onTap: () => tabController?.openTab('Activity'),
+        ),
+
       MinorActionButton(
         icon: Octicons.repo,
         label: 'Repositories',
         category: 'Primary',
         trailing: buildActionButtonTrailingCount(
           context,
-          userData.repositories.totalCount,
+          userData.repositoryCount,
         ),
         actionType: ActionButtonActionType.tab,
         visibilityState: currentTab == 'Repositories'
@@ -784,159 +938,169 @@ class UserProfileScreenState extends State<UserProfileScreen>
             : ActionButtonVisibilityState.both,
         onTap: () => tabController?.openTab('Repositories'),
       ),
-      MinorActionButton(
-        icon: Octicons.star,
-        label: 'Stars',
-        category: 'Primary',
-        iconColor:
-            const Color(0xFFFFC107).withOpacity(0.65), // Amber/Yellow for stars
-        trailing: buildActionButtonTrailingCount(
-          context,
-          userData.starredRepositories.totalCount,
-        ),
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Stars'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.both,
-        onTap: () => tabController?.openTab('Stars'),
-      ),
 
-      MinorActionButton(
-        icon: Octicons.code_square,
-        label: 'Gists',
-        category: 'Primary',
-        trailing: userData.when(
-          user: (user) => buildActionButtonTrailingCount(
+      // People - organizations only
+      if (isOrganization)
+        MinorActionButton(
+          icon: Octicons.people,
+          label: 'People',
+          category: 'Primary',
+          trailing: buildActionButtonTrailingCount(
             context,
-            user.gists.totalCount,
+            userData.organizationMemberCount,
           ),
-          orElse: () => null,
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'People'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.both,
+          onTap: () => tabController?.openTab('People'),
         ),
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Gists'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.both,
-        onTap: () => tabController?.openTab('Gists'),
-      ),
-      // Content - visible in expanded state only
-      MinorActionButton(
-        icon: Octicons.git_pull_request,
-        label: 'Pull Requests',
-        category: 'Content',
-        trailing: buildActionButtonTrailingCount(
-          context,
-          userData.pullRequests.totalCount,
-        ),
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Pull Requests'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.expandedOnly,
-        onTap: () => tabController?.openTab('Pull Requests'),
-      ),
-      MinorActionButton(
-        icon: Octicons.issue_opened,
-        label: 'Issues',
-        category: 'Content',
-        trailing: buildActionButtonTrailingCount(
-          context,
-          userData.issues.totalCount,
-        ),
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Issues'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.expandedOnly,
-        onTap: () => tabController?.openTab('Issues'),
-      ),
-      MinorActionButton(
-        icon: Octicons.organization,
-        label: 'Organizations',
-        category: 'Content',
-        trailing: userData.when(
-          user: (user) => buildActionButtonTrailingCount(
+
+      // The remaining tabs only make sense for user profiles.
+      if (!isOrganization) ...[
+        MinorActionButton(
+          icon: Octicons.star,
+          label: 'Stars',
+          category: 'Primary',
+          iconColor: const Color(0xFFFFC107)
+              .withOpacity(0.65), // Amber/Yellow for stars
+          trailing: buildActionButtonTrailingCount(
             context,
-            user.organizations.totalCount,
+            userData.starredRepositoryCount,
           ),
-          orElse: () => null,
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Stars'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.both,
+          onTap: () => tabController?.openTab('Stars'),
         ),
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Organizations'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.expandedOnly,
-        onTap: () => tabController?.openTab('Organizations'),
-      ),
-      // Social - visible in expanded state only
-      MinorActionButton(
-        icon: Octicons.people,
-        label: 'Followers',
-        category: 'Social',
-        trailing: buildActionButtonTrailingCount(
-          context,
-          userData.followers.totalCount,
+        MinorActionButton(
+          icon: Octicons.code_square,
+          label: 'Gists',
+          category: 'Primary',
+          trailing: userData.isUser
+              ? buildActionButtonTrailingCount(context, userData.gistCount)
+              : null,
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Gists'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.both,
+          onTap: () => tabController?.openTab('Gists'),
         ),
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Followers'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.expandedOnly,
-        onTap: () => tabController?.openTab('Followers'),
-      ),
-      MinorActionButton(
-        icon: Octicons.person,
-        label: 'Following',
-        category: 'Social',
-        trailing: userData.when(
-          user: (user) => buildActionButtonTrailingCount(
+        // Content - visible in expanded state only
+        MinorActionButton(
+          icon: Octicons.git_pull_request,
+          label: 'Pull Requests',
+          category: 'Content',
+          trailing: buildActionButtonTrailingCount(
             context,
-            user.following.totalCount,
+            userData.pullRequestCount,
           ),
-          orElse: () => null,
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Pull Requests'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.expandedOnly,
+          onTap: () => tabController?.openTab('Pull Requests'),
         ),
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Following'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.expandedOnly,
-        onTap: () => tabController?.openTab('Following'),
-      ),
-      // Other - visible in expanded state only
-      MinorActionButton(
-        icon: Octicons.package,
-        label: 'Packages',
-        category: 'Other',
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Packages'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.expandedOnly,
-        onTap: () => tabController?.openTab('Packages'),
-      ),
-      MinorActionButton(
-        icon: Octicons.project,
-        label: 'Projects',
-        category: 'Other',
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Projects'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.expandedOnly,
-        onTap: () => tabController?.openTab('Projects'),
-      ),
-      MinorActionButton(
-        icon: Octicons.heart,
-        label: 'Sponsors',
-        category: 'Other',
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Sponsors'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.expandedOnly,
-        onTap: () => tabController?.openTab('Sponsors'),
-      ),
-      MinorActionButton(
-        icon: Octicons.history,
-        label: 'Feed',
-        category: 'Primary',
-        actionType: ActionButtonActionType.tab,
-        visibilityState: currentTab == 'Activity Feed'
-            ? ActionButtonVisibilityState.none
-            : ActionButtonVisibilityState.both,
-        onTap: () => tabController?.openTab('Activity Feed'),
-      ),
+        MinorActionButton(
+          icon: Octicons.issue_opened,
+          label: 'Issues',
+          category: 'Content',
+          trailing: buildActionButtonTrailingCount(
+            context,
+            userData.issueCount,
+          ),
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Issues'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.expandedOnly,
+          onTap: () => tabController?.openTab('Issues'),
+        ),
+        MinorActionButton(
+          icon: Octicons.organization,
+          label: 'Organizations',
+          category: 'Content',
+          trailing: buildActionButtonTrailingCount(
+            context,
+            userData.organizationCount,
+          ),
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Organizations'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.expandedOnly,
+          onTap: () => tabController?.openTab('Organizations'),
+        ),
+        // Social - visible in expanded state only
+        MinorActionButton(
+          icon: Octicons.people,
+          label: 'Followers',
+          category: 'Social',
+          trailing: buildActionButtonTrailingCount(
+            context,
+            userData.followersCount,
+          ),
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Followers'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.expandedOnly,
+          onTap: () => tabController?.openTab('Followers'),
+        ),
+        MinorActionButton(
+          icon: Octicons.person,
+          label: 'Following',
+          category: 'Social',
+          trailing: buildActionButtonTrailingCount(
+            context,
+            userData.followingCount,
+          ),
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Following'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.expandedOnly,
+          onTap: () => tabController?.openTab('Following'),
+        ),
+        // Other - visible in expanded state only
+        MinorActionButton(
+          icon: Octicons.package,
+          label: 'Packages',
+          category: 'Other',
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Packages'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.expandedOnly,
+          onTap: () => tabController?.openTab('Packages'),
+        ),
+        MinorActionButton(
+          icon: Octicons.project,
+          label: 'Projects',
+          category: 'Other',
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Projects'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.expandedOnly,
+          onTap: () => tabController?.openTab('Projects'),
+        ),
+        MinorActionButton(
+          icon: Octicons.heart,
+          label: 'Sponsors',
+          category: 'Other',
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Sponsors'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.expandedOnly,
+          onTap: () => tabController?.openTab('Sponsors'),
+        ),
+        MinorActionButton(
+          icon: Octicons.history,
+          label: 'Feed',
+          category: 'Primary',
+          actionType: ActionButtonActionType.tab,
+          visibilityState: currentTab == 'Activity Feed'
+              ? ActionButtonVisibilityState.none
+              : ActionButtonVisibilityState.both,
+          onTap: () => tabController?.openTab('Activity Feed'),
+        ),
+      ],
     ];
   }
 
@@ -1275,22 +1439,22 @@ class _UserProfileTabsContent extends StatefulWidget {
     required this.onCustomRangeChanged,
   });
 
-  final GuserInfoData_user userData;
+  final GuserInfoData_repositoryOwner userData;
   final TickerProvider parentState;
-  final Widget Function(BuildContext, GuserInfoData_user) buildCollapsedHeader;
+  final Widget Function(BuildContext, GuserInfoData_repositoryOwner) buildCollapsedHeader;
   final Widget Function(
     BuildContext,
-    GuserInfoData_user,
+    GuserInfoData_repositoryOwner,
     DynamicTabsController?,
   ) buildExpandedHeader;
   final List<ActionButtonData> Function(
     BuildContext,
-    GuserInfoData_user,
+    GuserInfoData_repositoryOwner,
     DynamicTabsController?,
   ) buildToolbarActions;
   final Widget Function(
     BuildContext,
-    GuserInfoData_user,
+    GuserInfoData_repositoryOwner,
     DynamicTabsController?,
   ) buildActionButtons;
   final int? selectedYear;
@@ -1316,90 +1480,116 @@ class _UserProfileTabsContentState extends State<_UserProfileTabsContent>
   }
 
   void _initializeTabs() {
-    final userData = widget.userData;
+    final GuserInfoData_repositoryOwner userData = widget.userData;
 
-    final tabs = <DynamicTab>[
-      DynamicTab(
-        identifier: 'Activity',
-        isDismissible: false,
-        isFocusedOnInit: true,
-        tabViewBuilder: (context) => UserAboutScreen(
-          userData,
-          selectedYear: widget.selectedYear,
-          customFromDate: widget.customFromDate,
-          customToDate: widget.customToDate,
-          useCustomRange: widget.useCustomRange,
-          onYearChanged: widget.onYearChanged,
-          onCustomRangeChanged: widget.onCustomRangeChanged,
-        ),
-      ),
-      DynamicTab(
-        identifier: 'Activity Feed',
-        tab: TabBarItem(label: 'Feed'),
-        tabViewBuilder: (context) => Events(
-          privateEvents: false,
-          specificUser: userData.login,
-        ),
-      ),
-      DynamicTab(
-        identifier: 'Repositories',
-        // isDismissible: false,
-        tabViewBuilder: (context) => UserRepositories(
-          userData.login,
-          currentUser: userData.isViewer,
-        ),
-      ),
-      DynamicTab(
-        identifier: 'Gists',
-        tabViewBuilder: (context) =>
-            const SizedBox.shrink(), // TODO: Implement Gists tab
-      ),
-      DynamicTab(
-        identifier: 'Organizations',
-        tabViewBuilder: (context) =>
-            const SizedBox.shrink(), // TODO: Implement Organizations tab
-      ),
-      DynamicTab(
-        identifier: 'Followers',
-        tabViewBuilder: (context) =>
-            const SizedBox.shrink(), // TODO: Implement Followers tab
-      ),
-      DynamicTab(
-        identifier: 'Following',
-        tabViewBuilder: (context) =>
-            const SizedBox.shrink(), // TODO: Implement Following tab
-      ),
-      DynamicTab(
-        identifier: 'Stars',
-        tabViewBuilder: (context) =>
-            const SizedBox.shrink(), // TODO: Implement Stars tab
-      ),
-      DynamicTab(
-        identifier: 'Packages',
-        tabViewBuilder: (context) =>
-            const SizedBox.shrink(), // TODO: Implement Packages tab
-      ),
-      DynamicTab(
-        identifier: 'Pull Requests',
-        tabViewBuilder: (context) =>
-            const SizedBox.shrink(), // TODO: Implement Pull Requests tab
-      ),
-      DynamicTab(
-        identifier: 'Issues',
-        tabViewBuilder: (context) =>
-            const SizedBox.shrink(), // TODO: Implement Issues tab
-      ),
-      DynamicTab(
-        identifier: 'Projects',
-        tabViewBuilder: (context) =>
-            const SizedBox.shrink(), // TODO: Implement Projects tab
-      ),
-      DynamicTab(
-        identifier: 'Sponsors',
-        tabViewBuilder: (context) =>
-            const SizedBox.shrink(), // TODO: Implement Sponsors tab
-      ),
-    ];
+    final List<DynamicTab> tabs = userData.isOrganization
+        ? <DynamicTab>[
+            DynamicTab(
+              identifier: 'Overview',
+              isDismissible: false,
+              isFocusedOnInit: true,
+              tabViewBuilder: (final BuildContext context) =>
+                  OrganizationAboutScreen(
+                userData.asOrganization!,
+                pinnedRepositories: userData.pinnedRepositories,
+              ),
+            ),
+            DynamicTab(
+              identifier: 'Repositories',
+              tabViewBuilder: (final BuildContext context) => UserRepositories(
+                userData.login,
+                isOrganization: true,
+              ),
+            ),
+            DynamicTab(
+              identifier: 'People',
+              tab: TabBarItem(label: 'People'),
+              tabViewBuilder: (final BuildContext context) =>
+                  OrganizationMembers(userData.login),
+            ),
+          ]
+        : <DynamicTab>[
+            DynamicTab(
+              identifier: 'Activity',
+              isDismissible: false,
+              isFocusedOnInit: true,
+              tabViewBuilder: (final BuildContext context) => UserAboutScreen(
+                userData.asUser!,
+                selectedYear: widget.selectedYear,
+                customFromDate: widget.customFromDate,
+                customToDate: widget.customToDate,
+                useCustomRange: widget.useCustomRange,
+                onYearChanged: widget.onYearChanged,
+                onCustomRangeChanged: widget.onCustomRangeChanged,
+              ),
+            ),
+            DynamicTab(
+              identifier: 'Activity Feed',
+              tab: TabBarItem(label: 'Feed'),
+              tabViewBuilder: (final BuildContext context) => Events(
+                privateEvents: false,
+                specificUser: userData.login,
+              ),
+            ),
+            DynamicTab(
+              identifier: 'Repositories',
+              // isDismissible: false,
+              tabViewBuilder: (final BuildContext context) => UserRepositories(
+                userData.login,
+                currentUser: userData.isViewer,
+              ),
+            ),
+            DynamicTab(
+              identifier: 'Gists',
+              tabViewBuilder: (final BuildContext context) =>
+                  const SizedBox.shrink(), // TODO: Implement Gists tab
+            ),
+            DynamicTab(
+              identifier: 'Organizations',
+              tabViewBuilder: (final BuildContext context) =>
+                  UserOrganizations(userData.login),
+            ),
+            DynamicTab(
+              identifier: 'Followers',
+              tabViewBuilder: (final BuildContext context) =>
+                  const SizedBox.shrink(), // TODO: Implement Followers tab
+            ),
+            DynamicTab(
+              identifier: 'Following',
+              tabViewBuilder: (final BuildContext context) =>
+                  const SizedBox.shrink(), // TODO: Implement Following tab
+            ),
+            DynamicTab(
+              identifier: 'Stars',
+              tabViewBuilder: (final BuildContext context) =>
+                  const SizedBox.shrink(), // TODO: Implement Stars tab
+            ),
+            DynamicTab(
+              identifier: 'Packages',
+              tabViewBuilder: (final BuildContext context) =>
+                  const SizedBox.shrink(), // TODO: Implement Packages tab
+            ),
+            DynamicTab(
+              identifier: 'Pull Requests',
+              tabViewBuilder: (final BuildContext context) =>
+                  const SizedBox.shrink(), // TODO: Implement Pull Requests tab
+            ),
+            DynamicTab(
+              identifier: 'Issues',
+              tabViewBuilder: (final BuildContext context) =>
+                  const SizedBox.shrink(), // TODO: Implement Issues tab
+            ),
+            DynamicTab(
+              identifier: 'Projects',
+              tabViewBuilder: (final BuildContext context) =>
+                  const SizedBox.shrink(), // TODO: Implement Projects tab
+            ),
+            DynamicTab(
+              identifier: 'Sponsors',
+              tabViewBuilder: (final BuildContext context) =>
+                  const SizedBox.shrink(), // TODO: Implement Sponsors tab
+            ),
+          ];
     tabController = DynamicTabsController(vsync: this, tabs: tabs);
   }
 
@@ -1428,9 +1618,10 @@ class _UserProfileTabsContentState extends State<_UserProfileTabsContent>
               position: FloatingPosition.bottom,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               bottomPadding: 0.0,
-              title: widget.userData.name ?? widget.userData.login,
-              subtitle:
-                  widget.userData.name != null ? widget.userData.login : null,
+              title: widget.userData.nameOrLogin,
+              subtitle: widget.userData.displayName != null
+                  ? widget.userData.login
+                  : null,
               scrollNotificationNotifier: scrollNotificationNotifier,
               onExpandChanged: (isExpanded) {},
             );

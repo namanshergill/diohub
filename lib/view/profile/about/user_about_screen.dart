@@ -22,7 +22,7 @@ class UserAboutScreen extends ConsumerStatefulWidget {
     super.key,
   });
 
-  final GuserInfoData_user userData;
+  final GuserInfoData_repositoryOwner__asUser userData;
   final int? selectedYear;
   final DateTime? customFromDate;
   final DateTime? customToDate;
